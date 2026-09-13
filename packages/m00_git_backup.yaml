@@ -1,0 +1,33 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │      M00 — BACKUP GITHUB (repo BerrySwann/assistant-au-personne-)           │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Sauvegarde automatique de /config vers GitHub toutes les heures à H+10
+# (00:10, 01:10, 02:10, ...) — même mécanisme que la maison
+# (home_assistant_re-build → /config/.scripts/ha_git_backup.sh).
+#
+# Script : /config/shell_scripts/ha_git_backup.sh
+# Log    : /config/.logs/ha_git_backup.log
+# Tri    : c'est /config/.gitignore qui décide de ce qui est versionné
+#          (secrets.yaml, .storage/, photos_famille/, go2rtc*, zigbee2mqtt/,
+#          *.db, logs... exclus). Contrôle anti-secret : garde-fou dans le
+#          script (abandon si secrets.yaml est tracké).
+#
+# ⚠️ 2026-09-13 : à sa création, REDÉMARRAGE HA requis pour que le
+#    shell_command soit chargé (les shell_command ne se rechargent pas à
+#    chaud, contrairement aux templates/automations).
+#
+# Vérification : `git log` sur GitHub (ou /config/.logs/ha_git_backup.log)
+# doit montrer un commit frais passé la minute 10 de chaque heure.
+
+shell_command:
+  git_backup: "bash /config/shell_scripts/ha_git_backup.sh"
+
+automation:
+  - id: m00_git_backup_h10
+    alias: "M00 — Backup GitHub (H+10)"
+    mode: single
+    trigger:
+      - trigger: time_pattern
+        minutes: "10"
+    action:
+      - action: shell_command.git_backup
