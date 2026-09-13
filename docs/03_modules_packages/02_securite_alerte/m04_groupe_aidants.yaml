@@ -1,0 +1,69 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M04-GROUPE — ENVOI ALERTES AUX AIDANTS (PACKAGE)            │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Réécrit le 2026-08-05 (v2) : abandon des groupes natifs HA "Aides > Groupe"
+# (trouvé trop caché dans l'UI par l'utilisateur, cf. retour direct). À la
+# place : la liste des destinataires SOS est calculée dynamiquement à partir
+# des cases à cocher input_boolean.m04_proximite_aidant_N définies dans
+# packages/m04_gestion_aidants.yaml — visibles et modifiables sur le
+# dashboard Configuration, sans passer par un menu HA caché.
+#
+# ⚠️ Les person.x ci-dessous sont des comptes FICTIFS confirmés par
+# l'utilisateur le 2026-08-05. À remplacer par les vrais entity_id une fois
+# les vrais aidants inscrits dans HA (Paramètres > Personnes + appli
+# Companion pour que notify.send_message puisse réellement les notifier).
+#
+# ⚠️ Nécessite HA récent pour notify.send_message avec cible "person"
+# directement. Si l'HA est plus ancien et que ça ne fonctionne pas, prévenir
+# pour repasser sur l'ancien mécanisme (notify.mobile_app_xxx un par un).
+
+script:
+  m04_envoyer_alerte_sos:
+    alias: "M04 - Envoyer alerte SOS aux aidants de proximité cochés"
+    sequence:
+      - service: notify.send_message
+        target:
+          entity_id: >-
+            {{ [
+              {'ib': 'input_boolean.m04_proximite_aidant_1', 'person': 'person.aidant_1_admin_ok'},
+              {'ib': 'input_boolean.m04_proximite_aidant_2', 'person': 'person.aidant_2_ok'},
+              {'ib': 'input_boolean.m04_proximite_aidant_3', 'person': 'person.aidant_3_ok'},
+              {'ib': 'input_boolean.m04_proximite_aidant_4', 'person': 'person.aidant_4_hs'},
+              {'ib': 'input_boolean.m04_proximite_aidant_5', 'person': 'person.aidant_5_hs'},
+              {'ib': 'input_boolean.m04_proximite_aidant_6', 'person': 'person.aidant_6_ok'},
+              {'ib': 'input_boolean.m04_proximite_aidant_7', 'person': 'person.aidant_7_hs'},
+            ] | selectattr('ib', 'is_state', 'on') | map(attribute='person') | list }}
+        data:
+          title: "🚨 SOS déclenché"
+          message: "Bouton d'urgence pressé. Vérifier la personne immédiatement."
+
+  m04_envoyer_alerte_moderee:
+    alias: "M04 - Envoyer alerte modérée à tous les aidants"
+    fields:
+      titre:
+        description: "Titre de la notification"
+      message:
+        description: "Contenu du message"
+    sequence:
+      - service: notify.send_message
+        target:
+          entity_id:
+            - person.aidant_1_admin_ok
+            - person.aidant_2_ok
+            - person.aidant_3_ok
+            - person.aidant_4_hs
+            - person.aidant_5_hs
+            - person.aidant_6_ok
+            - person.aidant_7_hs
+        data:
+          title: "{{ titre }}"
+          message: "{{ message }}"
+
+# annotations_log:
+# - 2026-08-05 v1 : 21 entités custom supprimées, remplacées par person.x +
+#   2 groupes natifs HA (.storage).
+# - 2026-08-05 v2 : groupes natifs abandonnés (UI "Aides > Groupe" jugée trop
+#   cachée par l'utilisateur). Remplacés par calcul dynamique de la cible SOS
+#   à partir des cases à cocher input_boolean.m04_proximite_aidant_N
+#   (packages/m04_gestion_aidants.yaml), visibles sur le dashboard
+#   Configuration. Les 7 person.x sont des comptes fictifs de test.

@@ -1,0 +1,15 @@
+{
+  "_comment": "Parametres Interface Aidant. 'defaut' = valeur d'usine appliquee au premier lancement. 'actuel' = valeur modifiee (centralisee, mise a jour manuellement ou par script). Le navigateur ne peut pas reecrire ce fichier : les changements de session vont dans le localStorage de chaque appareil.",
+  "ha_user_name": {
+    "defaut": "La famille",
+    "actuel": "La famille"
+  },
+  "defauts_m03": {
+    "rl_max": { "defaut": 1, "actuel": 1 },
+    "rl_fenetre": { "defaut": 30, "actuel": 30 },
+    "affichage_duree": { "defaut": 15, "actuel": 15 },
+    "queue_max": { "defaut": 5, "actuel": 5 },
+    "envoi_debut": { "defaut": "08:00", "actuel": "08:00" },
+    "envoi_fin": { "defaut": "19:00", "actuel": "19:00" }
+  }
+}

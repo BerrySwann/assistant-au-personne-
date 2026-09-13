@@ -1,0 +1,18 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │         M02 — LOG PRÉSENCE : SHELL COMMAND (APPEND FICHIER)                 │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+#
+# ## 📝 DESCRIPTION :
+# Shell command appelé par l'automation m02_log_presence_salon.
+# Écrit une ligne horodatée dans /config/logs/m02_presence_salon.log
+# à chaque changement d'état du capteur binary_sensor.presence_salon_occupancy.
+#
+# ## ⚠️ IMPORTANT (PIÈGES) :
+# - Le répertoire /config/logs/ est créé automatiquement (mkdir -p).
+# - Le log est en mode APPEND (>>) — ne jamais écraser.
+# - Format ligne : YYYY-MM-DD HH:MM:SS | SALON | ON / OFF
+#
+
+shell_command:
+  m02_log_presence_salon: >-
+    bash -c 'mkdir -p /config/logs && echo "{{ now().strftime('%Y-%m-%d %H:%M:%S') }} | SALON | {{ states('binary_sensor.presence_salon_occupancy') | upper }}" >> /config/logs/m02_presence_salon.log'

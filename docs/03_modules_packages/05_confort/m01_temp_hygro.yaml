@@ -1,0 +1,109 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M01 — TEMPÉRATURE & HYGROMÉTRIE (PACKAGE)                  │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Sources : SONOFF SNZB-02D (Zigbee Z2M)
+# Adapter les entity_id sources si le nom Z2M diffère.
+
+sensor:
+  - platform: statistics
+    name: "M01 Temp Salon Min 24h"
+    unique_id: m01_temp_salon_min_24h
+    entity_id: sensor.snzb02d_salon_temperature
+    state_characteristic: value_min
+    max_age:
+      hours: 24
+    sampling_size: 150
+
+  - platform: statistics
+    name: "M01 Temp Salon Max 24h"
+    unique_id: m01_temp_salon_max_24h
+    entity_id: sensor.snzb02d_salon_temperature
+    state_characteristic: value_max
+    max_age:
+      hours: 24
+    sampling_size: 150
+
+  - platform: statistics
+    name: "M01 Hygro Salon Moy 24h"
+    unique_id: m01_hygro_salon_avg_24h
+    entity_id: sensor.snzb02d_salon_humidity
+    state_characteristic: mean
+    max_age:
+      hours: 24
+    sampling_size: 150
+
+  - platform: statistics
+    name: "M01 Temp Chambre Min 24h"
+    unique_id: m01_temp_chambre_min_24h
+    entity_id: sensor.snzb02d_chambre_temperature
+    state_characteristic: value_min
+    max_age:
+      hours: 24
+    sampling_size: 150
+
+  - platform: statistics
+    name: "M01 Temp Chambre Max 24h"
+    unique_id: m01_temp_chambre_max_24h
+    entity_id: sensor.snzb02d_chambre_temperature
+    state_characteristic: value_max
+    max_age:
+      hours: 24
+    sampling_size: 150
+
+template:
+  - sensor:
+      - name: "M01 Alerte Température"
+        unique_id: m01_alerte_temperature
+        icon: mdi:thermometer-alert
+        state: >
+          {% if not is_state('input_boolean.module_temp_hygro', 'on') %}
+            inactif
+          {% elif states('sensor.snzb02d_salon_temperature') | float(20) < 16 %}
+            froid
+          {% elif states('sensor.snzb02d_salon_temperature') | float(20) > 28 %}
+            canicule
+          {% elif states('sensor.snzb02d_chambre_temperature') | float(20) < 16 %}
+            froid_chambre
+          {% else %}
+            ok
+          {% endif %}
+        attributes:
+          message: >
+            {% set ts = states('sensor.snzb02d_salon_temperature') | float(0) %}
+            {% set tc = states('sensor.snzb02d_chambre_temperature') | float(0) %}
+            {% if ts < 16 %}⚠️ Froid au salon : {{ ts }}°C
+            {% elif ts > 28 %}🌡️ Forte chaleur au salon : {{ ts }}°C
+            {% elif tc < 16 %}⚠️ Froid dans la chambre : {{ tc }}°C
+            {% else %}✅ Température normale{% endif %}
+
+      - name: "M01 Alerte Humidité"
+        unique_id: m01_alerte_humidite
+        icon: mdi:water-alert
+        state: >
+          {% if not is_state('input_boolean.module_temp_hygro', 'on') %}
+            inactif
+          {% elif states('sensor.snzb02d_salon_humidity') | float(50) > 70 %}
+            elevee
+          {% elif states('sensor.snzb02d_salon_humidity') | float(50) < 30 %}
+            basse
+          {% else %}
+            ok
+          {% endif %}
+
+      - name: "M01 Résumé Temp Salon"
+        unique_id: m01_resume_temp_salon
+        icon: mdi:sofa
+        state: >
+          {% set t = states('sensor.snzb02d_salon_temperature') | float(0) | round(1) %}
+          {% set tmin = states('sensor.m01_temp_salon_min_24h') | float(0) | round(1) %}
+          {% set tmax = states('sensor.m01_temp_salon_max_24h') | float(0) | round(1) %}
+          {{ t }}°C  ↓{{ tmin }}° ↑{{ tmax }}°
+
+      - name: "M01 Résumé Temp Chambre"
+        unique_id: m01_resume_temp_chambre
+        icon: mdi:bed
+        state: >
+          {% set t = states('sensor.snzb02d_chambre_temperature') | float(0) | round(1) %}
+          {% set tmin = states('sensor.m01_temp_chambre_min_24h') | float(0) | round(1) %}
+          {% set tmax = states('sensor.m01_temp_chambre_max_24h') | float(0) | round(1) %}
+          {{ t }}°C  ↓{{ tmin }}° ↑{{ tmax }}°

@@ -1,0 +1,82 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M10-GROUPE — ENVOI ALERTES AUX AIDANTS (PACKAGE)            │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# v3 (2026-08-05) : remontée 100% AUTOMATIQUE des person.* — plus aucun nom
+# d'aidant en dur. Les destinataires sont calculés à la volée à partir des
+# entités person.* présentes dans Home Assistant.
+#
+# Convention de nommage (seule chose à respecter) :
+#   - person.eric = personne aidée (exclue de tous les envois)
+#   - case à cocher d'un aidant = helper input_boolean.m10_prox_<object_id>
+#     ex : person.jean  ->  input_boolean.m10_prox_jean
+#   - Création du helper (UI Paramètres > Aides, ou hab) :
+#       hab helper input-boolean create m10_prox_jean --icon mdi:account-heart
+#       hab entity rename input_boolean.m10_prox_jean "Jean"
+#     Les helpers vivent dans le registre HA : ils survivent aux
+#     redémarrages, et disparaissent quand on les supprime.
+#
+# Comportement automatique :
+#   - Case cochée   = aidant de proximité -> reçoit le SOS.
+#   - Case absente  = aidant ignoré sans erreur (personne supprimée dans HA
+#     = zéro édition de fichier, elle sort toute seule des envois).
+#   - Nouveau bouton créé -> pris en compte immédiatement par le script SOS.
+#   - Le dashboard Configuration affiche ces cases automatiquement via la
+#     carte auto-entities (filtre input_boolean.m10_prox_*).
+#
+# ⚠️ INCOHÉRENCE CONNUE (repérée le 2026-08-15, PAS corrigée — hors périmètre
+# de la session en cours) : ce fichier utilise input_boolean.m10_prox_
+# <object_id> (dynamique), alors que m10_gestion_aidants.yaml déclare
+# input_boolean.m10_proximite_aidant_1 à _7 (7 aidants fixes). Les deux
+# mécanismes coexistent dans le repo sans lien entre eux — à clarifier avant
+# d'activer réellement les notify.send_message ci-dessous (aujourd'hui
+# commentés/désactivés).
+# ⚠️ m10_envoyer_alerte_moderee n'est appelé nulle part actuellement (script
+# orphelin, prêt mais jamais déclenché).
+
+script:
+  m10_envoyer_alerte_sos:
+    alias: "M10 - Envoyer alerte SOS aux aidants de proximité cochés"
+    sequence:
+      # DÉSACTIVÉ — nécessite Companion app sur chaque téléphone. Le code
+      # ci-dessous est prêt et fonctionnel, à réactiver une fois qu'au moins
+      # un aidant a l'app installée et connectée (device_tracker actif).
+      # - service: notify.send_message
+      #   target:
+      #     entity_id: >-
+      #       {{ states.input_boolean | selectattr('state', 'eq', 'on') | map(attribute='entity_id') | select('match', '^input_boolean\\.m10_prox_') | map('regex_replace', '^input_boolean\\.m10_prox_', 'person.') | reject('eq', 'person.eric') | list }}
+      #   data:
+      #     title: "🚨 SOS déclenché"
+      #     message: "Bouton d'urgence pressé. Vérifier la personne immédiatement."
+
+  m10_envoyer_alerte_moderee:
+    alias: "M10 - Envoyer alerte modérée aux aidants ayant le droit 🚨 Alertes"
+    fields:
+      titre:
+        description: "Titre de la notification"
+      message:
+        description: "Contenu du message"
+    sequence:
+      # DÉSACTIVÉ — mêmes contraintes que m10_envoyer_alerte_sos.
+      #
+      # 2026-08-15 (suite, remplacement des PIN par les droits) : jusqu'ici
+      # ce template envoyait à TOUS les person.* sans distinction (aucun
+      # filtre). Corrigé pour ne cibler que les aidants ayant coché le
+      # nouveau droit "🚨 Alertes" (bit 32) dans input_text.
+      # m10_droits_aidants — voir m10_gestion_aidants.yaml pour le détail du
+      # bitmask. Décision explicite de l'utilisateur : ce droit est SÉPARÉ
+      # du système input_boolean.m10_proximite_aidant_* (SOS) ci-dessus —
+      # deux mécanismes indépendants, ne pas les fusionner.
+      # - service: notify.send_message
+      #   target:
+      #     entity_id: >-
+      #       {%- set droits = states('input_text.m10_droits_aidants') | default('{}', true) | from_json -%}
+      #       {%- set ns = namespace(cibles=[]) -%}
+      #       {%- for object_id, mask in droits.items() -%}
+      #         {%- if (mask | int(0)) | bitwise_and(32) -%}
+      #           {%- set ns.cibles = ns.cibles + ['person.' + object_id] -%}
+      #         {%- endif -%}
+      #       {%- endfor -%}
+      #       {{ ns.cibles }}
+      #   data:
+      #     title: "{{ titre }}"
+      #     message: "{{ message }}"

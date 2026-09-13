@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f172a">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Configuration</title>
+<style>
+:root {
+  --bg: #0f172a; --surface: #1e293b; --border: rgba(255,255,255,0.07);
+  --text: #f1f5f9; --text2: #94a3b8; --text3: #475569;
+  --green: #22c55e; --amber: #f59e0b; --purple: #8b5cf6;
+  --cyan: #06b6d4; --pink: #ec4899; --blue: #2563eb;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+
+/* HEADER */
+.header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
+.btn-back { background: rgba(255,255,255,0.06); border: none; border-radius: 8px; color: var(--text2); font-size: 18px; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.header-title { font-size: 15px; font-weight: 600; }
+.header-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
+
+/* TABS */
+.tabs { display: flex; flex-direction: column; background: var(--surface); border-bottom: 1px solid var(--border); }
+.tab { display: flex; align-items: center; gap: 10px; padding: 14px 16px; font-size: 15px; font-weight: 600; color: var(--text2); cursor: pointer; border-bottom: 1px solid var(--border); border-left: 3px solid transparent; white-space: nowrap; transition: color 0.2s, border-color 0.2s, background 0.2s; }
+/* Même carré arrondi que le bouton retour (←), mais placé DEVANT chaque ligne, flèche → */
+.tab::before { content: '→'; flex-shrink: 0; width: 36px; height: 36px; background: rgba(255,255,255,0.06); border-radius: 8px; color: var(--text2); font-size: 18px; display: flex; align-items: center; justify-content: center; }
+.tab:last-child { border-bottom: none; }
+.tab.active { color: var(--text); border-left-color: var(--blue); background: rgba(37, 99, 235, 0.12); }
+
+/* CONTENT */
+.content { padding: 12px 12px 32px; max-width: 480px; margin: 0 auto; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* SECTION TITLE */
+.section-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; padding: 16px 0 8px; }
+
+/* MODULE TOGGLE CARD */
+.mod-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.mod-card:active { opacity: 0.8; }
+.mod-card.mod-disabled { opacity: 0.35; }
+.mod-card.mod-hw-disabled { opacity: 0.35; pointer-events: none; cursor: not-allowed; }
+/* Cartes enfants : décalées vers la droite sous la carte parente */
+.mod-card.mod-child { margin-left: 26px; }
+.mod-info { flex: 1; min-width: 0; }
+.mod-name { font-size: 13px; font-weight: 500; }
+.mod-desc { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+/* ─── APERÇU DE L'ÉCRAN KIOSK (maquette des zones) ─── */
+.kiosk-preview { background: var(--bg); border: 1px solid var(--border); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 5px; }
+.kp-row { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 6px 14px 7px; font-size: 12px; color: var(--text2); display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+.kp-row .kp-tag { font-size: 10px; color: var(--text3); white-space: nowrap; }
+.kp-msg { background: rgba(34,197,94,0.12); color: #86efac; }
+.kp-main { background: #000; border: 1px dashed rgba(255,255,255,0.18); border-radius: 10px; padding: 18px 14px; text-align: left; min-height: 250px; }
+.kp-main-label { font-size: 10px; letter-spacing: 1.5px; color: var(--text3); text-transform: uppercase; margin-bottom: 4px; }
+.kp-main-name { font-size: 15px; font-weight: 600; color: var(--text); }
+.kp-main-alt { font-size: 11px; color: var(--text); font-weight: 600; margin-top: 8px; line-height: 1.85; }
+.kp-main-alt .kp-off { color: #ef4444; }
+
+/* TOGGLE SWITCH */
+.toggle { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-track { position: absolute; inset: 0; border-radius: 22px; background: var(--text3); transition: background 0.2s; }
+.toggle-track:before { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: white; left: 3px; top: 3px; transition: transform 0.2s; }
+input:checked + .toggle-track { background: var(--green); }
+input:checked + .toggle-track:before { transform: translateX(18px); }
+.mod-card.color-amber input:checked + .toggle-track { background: var(--amber); }
+.mod-card.color-purple input:checked + .toggle-track { background: var(--purple); }
+.mod-card.color-cyan input:checked + .toggle-track { background: var(--cyan); }
+.mod-card.color-pink input:checked + .toggle-track { background: var(--pink); }
+
+/* AIDANT ROW */
+.aidant-list { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 8px; }
+.aidant-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.aidant-row:last-child { border-bottom: none; }
+.aidant-row:active { background: rgba(255,255,255,0.03); }
+.aidant-name { flex: 1 1 90px; min-width: 70px; font-size: 13px; }
+
+/* DROITS ROW (6 cases : config/messages/calendrier/video/photos/alertes,
+   2026-08-15) — flex-wrap sur .aidant-row + flex-shrink:0 ici pour que les
+   6 icônes tiennent sur mobile sans écraser le nom (qui passe en 2e ligne
+   si besoin). */
+.droit-check { display: flex; align-items: center; gap: 2px; font-size: 15px; opacity: 0.35; cursor: pointer; flex-shrink: 0; }
+.droit-check.on { opacity: 1; }
+.droit-check input { display: none; }
+
+/* SESSION TV */
+.session-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 8px; overflow: hidden; }
+.session-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; }
+.session-head:active { opacity: 0.8; }
+.session-label { flex: 1; font-size: 13px; font-weight: 500; }
+.session-body { padding: 0 14px 12px; display: none; }
+.session-body.open { display: block; }
+.field-row { margin-bottom: 10px; }
+.field-label { font-size: 10px; color: rgb(180, 180, 180); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.field-input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; padding: 8px 10px; }
+.field-input:focus { outline: none; border-color: var(--purple); }
+/* 2026-09-13 : icônes natives des champs date/heure (calendrier + horloge) —
+   noires par défaut sur fond sombre, inversées en gris clair ~180. */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.71);
+  cursor: pointer;
+}
+.field-select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; padding: 8px 10px; }
+.btn-save { background: var(--purple); border: none; border-radius: 8px; color: white; font-size: 12px; padding: 7px 16px; cursor: pointer; margin-top: 4px; }
+.btn-save:active { filter: brightness(0.85); }
+.btn-run { background: var(--green); border: none; border-radius: 8px; color: white; font-size: 12px; padding: 7px 16px; cursor: pointer; }
+.field-select-inline { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 12px; padding: 6px 8px; min-width: 0; }
+.btn-ok { background: var(--green); border: none; border-radius: 8px; color: white; font-size: 16px; line-height: 1; padding: 6px 10px; cursor: pointer; flex-shrink: 0; }
+.btn-ok:active { filter: brightness(0.85); }
+.session-hours { display: flex; align-items: center; gap: 8px; padding: 0 14px 10px; }
+.session-hours .field-input { font-size: 12px; padding: 6px 8px; }
+.session-hours-sep { color: var(--text3); font-size: 12px; flex-shrink: 0; }
+
+/* OUTILS */
+.tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tool-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; color: var(--text2); font-size: 12px; padding: 16px 10px; cursor: pointer; text-align: center; text-decoration: none; display: block; }
+.tool-btn:active { opacity: 0.7; }
+.tool-icon { font-size: 22px; margin-bottom: 6px; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(60px); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 18px; font-size: 12px; transition: transform 0.2s; z-index: 99; white-space: nowrap; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* SPINNER */
+.spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── MODE "ONLY" (pages dédiées, 2026-08-15) ─────────────────
+   Ajouté pour video.html (?only=tv), qui embarque config.html en iframe
+   et n'affiche que la zone Sessions TV. Sans effet si ?only= absent. */
+html.only-tv .header { display: none !important; }
+html.only-tv .tabs { display: none !important; }
+html.only-tv .tab-panel { display: none !important; }
+html.only-tv #panel-2 { display: block !important; }
+html.only-tv #panel2-other { display: none !important; }
+
+/* 2026-08-16 (retour utilisateur) : hors mode ?only=tv, le bloc Sessions TV /
+   Réglages avancés NE s'affiche PAS dans l'onglet Confort de l'interface
+   aidant — la configuration TV (+ plage horaire visio depuis le 18/08) se
+   fait désormais uniquement via la page dédiée Vidésio (video.html, qui
+   embarque config.html?only=tv). Le bloc reste présent dans le DOM pour
+   cette page, simplement masqué ici. */
+#only-tv-block { display: none; }
+html.only-tv #only-tv-block { display: block !important; }
+
+/* ── ACCESS GATE (2026-08-15, suite — remplace l'ancien gate PIN) ── */
+/* Protège config.html lui-même par droit réel (🔧), pas par PIN — inactif
+   en mode ?only=tv (déjà protégé par video.html en amont). */
+#access-gate { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+.pin-box { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 28px 24px; width: 100%; max-width: 320px; text-align: center; }
+.pin-icon { font-size: 40px; margin-bottom: 10px; }
+.pin-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.pin-sub { font-size: 12px; color: var(--text3); margin-bottom: 18px; }
+.pin-back { display: block; margin-top: 18px; color: var(--text3); font-size: 12px; text-decoration: underline; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<!-- 2026-08-15 (suite, remplacement des PIN) : gate par droits réels,
+     protégeant config.html lui-même. Remplace l'ancien gate PIN (retiré —
+     jugé ingérable, un PIN partagé donne accès à quiconque le connaît).
+     Identifie qui est réellement connecté via WebSocket auth/current_user,
+     résout la fiche person.* correspondante, vérifie le droit 🔧 (bit 1)
+     dans input_text.m10_droits_aidants. Voir m10_gestion_aidants.yaml pour
+     le détail complet. Inactif en mode ?only=tv (déjà protégé par le droit
+     📅/📺 de video.html en amont) — voir script plus bas. -->
+<div id="access-gate">
+  <div class="pin-box">
+    <div class="pin-icon" id="gate-icon">🔒</div>
+    <div class="pin-title" id="gate-title">Configuration</div>
+    <div class="pin-sub" id="gate-sub">Vérification de tes droits d'accès…</div>
+    <span class="pin-back" onclick="window.parent.closeConfig ? window.parent.closeConfig() : window.location.href='/local/aidant.html'">← Retour</span>
+  </div>
+</div>
+
+<div id="app-content" style="display:none;">
+
+<div class="header">
+  <button class="btn-back" onclick="handleBack()" title="Retour">←</button>
+  <div>
+    <div class="header-title" id="header-title">⚙️ Configuration</div>
+    <div class="header-sub" id="ha-user"></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab" data-tab="2" onclick="switchTab(2)">📺 Kiosk TV</div>
+  <div class="tab" data-tab="0" onclick="switchTab(0)">✅ Général</div>
+  <div class="tab" data-tab="1" onclick="switchTab(1)">🛡️ Sécurité</div>
+  <div class="tab" data-tab="3" onclick="switchTab(3)">🌡️ Env.</div>
+  <div class="tab" data-tab="4" onclick="switchTab(4)">👨‍👩‍👧 Famille</div>
+  <div class="tab" data-tab="5" onclick="switchTab(5)">👥 Aidants</div>
+  <div class="tab" data-tab="6" onclick="switchTab(6)">🔧 Outils</div>
+</div>
+
+<div class="content">
+
+  <!-- TAB 0 : GÉNÉRAL -->
+  <div class="tab-panel" id="panel-0">
+    <div class="section-label" style="color:var(--green)">✅ Obligatoires</div>
+    <div id="general-modules"></div>
+  </div>
+
+  <!-- TAB 1 : SÉCURITÉ (2026-08-16 : coupé en deux — ne garde que les modules.
+       Toute la partie Aidants, SOS proximité + droits d'accès, est passée
+       dans son propre onglet "👥 Aidants", en fin de barre avant Outils.) -->
+  <div class="tab-panel" id="panel-1">
+    <div class="section-label" style="color:var(--amber)">🛡️ Modules</div>
+    <div id="securite-modules"></div>
+
+    <!-- 2026-08-16 : Rappels médicaments (M13). 4 moments, chacun activable
+         avec son heure ; le rappel s'affiche sur le kiosk puis disparaît
+         après la durée réglée. Piloté par le module M13 ci-dessus. -->
+    <div id="medoc-detail-block">
+    <div class="section-label" style="color:var(--amber)">💊 M14 — Rappels médicaments</div>
+    <div style="color:rgb(180,180,180);font-size:11px;padding:0 4px 6px;line-height:1.5;">
+      Un rappel s'affiche sur l'écran de la personne aidée à l'heure de prise,
+      pour 4 moments (matin / midi / soir / coucher). Chaque moment s'active
+      séparément et a sa propre heure. Le rappel disparaît tout seul après la
+      durée réglée — c'est une simple notification, rien à valider.
+      ⚠️ Nécessite le module <b>M14 — Médicaments</b> activé ci-dessus. Ne
+      détecte PAS la prise — à réserver aux profils sans risque de reprise
+      (s'appuyer sur un pilulier, voir cahier des charges).
+    </div>
+    <div id="medoc-config"></div>
+    </div><!-- /medoc-detail-block -->
+  </div>
+
+  <!-- TAB 2 : CONFORT -->
+  <div class="tab-panel" id="panel-2">
+    <!-- 2026-08-15 : #panel2-other / #only-tv-block ajoutés pour permettre
+         à video.html d'isoler la zone TV via ?only=tv (voir mode "only"
+         plus bas). Ne change rien au comportement normal. -->
+    <div id="panel2-other">
+    <div class="section-label" style="color:var(--purple)">📺 Modules</div>
+    <div id="confort-modules"></div>
+
+    <div class="section-label" style="color:var(--purple)">🖼️ Aperçu de l'écran (kiosk)</div>
+    <div class="kiosk-preview">
+      <div class="kp-row"><span>16:48 · dimanche 13 septembre 2026</span><span class="kp-tag">🕐 Horloge</span></div>
+      <div class="kp-row" id="kp-cal"><span>Aucun rendez-vous à venir</span><span class="kp-tag">M04 — Bandeau Calendrier</span></div>
+      <div class="kp-row kp-msg" id="kp-msg"><span>La famille : Des bisous</span><span class="kp-tag">M03 — Bandeau Messages</span></div>
+      <div class="kp-main" id="kp-main">
+        <div class="kp-main-label">Grand écran</div>
+        <div class="kp-main-name">Écran Général Kiosk</div>
+        <div class="kp-main-alt">
+          <span data-mod="m09">ou M09 — Écran Photos Famille</span><br>
+          <span data-mod="m10">ou M10 — Écran Musique</span><br>
+          <span data-mod="m11">ou M11 — Écran Visioconférence</span><br>
+          <span data-mod="m12">ou M12 — Écran Télévision</span>
+        </div>
+      </div>
+    </div>
+    <!-- 2026-08-16 : section "📹 M33 — Visio" (champ URL Google Meet) RETIRÉE.
+         Obsolète depuis la visio maison (WebRTC, voir M33_visio.md) : l'appel
+         se lance via le bouton "Appeler" de l'interface aidant, sans URL à
+         configurer. L'ancien champ input_text.m33_visio_url ne servait qu'au
+         repli Google Meet, qui n'est plus le chemin utilisé. -->
+    <!-- 2026-08-15 (déplacé) : l'ajout de photos ("📷 M31 — Photos") vivait
+         ici (bouton "Choisir des photos…"). Déplacé à la demande de
+         l'utilisateur dans la page dédiée photos.html, qui gère désormais
+         upload + galerie + suppression au même endroit. Voir photos.html. -->
+    </div><!-- /panel2-other -->
+    <div id="only-tv-block">
+    <div id="tv-sessions-block">
+    <div class="section-label" style="color:#fff">📺 Vidésio — Sessions TV & Visio</div>
+    <div id="tv-sessions"></div>
+    </div><!-- /tv-sessions-block -->
+    <!-- 2026-08-18 : section "⚙️ Réglages avancés TV" retirée — son seul
+         champ (Browser ID TV) ne servait plus à rien depuis la bascule du
+         14/08 vers kiosk.html en HTML pur (voir M34_television.md). -->
+
+    <!-- 2026-08-18 (suite) : plage horaire des appels visio (M33), déplacée
+         ici depuis l'onglet Aidants pour être regroupée avec les horaires
+         TV — module renommé "Vidésio" (TV + Visio au même endroit). L'appel
+         s'affiche tout seul sur l'écran de la personne aidée, sans aucun
+         geste requis — pas question de laisser un appel "réveiller"
+         quelqu'un en pleine nuit. Hors plage, aidant.html refuse de lancer
+         l'appel (case "Urgence" pour passer outre), et kiosk.html refuse en
+         plus de répondre automatiquement (garde-fou redondant). -->
+    <div id="visio-plage-block">
+    <div class="section-label" style="color:#fff">🕐 Plage horaire des appels visio</div>
+    <div style="color:rgb(180,180,180);font-size:11px;padding:0 4px 6px;line-height:1.5;">
+      En dehors de cette plage, l'appel passe uniquement en mode URGENT :
+      au moment d'appeler, l'aidant doit confirmer qu'il s'agit d'une
+      urgence (sinon l'appel est annulé). L'appel s'affiche alors tout seul
+      sur l'écran de la personne aidée, sans aucun geste requis — pas
+      question de la réveiller pour un appel ordinaire.
+      ⚠️ Sans réglage, les deux heures valent 00:00 : aucun appel ordinaire
+      ne peut passer.
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;gap:12px;">
+      <div class="field-row" style="flex:1;margin-bottom:0;">
+        <div class="field-label">Début</div>
+        <input type="time" class="field-input" id="visio_horaire_debut"
+               onchange="setDatetime('input_datetime.m33_horaire_debut', this.value)">
+      </div>
+      <div class="field-row" style="flex:1;margin-bottom:0;">
+        <div class="field-label">Fin</div>
+        <input type="time" class="field-input" id="visio_horaire_fin"
+               onchange="setDatetime('input_datetime.m33_horaire_fin', this.value)">
+      </div>
+    </div>
+    </div><!-- /visio-plage-block -->
+    </div><!-- /only-tv-block -->
+  </div>
+
+  <!-- TAB 3 : ENVIRONNEMENT -->
+  <div class="tab-panel" id="panel-3">
+    <div class="section-label" style="color:var(--cyan)">🌡️ Modules</div>
+    <div id="env-modules"></div>
+  </div>
+
+  <!-- TAB 4 : FAMILLE -->
+  <div class="tab-panel" id="panel-4">
+    <div class="section-label" style="color:var(--pink)">👨‍👩‍👧 Modules</div>
+    <div id="famille-modules"></div>
+  </div>
+
+  <!-- TAB 5 : AIDANTS (déplacé depuis Sécurité le 2026-08-16 — SOS proximité
+       + droits d'accès regroupés ici, en fin de barre avant Outils) -->
+  <div class="tab-panel" id="panel-5">
+    <div class="section-label" style="color:var(--amber)">🚨 M04 — Aidants de proximité (reçoivent le SOS)</div>
+    <div class="aidant-list" id="aidant-list"></div>
+
+    <div class="section-label" style="color:var(--amber)">🔐 Droits d'accès (interface Aidant)</div>
+    <div style="color:rgb(180,180,180);font-size:11px;padding:0 4px 6px;line-height:1.5;">
+      🔧 Config · ⚙️ Messages · 📅 Calendrier · 📺 Vidésio · 📷 Photos · 🚨 Alertes
+      (reçoit les alertes modérées/infos — distinct du SOS ci-dessus).
+      S'applique automatiquement selon qui est réellement connecté (compte HA
+      propre à chaque aidant requis — voir Paramètres → Personnes).
+      Toi (installateur) as toujours tous les droits — non modifiable ici.
+      ⚠️ Un aidant sans compte HA propre (nom d'utilisateur + mot de passe)
+      ne peut être identifié, donc n'a accès à rien tant que ce compte
+      n'existe pas.
+    </div>
+    <div class="aidant-list" id="droits-list"></div>
+    <!-- 2026-08-18 (suite) : la plage horaire des appels visio (M33) a été
+         déplacée dans l'onglet Confort → section 📺 Vidésio, regroupée avec
+         les horaires des sessions TV — voir plus bas (#only-tv-block). -->
+  </div>
+
+  <!-- TAB 6 : OUTILS -->
+  <div class="tab-panel" id="panel-6">
+    <div class="section-label" style="color:var(--text3)">🔧 Raccourcis</div>
+    <div class="tools-grid">
+      <a class="tool-btn" href="javascript:haNav('/developer-tools/template')"><div class="tool-icon">📝</div>Templates</a>
+      <a class="tool-btn" href="javascript:haNav('/developer-tools/state')"><div class="tool-icon">📊</div>États</a>
+      <a class="tool-btn" href="javascript:haNav('/config/logs')"><div class="tool-icon">🗒️</div>Logs</a>
+      <a class="tool-btn" href="javascript:haNav('/hacs')"><div class="tool-icon">🧩</div>HACS</a>
+      <a class="tool-btn" href="javascript:haNav('/config/integrations')"><div class="tool-icon">🔌</div>Intégrations</a>
+      <a class="tool-btn" href="javascript:haNav('/config/automation')"><div class="tool-icon">⚡</div>Automations</a>
+    </div>
+    <div class="section-label" style="color:var(--text3);margin-top:16px;">📡 Appairage</div>
+    <div class="tools-grid">
+      <a class="tool-btn" href="javascript:location.href='/local/appairage.html?v='+Date.now()"><div class="tool-icon">📡</div>Appairage Z2M</a>
+    </div>
+  </div>
+
+</div>
+
+</div><!-- /#app-content -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BASE = window.location.origin;
+const token = localStorage.getItem('ha_token') || '';
+
+// ── MODE "ONLY" (pages dédiées, 2026-08-15) ─────────────────
+// ?only=tv (utilisé par video.html en iframe) : isole #only-tv-block
+// (Sessions TV), cache le header/tabs/reste (voir <style>). Sans effet
+// si le paramètre est absent — comportement normal inchangé.
+const ONLY_MODE = new URLSearchParams(window.location.search).get('only');
+if (ONLY_MODE === 'tv') document.documentElement.classList.add('only-tv');
+function haSessionToken() {
+  try {
+    const raw = localStorage.getItem('hassTokens');
+    if (!raw) return '';
+    const t = JSON.parse(raw);
+    if (!t || !t.access_token) return '';
+    if (t.expires && Date.now() > t.expires) return '';
+    return t.access_token;
+  } catch (e) { return ''; }
+}
+function currentToken() { return haSessionToken() || token; }
+
+// 2026-08-15 (correctif, propagé depuis photos.html) : le token de session
+// HA (hassTokens, ~30 min) peut être invalide/expiré sans que notre test
+// d'expiration le détecte de façon fiable (confirmé par un log HA "Login
+// attempt failed... invalid authentication" pendant le débogage de l'upload
+// photo). fetchAuth() retente automatiquement avec l'AUTRE source de token
+// en cas de 401, au lieu de rester bloqué sur un token de session pourri
+// alors qu'un token longue durée valide existe en repli.
+async function fetchAuth(url, opts) {
+  opts = opts || {};
+  const baseHeaders = opts.headers || {};
+  async function attempt(tok) {
+    const headers = Object.assign({}, baseHeaders, { Authorization: 'Bearer ' + tok });
+    return fetch(url, Object.assign({}, opts, { headers }));
+  }
+  const first = currentToken();
+  let r = await attempt(first);
+  if (r.status === 401) {
+    const alt = (first === token) ? haSessionToken() : token;
+    if (alt && alt !== first) r = await attempt(alt);
+  }
+  return r;
+}
+
+/* ─── DATA ─── */
+const GENERAL_MODS = [
+  { entity: 'input_boolean.module_m01_temp_hygro',  name: 'M01 — Température & Hygrométrie', desc: 'Surveillance T° et humidité par pièce, alertes froid/canicule' },
+  { entity: 'input_boolean.module_m02_inactivite',  name: 'M02 — Détection Inactivité',       desc: 'Alerte si aucun mouvement détecté pendant une durée anormale' },
+];
+const SECURITE_MODS = [
+  { entity: 'input_boolean.module_m10_sos',           name: 'M05 — Bouton SOS',          desc: "Appel d'urgence immédiat vers les aidants" },
+  { entity: 'input_boolean.module_m11_capteur_lit',   name: 'M06 — Capteur Lit',         desc: 'Détection lever/coucher, alertes si pas levé à l\'heure' },
+  { entity: 'input_boolean.module_m12_cam_ia',        name: 'M07 — Caméra IA (Vision)',  desc: 'Analyse intelligente — détection chute, posture anormale' },
+  { entity: 'input_boolean.module_m22_douche',        name: 'M13 — Douche',              desc: 'Surveillance fréquence et durée des douches' },
+  { entity: 'input_boolean.module_m20_medoc',         name: 'M14 — Médicaments',         desc: 'Rappels prise médicaments, affiché sur le kiosk' },
+  { entity: 'input_boolean.module_m13_porte_ext',     name: 'M16 — Porte Extérieure',    desc: 'Alerte sortie + live caméra à l\'ouverture' },
+  { entity: 'input_boolean.module_m17_lumiere_nuit',  name: 'M17 — Veilleuse Nuit',      desc: 'Lumière automatique si déplacement nocturne détecté' },
+];
+const AIDANTS = [
+  { entity: 'input_boolean.m10_proximite_aidant_1', name: 'Aidant 1' },
+  { entity: 'input_boolean.m10_proximite_aidant_2', name: 'Aidant 2' },
+  { entity: 'input_boolean.m10_proximite_aidant_3', name: 'Aidant 3' },
+  { entity: 'input_boolean.m10_proximite_aidant_4', name: 'Aidant 4' },
+  { entity: 'input_boolean.m10_proximite_aidant_5', name: 'Aidant 5' },
+  { entity: 'input_boolean.m10_proximite_aidant_6', name: 'Aidant 6' },
+  { entity: 'input_boolean.m10_proximite_aidant_7', name: 'Aidant 7' },
+];
+const CONFORT_MODS = [
+  { entity: 'input_boolean.module_m30_kiosk_ecran', name: 'Écran Général Kiosk',     desc: 'Active la diffusion photos / TV / visio sur le kiosk' },
+  { entity: 'input_boolean.module_m03_ecran_msg',   name: 'M03 — Bandeau Messages',  desc: 'Messages famille + agenda sur le kiosk', child: true },
+  { entity: 'input_boolean.module_m04_calendrier',  name: 'M04 — Bandeau Calendrier', desc: 'Agenda et rendez-vous récurrents sur le kiosk', child: true },
+  { entity: 'input_boolean.module_m31_kiosk_foto',  name: 'M09 — Écran Photos Famille', desc: 'Diaporama photos envoyées par email', child: true },
+  { entity: 'input_boolean.module_m32_kiosk_zic',   name: 'M10 — Écran Musique',      desc: 'Lecture musique de la bibliothèque personnelle', child: true },
+  { entity: 'input_boolean.module_m33_visio',        name: 'M11 — Écran Visioconférence', desc: 'Appel vidéo famille en un clic', child: true },
+  { entity: 'input_boolean.module_m34_television',   name: 'M12 — Écran Télévision',   desc: 'Créneaux TV + retour photos auto', child: true },
+  // M14 Repas retiré le 2026-08-16 (abandonné — aucun signal fiable, voir
+  // m00_modules.yaml).
+];
+const ENV_MODS = [
+  { entity: 'input_boolean.module_m40_chauffage', name: 'M17 — Chauffage (stand-by)', desc: 'Remontée d\'info température uniquement' },
+  { entity: 'input_boolean.module_m14_fenetre',   name: 'M18 — Fenêtres',             desc: 'Surveillance ouverture pour économies de chauffage' },
+];
+const FAMILLE_MODS = [
+  { entity: 'input_boolean.module_dashboard_fam', name: 'M19 — Dashboard Famille', desc: 'Interface dédiée aux aidants sur téléphone' },
+  { entity: 'input_boolean.module_msg_famille',   name: 'M20 — Messages Famille',  desc: 'Notifications automatiques vers la famille' },
+];
+
+/* ─── API ─── */
+async function apiGet(entity) {
+  const r = await fetchAuth(`${BASE}/api/states/${entity}`);
+  if (!r.ok) return null;
+  return r.json();
+}
+async function apiService(domain, service, data) {
+  await fetchAuth(`${BASE}/api/services/${domain}/${service}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+}
+
+/* ─── TOGGLE BOOLEAN ─── */
+async function toggleBool(entity, cb) {
+  await apiService('input_boolean', 'toggle', { entity_id: entity });
+  setTimeout(() => refreshStates(), 300);
+}
+
+/* ─── BUILD MODULE CARDS ─── */
+function buildModules(container, mods, color) {
+  container.innerHTML = '';
+  mods.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'mod-card color-' + (color || 'green') + (m.child ? ' mod-child' : '');
+    div.dataset.entity = m.entity;
+    div.innerHTML = `
+      <div class="mod-info">
+        <div class="mod-name">${m.name}</div>
+        <div class="mod-desc">${m.desc}</div>
+      </div>
+      <label class="toggle" onclick="event.stopPropagation()">
+        <input type="checkbox" data-entity="${m.entity}" onchange="toggleBool('${m.entity}', this)">
+        <div class="toggle-track"></div>
+      </label>`;
+    container.appendChild(div);
+  });
+}
+
+/* ─── DROITS D'ACCÈS AIDANTS ─── */
+const DROITS_ENTITY = 'input_text.m10_droits_aidants';
+
+async function apiGetAllStates() {
+  const r = await fetchAuth(`${BASE}/api/states`);
+  if (!r.ok) return [];
+  return r.json();
+}
+
+async function loadDroits() {
+  const s = await apiGet(DROITS_ENTITY);
+  if (!s || !s.state || s.state === 'unknown') return {};
+  try { return JSON.parse(s.state); } catch (e) { return {}; }
+}
+
+async function saveDroits(droits) {
+  await apiService('input_text', 'set_value', { entity_id: DROITS_ENTITY, value: JSON.stringify(droits) });
+}
+
+/* ─── IDENTITÉ RÉELLE — WEBSOCKET auth/current_user (2026-08-15) ───
+   Remplace le gate PIN (retiré — jugé ingérable par l'utilisateur, un PIN
+   partagé donne accès à quiconque le connaît). Il n'existe pas d'endpoint
+   REST "qui suis-je" fiable dans HA (/api/profile est mort, confirmé 404
+   en direct — voir init() plus bas). Seul le WebSocket le permet :
+   auth_required -> auth (token) -> auth_ok -> auth/current_user -> {id,
+   name, is_admin, is_owner}. Ce `id` correspond exactement à
+   person.<x>.attributes.user_id de la personne connectée — vérifié en
+   direct. Voir m10_gestion_aidants.yaml pour le détail complet du mapping
+   token -> user HA -> person.* -> droits. */
+function wsCurrentUser(tok) {
+  return new Promise((resolve, reject) => {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${proto}//${window.location.host}/api/websocket`);
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) { settled = true; try { ws.close(); } catch(e) {} reject(new Error('timeout')); }
+    }, 8000);
+    ws.onmessage = (ev) => {
+      let msg; try { msg = JSON.parse(ev.data); } catch (e) { return; }
+      if (msg.type === 'auth_required') {
+        ws.send(JSON.stringify({ type: 'auth', access_token: tok }));
+      } else if (msg.type === 'auth_ok') {
+        ws.send(JSON.stringify({ id: 1, type: 'auth/current_user' }));
+      } else if (msg.type === 'auth_invalid') {
+        if (!settled) { settled = true; clearTimeout(timer); ws.close(); reject(new Error('auth_invalid')); }
+      } else if (msg.type === 'result' && msg.id === 1) {
+        if (!settled) {
+          settled = true; clearTimeout(timer); ws.close();
+          if (msg.success) resolve(msg.result); else reject(new Error('ws_error'));
+        }
+      }
+    };
+    ws.onerror = () => { if (!settled) { settled = true; clearTimeout(timer); reject(new Error('ws_connection_error')); } };
+  });
+}
+
+/* Retourne :
+   - { admin:true, name } si owner/admin HA (accès total, jamais stocké en JSON)
+   - { admin:false, mask, name } si un person.* est identifié (via attributes.user_id)
+   - { admin:false, mask:0, name } si connecté mais aucun person.* lié (compte HA
+     existe mais pas rattaché à une fiche Personne)
+   - null si pas de token, token invalide, ou WS injoignable */
+async function resolveAccess() {
+  const tok = currentToken();
+  if (!tok) return null;
+  let user;
+  try { user = await wsCurrentUser(tok); } catch (e) { return null; }
+  if (user.is_admin || user.is_owner) return { admin: true, name: user.name };
+  const allStates = await apiGetAllStates();
+  const person = allStates.find(s => s.entity_id.startsWith('person.') && s.attributes && s.attributes.user_id === user.id);
+  if (!person) return { admin: false, mask: 0, name: user.name };
+  const droits = await loadDroits();
+  const objectId = person.entity_id.replace('person.', '');
+  return { admin: false, mask: droits[objectId] || 0, name: person.attributes.friendly_name || user.name };
+}
+
+// Bitmask complet — voir m10_gestion_aidants.yaml
+const DROIT_BIT = { config: 1, messages: 2, calendrier: 4, video: 8, photos: 16, alertes: 32 };
+const DROIT_ICON = { config: '🔧', messages: '⚙️', calendrier: '📅', video: '📺', photos: '📷', alertes: '🚨' };
+
+async function buildDroits() {
+  const list = document.getElementById('droits-list');
+  list.innerHTML = '<div class="aidant-row"><div class="aidant-name" style="color:var(--text3)">Chargement…</div></div>';
+
+  const [allStates, droits] = await Promise.all([apiGetAllStates(), loadDroits()]);
+  const persons = allStates.filter(s => s.entity_id.startsWith('person.') && s.entity_id !== 'person.eric');
+
+  if (persons.length === 0) {
+    list.innerHTML = '<div class="aidant-row"><div class="aidant-name" style="color:var(--text3)">Aucun aidant trouvé</div></div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  persons.forEach(p => {
+    const objectId = p.entity_id.replace('person.', '');
+    const name = p.attributes.friendly_name || objectId;
+    const mask = droits[objectId] || 0;
+    const row = document.createElement('div');
+    row.className = 'aidant-row';
+    row.style.cursor = 'default';
+    const checks = Object.keys(DROIT_BIT).map(key => {
+      const has = (mask & DROIT_BIT[key]) !== 0;
+      return `<label class="droit-check ${has ? 'on' : ''}" data-person="${objectId}" data-droit="${key}" onclick="toggleDroit(this)">
+        <input type="checkbox" ${has ? 'checked' : ''}>${DROIT_ICON[key]}
+      </label>`;
+    }).join('');
+    row.innerHTML = `<div class="aidant-name">${escHtml(name)}</div>${checks}`;
+    list.appendChild(row);
+  });
+}
+
+async function toggleDroit(label) {
+  event.stopPropagation();
+  const objectId = label.dataset.person;
+  const droitType = label.dataset.droit;
+  const bit = DROIT_BIT[droitType];
+  const droits = await loadDroits();
+  const mask = droits[objectId] || 0;
+  const has = (mask & bit) !== 0;
+  droits[objectId] = has ? (mask & ~bit) : (mask | bit);
+  if (droits[objectId] === 0) delete droits[objectId];
+  label.classList.toggle('on', !has);
+  await saveDroits(droits);
+  toast(has ? `${droitType} retiré` : `${droitType} accordé`);
+}
+
+/* ─── BUILD AIDANT LIST ─── */
+function buildAidants() {
+  const list = document.getElementById('aidant-list');
+  list.innerHTML = '';
+  AIDANTS.forEach(a => {
+    const row = document.createElement('div');
+    row.className = 'aidant-row';
+    row.innerHTML = `
+      <div class="aidant-name">${a.name}</div>
+      <label class="toggle" onclick="event.stopPropagation()">
+        <input type="checkbox" data-entity="${a.entity}" onchange="toggleBool('${a.entity}', this)">
+        <div class="toggle-track"></div>
+      </label>`;
+    list.appendChild(row);
+  });
+}
+
+/* ─── BUILD RAPPELS MÉDICAMENTS (M13) — 2026-08-16 ─── */
+const MEDOC_ZONES = [
+  { key: 'matin',  label: '🌅 Matin' },
+  { key: 'midi',   label: '☀️ Midi' },
+  { key: 'soir',   label: '🌆 Soir' },
+  { key: 'couche', label: '🌙 Coucher' },
+];
+function buildMedoc() {
+  const cont = document.getElementById('medoc-config');
+  cont.innerHTML = '';
+
+  const list = document.createElement('div');
+  list.className = 'aidant-list';
+  MEDOC_ZONES.forEach(z => {
+    const row = document.createElement('div');
+    row.className = 'aidant-row';
+    row.style.cursor = 'default';
+    row.innerHTML = `
+      <label class="toggle" onclick="event.stopPropagation()">
+        <input type="checkbox" data-entity="input_boolean.m20_medoc_${z.key}_actif" onchange="toggleBool('input_boolean.m20_medoc_${z.key}_actif', this)">
+        <div class="toggle-track"></div>
+      </label>
+      <div class="aidant-name">${z.label}</div>
+      <input type="time" class="field-input" id="medoc_${z.key}_time"
+             style="flex:0 0 auto;width:auto;font-size:12px;padding:6px 8px;"
+             onchange="setDatetime('input_datetime.m20_medoc_${z.key}', this.value)">`;
+    list.appendChild(row);
+  });
+  cont.appendChild(list);
+
+  const dur = document.createElement('div');
+  dur.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;';
+  dur.innerHTML = `
+    <div class="field-row" style="margin-bottom:0;">
+      <div class="field-label">Durée d'affichage du rappel (minutes)</div>
+      <div style="display:flex;gap:8px;">
+        <input type="number" class="field-input" id="medoc_duree" style="flex:1;" min="5" max="240" step="5">
+        <button class="btn-save" onclick="saveNumber('input_number.m20_medoc_duree_min','medoc_duree')">OK</button>
+      </div>
+    </div>`;
+  cont.appendChild(dur);
+}
+
+/* ─── BUILD TV SESSIONS ─── */
+function buildTVSessions() {
+  const cont = document.getElementById('tv-sessions');
+  cont.innerHTML = '';
+  [1,2,3,4].forEach(n => {
+    const div = document.createElement('div');
+    div.className = 'session-card';
+    div.innerHTML = `
+      <div class="session-head">
+        <label class="toggle" onclick="event.stopPropagation()">
+          <input type="checkbox" data-entity="input_boolean.m34_session${n}_actif" onchange="toggleBool('input_boolean.m34_session${n}_actif', this)">
+          <div class="toggle-track"></div>
+        </label>
+        <div class="session-label" style="color:#fff;flex:0 0 auto;">Session ${n}</div>
+        <select class="field-select-inline" id="m34_s${n}_chaine" onclick="event.stopPropagation()" onchange="setSelect('input_select.m34_session${n}_chaine', this.value)"></select>
+        <button class="btn-ok" onclick="event.stopPropagation(); runSession(${n})" title="Lancer">✓</button>
+        <span id="sess-arrow-${n}" style="color:var(--text3);cursor:pointer;" onclick="toggleSession(${n})">›</span>
+      </div>
+      <div class="session-hours">
+        <input type="time" class="field-input" id="m34_s${n}_debut" onchange="setDatetime('input_datetime.m34_session${n}_debut', this.value)">
+        <span class="session-hours-sep">→</span>
+        <input type="time" class="field-input" id="m34_s${n}_fin" onchange="setDatetime('input_datetime.m34_session${n}_fin', this.value)">
+      </div>
+      <div class="session-body" id="sess-body-${n}">
+        <div class="field-row">
+          <div class="field-label">URL YouTube</div>
+          <input type="url" class="field-input" id="m34_s${n}_yt" placeholder="https://youtube.com/...">
+          <button class="btn-save" onclick="saveText('input_text.m34_session${n}_youtube_url', 'm34_s${n}_yt')">Enregistrer</button>
+        </div>
+        <button class="btn-run" onclick="runSession(${n})">▶ Lancer session ${n}</button>
+      </div>`;
+    cont.appendChild(div);
+  });
+}
+
+function toggleSession(n) {
+  const body = document.getElementById('sess-body-' + n);
+  const arrow = document.getElementById('sess-arrow-' + n);
+  body.classList.toggle('open');
+  arrow.textContent = body.classList.contains('open') ? '⌄' : '›';
+}
+
+/* ─── BUILD VISIO CONFIG (M33) — RETIRÉ le 2026-08-16 ───
+   La visio maison (WebRTC) a remplacé Google Meet : plus d'URL à configurer,
+   l'appel se lance depuis le bouton "Appeler" de l'interface aidant. La
+   fonction buildVisioConfig() et le champ input_text.m33_visio_url associé
+   ont été retirés de cet onglet. Voir M33_visio.md. */
+
+/* ─── UPLOAD PHOTOS (M31) — DÉPLACÉ ─── */
+// 2026-08-15 : le bouton "Choisir des photos…" (POST /api/media_source/
+// local_source/upload) vivait ici (onglet Confort). Confirmé fonctionnel en
+// direct ce jour ("8 photos envoyées"), puis déplacé le même jour dans la
+// page dédiée photos.html à la demande de l'utilisateur, pour regrouper
+// upload + galerie + suppression au même endroit. PHOTOS_MEDIA_CONTENT_ID,
+// buildPhotosUpload() et onPhotosSelected() ne sont plus dans ce fichier.
+
+/* ─── BUILD TV ADVANCED ─── */
+// [RETIRÉ 2026-08-18] buildTVAdvanced() existait pour un seul champ, "Browser
+// ID TV" (input_text.m34_browser_id_tv), lui-même supprimé (plus utilisé
+// depuis la bascule du 14/08 vers kiosk.html — voir M34_television.md). Plus
+// aucun champ dans la section "Réglages avancés TV" (elle-même retirée du
+// HTML), donc la fonction n'a plus de raison d'exister.
+
+/* ─── API ACTIONS ─── */
+async function setSelect(entity, option) {
+  await apiService('input_select', 'select_option', { entity_id: entity, option });
+  toast('✓ Sauvegardé');
+}
+async function setDatetime(entity, time) {
+  const [h, m] = time.split(':');
+  await apiService('input_datetime', 'set_datetime', { entity_id: entity, time: `${h}:${m}:00` });
+  toast('✓ Sauvegardé');
+}
+async function saveText(entity, inputId) {
+  const val = document.getElementById(inputId).value;
+  await apiService('input_text', 'set_value', { entity_id: entity, value: val });
+  toast('✓ Sauvegardé');
+}
+async function saveNumber(entity, inputId) {
+  const val = parseFloat(document.getElementById(inputId).value);
+  await apiService('input_number', 'set_value', { entity_id: entity, value: val });
+  toast('✓ Sauvegardé');
+}
+async function runSession(n) {
+  await apiService('script', 'm34_lancer_session', { num: n });
+  toast('▶ Session ' + n + ' lancée');
+}
+
+/* ─── REFRESH STATES ─── */
+async function refreshStates() {
+  const allBools = [
+    ...GENERAL_MODS, ...SECURITE_MODS, ...AIDANTS, ...CONFORT_MODS,
+    ...ENV_MODS, ...FAMILLE_MODS,
+    { entity: 'input_boolean.m34_session1_actif' },
+    { entity: 'input_boolean.m34_session2_actif' },
+    { entity: 'input_boolean.m34_session3_actif' },
+    { entity: 'input_boolean.m34_session4_actif' },
+    { entity: 'input_boolean.m20_medoc_matin_actif' },
+    { entity: 'input_boolean.m20_medoc_midi_actif' },
+    { entity: 'input_boolean.m20_medoc_soir_actif' },
+    { entity: 'input_boolean.m20_medoc_couche_actif' },
+  ];
+  for (const m of allBools) {
+    const s = await apiGet(m.entity);
+    if (!s) continue;
+    const cb = document.querySelector(`input[data-entity="${m.entity}"]`);
+    if (cb) cb.checked = s.state === 'on';
+  }
+
+  // Chaînes TV
+  for (const n of [1,2,3,4]) {
+    const sel = await apiGet(`input_select.m34_session${n}_chaine`);
+    if (sel) {
+      const el = document.getElementById(`m34_s${n}_chaine`);
+      if (el) {
+        if (el.options.length === 0) {
+          (sel.attributes.options || []).forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o; opt.textContent = o;
+            el.appendChild(opt);
+          });
+        }
+        el.value = sel.state;
+      }
+    }
+    const deb = await apiGet(`input_datetime.m34_session${n}_debut`);
+    if (deb) { const el = document.getElementById(`m34_s${n}_debut`); if (el) el.value = (deb.state || '').slice(0,5); }
+    const fin = await apiGet(`input_datetime.m34_session${n}_fin`);
+    if (fin) { const el = document.getElementById(`m34_s${n}_fin`); if (el) el.value = (fin.state || '').slice(0,5); }
+    const yt = await apiGet(`input_text.m34_session${n}_youtube_url`);
+    if (yt) { const el = document.getElementById(`m34_s${n}_yt`); if (el) el.value = yt.state !== 'unknown' ? yt.state : ''; }
+  }
+
+  // Visio (Google Meet) : section retirée le 2026-08-16 (visio maison WebRTC).
+  // Plus de champ input_text.m33_visio_url à rafraîchir ici.
+
+  // [RETIRÉ 2026-08-18] Avancé TV — section "Réglages avancés TV" supprimée
+  // (son seul champ, Browser ID TV, ne servait plus à rien).
+
+  // Rappels médicaments (M13) : heures des 4 zones + durée d'affichage
+  for (const z of ['matin', 'midi', 'soir', 'couche']) {
+    const s = await apiGet(`input_datetime.m20_medoc_${z}`);
+    if (s) { const el = document.getElementById(`medoc_${z}_time`); if (el && s.state && s.state !== 'unknown') el.value = s.state.slice(0,5); }
+  }
+  const durState = await apiGet('input_number.m20_medoc_duree_min');
+  if (durState) { const el = document.getElementById('medoc_duree'); if (el && durState.state !== 'unknown') el.value = durState.state; }
+
+  // Rappels médicaments (M14) — masqués si module_m20_medoc off
+  const m14State = await apiGet('input_boolean.module_m20_medoc');
+  const medocBlock = document.getElementById('medoc-detail-block');
+  if (medocBlock) medocBlock.style.display = (m14State && m14State.state === 'on') ? '' : 'none';
+
+  // Sessions TV (M34) — masquées si module_m34_television off
+  const m34State = await apiGet('input_boolean.module_m34_television');
+  const tvBlock = document.getElementById('tv-sessions-block');
+  if (tvBlock) tvBlock.style.display = (m34State && m34State.state === 'on') ? '' : 'none';
+
+  // Plage horaire visio (M33) — masquée si module_m33_visio off
+  const m33State = await apiGet('input_boolean.module_m33_visio');
+  const visioPlage = document.getElementById('visio-plage-block');
+  if (visioPlage) visioPlage.style.display = (m33State && m33State.state === 'on') ? '' : 'none';
+  const visioDeb = await apiGet('input_datetime.m33_horaire_debut');
+  if (visioDeb) { const el = document.getElementById('visio_horaire_debut'); if (el && visioDeb.state && visioDeb.state !== 'unknown') el.value = visioDeb.state.slice(0,5); }
+  const visioFin = await apiGet('input_datetime.m33_horaire_fin');
+  if (visioFin) { const el = document.getElementById('visio_horaire_fin'); if (el && visioFin.state && visioFin.state !== 'unknown') el.value = visioFin.state.slice(0,5); }
+
+  // ─── Vérifications hardware (grise le toggle si capteur absent de Z2M) ───
+  const hwM05 = await apiGet('binary_sensor.bouton_sos_action');
+  setHardwareDisabled('input_boolean.module_m10_sos',
+    !hwM05 || hwM05.state === 'unavailable' || hwM05.state === 'unknown');
+
+  const hwM06 = await apiGet('binary_sensor.capteur_lit_contact');
+  setHardwareDisabled('input_boolean.module_m11_capteur_lit',
+    !hwM06 || hwM06.state === 'unavailable' || hwM06.state === 'unknown');
+
+  const hwM13 = await apiGet('sensor.th_sdb_humidity');
+  setHardwareDisabled('input_boolean.module_m22_douche',
+    !hwM13 || hwM13.state === 'unavailable' || hwM13.state === 'unknown');
+
+  const hwM16 = await apiGet('binary_sensor.contact_porte_entree_contact');
+  setHardwareDisabled('input_boolean.module_m13_porte_ext',
+    !hwM16 || hwM16.state === 'unavailable' || hwM16.state === 'unknown');
+
+  const [pirC, pirCo, pirS] = await Promise.all([
+    apiGet('input_boolean.m02_pir_cuisine_actif'),
+    apiGet('input_boolean.m02_pir_couloir_actif'),
+    apiGet('input_boolean.m02_pir_sdb_actif'),
+  ]);
+  const anyPir = [pirC, pirCo, pirS].some(p => p && p.state === 'on');
+  setHardwareDisabled('input_boolean.module_m17_lumiere_nuit', !anyPir);
+
+  applyM08Dependency();
+  await refreshApercu();
+}
+
+/* ─── HARDWARE DISABLED — grise + bloque le toggle si capteur absent de Z2M ─── */
+function setHardwareDisabled(entity, disabled) {
+  const card = document.querySelector(`.mod-card[data-entity="${entity}"]`);
+  if (!card) return;
+  card.classList.toggle('mod-hw-disabled', disabled);
+  const cb = card.querySelector('input[type="checkbox"]');
+  if (cb) cb.disabled = disabled;
+}
+
+/* ─── M08 DEPENDENCY — désactive visuellement les autres modules Kiosk TV si M08 est off ─── */
+function applyM08Dependency() {
+  const m08cb = document.querySelector('input[data-entity="input_boolean.module_m30_kiosk_ecran"]');
+  const m08on = m08cb && m08cb.checked;
+  const container = document.getElementById('confort-modules');
+  if (!container) return;
+  container.querySelectorAll('.mod-card').forEach(card => {
+    if (card.dataset.entity === 'input_boolean.module_m30_kiosk_ecran') return; // M08 lui-même : toujours actif
+    card.classList.toggle('mod-disabled', !m08on);
+  });
+}
+
+/* ─── APERÇU KIOSK — miroir en direct des modules (tous les cas) ─── */
+const APERCU_MODS = {
+  m03: 'input_boolean.module_m03_ecran_msg',      // Bandeau Messages
+  m04: 'input_boolean.module_m04_calendrier',     // Bandeau Calendrier
+  m09: 'input_boolean.module_m31_kiosk_foto',     // Écran Photos Famille
+  m10: 'input_boolean.module_m32_kiosk_zic',      // Écran Musique
+  m11: 'input_boolean.module_m33_visio',          // Écran Visioconférence
+  m12: 'input_boolean.module_m34_television',     // Écran Télévision
+};
+async function refreshApercu() {
+  const elCal  = document.getElementById('kp-cal');
+  const elMsg  = document.getElementById('kp-msg');
+  const elMain = document.getElementById('kp-main');
+  if (!elMain) return;
+
+  const m08s = await apiGet('input_boolean.module_m30_kiosk_ecran');
+  const m08 = !!(m08s && m08s.state === 'on');
+
+  const etats = {};
+  for (const [k, entity] of Object.entries(APERCU_MODS)) {
+    const s = await apiGet(entity);
+    etats[k] = !!(s && s.state === 'on');
+  }
+
+  // Cas 1 : Écran Général Kiosk (M08) coupé → tout disparaît sauf l'horloge
+  elCal.style.display  = (m08 && etats.m04) ? '' : 'none';
+  elMsg.style.display  = (m08 && etats.m03) ? '' : 'none';
+  elMain.style.display = m08 ? '' : 'none';
+  if (!m08) return;
+
+  // Cas 2 : nom de chaque module de la liste → rouge quand son module est coupé
+  elMain.querySelectorAll('[data-mod]').forEach(el => {
+    el.classList.toggle('kp-off', !etats[el.dataset.mod]);
+  });
+}
+
+/* ─── TABS ─── */
+let currentTab = null;
+function switchTab(n) {
+  currentTab = n;
+  // Menu -> page : la liste verticale disparaît, le contenu de l'onglet s'affiche
+  document.querySelector('.tabs').style.display = 'none';
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', +t.dataset.tab === n));
+  document.querySelectorAll('.tab-panel').forEach((p,i) => p.classList.toggle('active', i===n));
+  // Le titre de l'en-tête reprend le nom du bouton touché
+  const tab = document.querySelector('.tab[data-tab="' + n + '"]');
+  document.getElementById('header-title').textContent = tab ? tab.textContent.trim() : '⚙️ Configuration';
+  window.scrollTo(0, 0);
+}
+function showMenu() {
+  currentTab = null;
+  document.querySelector('.tabs').style.display = '';
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('header-title').textContent = '⚙️ Configuration';
+  window.scrollTo(0, 0);
+}
+function handleBack() {
+  if (currentTab !== null) { showMenu(); return; }
+  if (window.parent.closeConfig) window.parent.closeConfig();
+  else window.location.href = '/local/aidant.html';
+}
+
+/* ─── OUTILS ─── */
+function haNav(path) {
+  window.location.href = BASE + path;
+}
+
+// 2026-08-15 (audit sécurité) : buildDroits() injecte
+// person.attributes.friendly_name (donnée HA réelle, modifiable en direct
+// par n'importe quel compte ayant accès à HA) dans innerHTML sans
+// échappement — seul point de ce fichier où une valeur dynamique (pas un
+// tableau JS codé en dur) atterrit dans du HTML. Reprise de la même
+// fonction que aidant.html (déjà en place là-bas).
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ─── TOAST ─── */
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+/* ─── INIT ─── */
+async function init() {
+  if (!currentToken()) { window.location.href = '/local/aidant.html'; return; }
+
+  // Username : /api/profile n'existe pas côté HA (404 confirmé en direct,
+  // code mort de longue date) — on utilise le nom déjà résolu par
+  // resolveAccess() dans runAccessGate() (CURRENT_USER_NAME), pas de 2e appel.
+  if (CURRENT_USER_NAME) document.getElementById('ha-user').textContent = CURRENT_USER_NAME;
+
+  buildModules(document.getElementById('general-modules'), GENERAL_MODS, 'green');
+  buildAidants();
+  await buildDroits();
+  buildModules(document.getElementById('securite-modules'), SECURITE_MODS, 'amber');
+  buildMedoc();
+  buildModules(document.getElementById('confort-modules'), CONFORT_MODS, 'purple');
+  buildTVSessions();
+  buildModules(document.getElementById('env-modules'), ENV_MODS, 'cyan');
+  buildModules(document.getElementById('famille-modules'), FAMILLE_MODS, 'pink');
+
+  await refreshStates();
+  setInterval(refreshStates, 30000);
+}
+
+/* ─── GATE D'ACCÈS RÉEL (2026-08-15, remplace le gate PIN) ───
+   init() n'est plus appelé directement — il faut d'abord identifier qui
+   est réellement connecté (resolveAccess()) et vérifier le droit 🔧
+   (config, bit 1). Inactif en mode ?only=tv (déjà protégé par le droit
+   📺 de video.html en amont — voir m10_gestion_aidants.yaml). */
+let CURRENT_USER_NAME = '';
+
+function unlockGate() {
+  document.getElementById('access-gate').style.display = 'none';
+  document.getElementById('app-content').style.display = 'block';
+  init();
+}
+
+// 2026-08-15 (correctif, audit sécurité #3 — Hermes) : `?only=tv` faisait
+// `unlockGate()` SANS AUCUNE vérification — un accès direct par URL (pas
+// via video.html) donnait accès à init() en entier (droits, réglages,
+// visio…), le mode `only-tv` ne masquant que visuellement via CSS. Les
+// fonctions (toggleDroit, saveDroits, saveText…) restaient appelables via
+// la console quel que soit ce qui était affiché. Le raisonnement d'origine
+// ("déjà protégé par video.html en amont") supposait que video.html était
+// le SEUL chemin d'accès, ce qui n'était jamais vérifié ici. Corrigé :
+// même appel à resolveAccess(), mais avec le droit 📺 video (bit 8) au lieu
+// de 🔧 config en mode `only=tv` — exactement le droit déjà requis par
+// video.html, donc plus aucun raccourci possible par URL directe.
+async function runAccessGate() {
+  const requiredBit = (ONLY_MODE === 'tv') ? DROIT_BIT.video : DROIT_BIT.config;
+
+  const icon = document.getElementById('gate-icon');
+  const title = document.getElementById('gate-title');
+  const sub = document.getElementById('gate-sub');
+
+  const access = await resolveAccess();
+
+  if (access && (access.admin || (access.mask & requiredBit))) {
+    CURRENT_USER_NAME = access.name || '';
+    unlockGate();
+    return;
+  }
+
+  icon.textContent = '⛔';
+  title.textContent = 'Accès refusé';
+  const droitLabel = (ONLY_MODE === 'tv') ? '📺 Vidésio' : '🔧 Config';
+  sub.textContent = access
+    ? `Ton compte (${access.name || '?'}) n'a pas le droit ${droitLabel}. Demande à l'installateur de le cocher dans Configuration → Sécurité → Droits d'accès.`
+    : "Impossible de t'identifier (pas de compte HA propre lié à ta fiche Personne). Voir Paramètres → Personnes → Autoriser la connexion.";
+}
+
+runAccessGate();
+</script>
+</body>
+</html>
+

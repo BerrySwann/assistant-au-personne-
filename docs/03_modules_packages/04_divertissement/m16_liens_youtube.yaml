@@ -1,0 +1,59 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M16 — LIENS YOUTUBE (CHAÎNES & PLAYLISTS)                   │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Récupère les dernières vidéos des chaînes YouTube officielles (france tv,
+# Arte, France 2) + playlist Destination Francophonie (TV5MONDE) via flux RSS
+# (sans clé API), et les stocke dans www/liens_youtube.txt
+# (lisible via /local/liens_youtube.txt).
+#
+# Chaque session M11 choisit sa chaîne (france tv / Arte / TV5 Monde / YouTube)
+# via input_select.m11_sessionN_chaine — la rotation M16 injecte la plus récente
+# vidéo NON vue de CETTE chaîne. Si la chaîne est épuisée, la plus récente de la
+# chaîne est rejouée. Les vidéos jouées sont marquées "déjà_vu".
+#
+# Format d'une ligne : aaaa-mm-jj|chaine|Titre|https://youtu.be/XXXX|déjà_vu
+# Dernier champ vide = vidéo pas encore vue.
+#
+# ⚠️ Script : shell_scripts/m16_liens_youtube.py (actions update / mark / next
+#    avec arg2 = URL pour mark, label de chaîne pour next).
+
+input_boolean:
+  module_liens_youtube:
+    name: "M16 Liens YouTube (france tv, Arte, TV5, FR2)"
+    icon: mdi:youtube
+
+shell_command:
+  m16_liens_youtube: "python3 /config/shell_scripts/m16_liens_youtube.py {{ action | default('') }} {{ arg2 | default('') }}"
+
+template:
+  - sensor:
+      - name: "M16 Vidéo En Cours (embed)"
+        unique_id: m16_video_embed
+        icon: mdi:youtube
+        state: >
+          {% set etat = states('sensor.m11_etat_global') %}
+          {% if etat in ['session1', 'session2', 'session3', 'session4'] %}
+            {% set n = etat[-1] %}
+            {% set url = states('input_text.m11_session' ~ n ~ '_youtube_url') %}
+            {% if url and url != 'unknown' %}
+              {% if 'youtu.be/' in url %}{{ 'https://www.youtube-nocookie.com/embed/' ~ url.split('/')[-1].split('?')[0] ~ '?autoplay=1&rel=0' }}
+              {% elif 'v=' in url %}{{ 'https://www.youtube-nocookie.com/embed/' ~ url.split('v=')[-1].split('&')[0] ~ '?autoplay=1&rel=0' }}
+              {% endif %}
+            {% endif %}
+          {% endif %}
+
+automation:
+  - id: m16_maj_liens_hebdo
+    alias: "M16 — Mise à jour hebdo des liens YouTube"
+    mode: single
+    trigger:
+      - trigger: time
+        at: "09:00:00"
+    condition:
+      - condition: time
+        weekday:
+          - mon
+    action:
+      - action: shell_command.m16_liens_youtube
+        data:
+          action: update

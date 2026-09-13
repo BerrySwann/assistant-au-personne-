@@ -1,0 +1,64 @@
+# ============================================================
+# .gitignore — Assistant au personne (HAOS 10.32.154.241)
+# Adapté de home_assistant_re-build. Dépôt PRIVÉ.
+# ============================================================
+
+# --- Secrets & jetons (NE JAMAIS PUBLIER) ---
+secrets.yaml
+.secrets/
+.ssh/
+.cloud
+
+# --- HA runtime (jamais versionné) ---
+.storage/
+.ha_mcp/
+.cache/
+.opencode/
+opencode.json
+.HA_VERSION
+.uuid
+.ha_run.lock
+home-assistant.log*
+*.db
+*.db-shm
+*.db-wal
+logs/
+.logs/
+
+# --- Python caches ---
+__pycache__/
+*.pyc
+
+# --- HACS, binaires et services externes (re-générés) ---
+www/community/
+custom_components/
+go2rtc-1.9.9
+go2rtc.yaml
+deps/
+zigbee2mqtt/
+
+# --- Photos & images perso / volatiles ---
+www/photos_famille/
+www/weather/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.webp
+*.ico
+tts/
+
+# --- Fichiers texte (bruit) — SAUF données utiles du projet ---
+*.txt
+!www/rdv_recurrents.txt
+!www/musique_liens.txt
+!www/liens_youtube.txt
+!www/m16_shorts_ignores.txt
+!TODO.txt
+
+# --- Backups & parasites ---
+*.bak
+*.bak_*
+\#*#
+*~

@@ -1,0 +1,15 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M15 — PORTE EXTÉRIEURE (PACKAGE)                           │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Source : SONOFF SNZB-04P (Zigbee Z2M)
+# ATTENTION : state "off" = porte OUVERTE (logique inversée)
+
+sensor:
+  - platform: history_stats
+    name: "M15 Porte Ext Durée Ouverture"
+    unique_id: m15_porte_ext_duree_ouverture
+    entity_id: binary_sensor.snzb04p_porte_ext_contact
+    state: "off"
+    type: time
+    start: "{{ now().replace(hour=0, minute=0, second=0) }}"
+    end: "{{ now() }}"

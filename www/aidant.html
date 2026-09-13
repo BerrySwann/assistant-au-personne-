@@ -1,0 +1,2585 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="/local/manifest.json">
+<link rel="apple-touch-icon" href="/local/icon-192.png">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Interface Aidant</title>
+<style>
+:root {
+  --bg:        #0f172a;
+  --surface:   #1e293b;
+  --surface2:  #0f172a;
+  --border:    rgba(255,255,255,0.07);
+  --text:      #f1f5f9;
+  --text2:     #94a3b8;
+  --text3:     #475569;
+  --blue:      #2563eb;
+  --blue-light:#60a5fa;
+  --green:     #22c55e;
+  --orange:    #f97316;
+  --red:       #ef4444;
+  --amber:     #f59e0b;
+  --radius:    14px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+/* ── SCREENS ─────────────────────────────── */
+.screen { display: none; flex-direction: column; min-height: 100vh; }
+.screen.active { display: flex; }
+
+/* ── HEADER ──────────────────────────────── */
+.header {
+  background: #1a2332;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 10;
+}
+/* 2026-09-13 : bouton retour carré arrondi — style identique à config.html
+   (← Kiosk TV). Référence demandée pour les 4 écrans. */
+.btn-back {
+  background: rgba(255,255,255,0.06); border: none; border-radius: 8px;
+  color: var(--text2); font-size: 18px; width: 36px; height: 36px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.header-title { flex: 1; font-size: 15px; font-weight: 500; }
+.header-icon { font-size: 20px; cursor: pointer; opacity: 0.7; }
+.header-icon:active { opacity: 1; }
+
+/* ── CONTENT ─────────────────────────────── */
+.content { padding: 12px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+
+/* ── CHIPS ───────────────────────────────── */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 5px 11px;
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px;
+}
+
+/* ── ALERTES ─────────────────────────────── */
+.alert-banner {
+  background: linear-gradient(135deg, #7f1d1d, #991b1b);
+  border: 1px solid #ef4444;
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+  animation: pulse-border 2s infinite;
+}
+.alert-banner:active { filter: brightness(1.1); }
+@keyframes pulse-border {
+  0%, 100% { border-color: #ef4444; box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+  50%       { border-color: #fca5a5; box-shadow: 0 0 0 4px rgba(239,68,68,0.2); }
+}
+.alert-banner-text { font-size: 14px; font-weight: 600; color: #fef2f2; }
+.alert-banner-arrow { color: #fca5a5; font-size: 18px; }
+
+/* ── PANNEAU ALARME ──────────────────────── */
+.alarm-panel {
+  position: fixed; top: 0; bottom: 0;
+  left: 50%; width: 100%; max-width: 420px;
+  transform: translateX(-50%) translateY(100%);
+  z-index: 200;
+  background: #0a0f1e;
+  display: flex; flex-direction: column;
+  transition: transform 0.3s ease;
+}
+.alarm-panel.open { transform: translateX(-50%) translateY(0); }
+.alarm-header {
+  background: #1a0a0a;
+  padding: 14px 16px;
+  display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid rgba(239,68,68,0.3);
+}
+.alarm-header-title { flex: 1; font-size: 15px; font-weight: 600; color: #fef2f2; }
+.alarm-close { color: #fca5a5; font-size: 22px; cursor: pointer; }
+.alarm-content { padding: 16px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.alarm-item {
+  background: #1f0a0a; border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 12px; padding: 14px;
+  display: flex; align-items: center; gap: 12px;
+}
+.alarm-item-icon { font-size: 24px; }
+.alarm-item-label { font-size: 14px; color: #fef2f2; font-weight: 500; }
+.alarm-item-since { font-size: 11px; color: #fca5a5; margin-top: 2px; }
+.alarm-ok {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; color: #22c55e;
+}
+.alarm-ok-icon { font-size: 48px; }
+.alarm-ok-text { font-size: 16px; font-weight: 500; }
+
+/* ── GRID 2 ──────────────────────────────── */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* ── CARD ────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.card-pad { padding: 11px 13px; }
+
+/* ── SECTION LABEL ───────────────────────── */
+.section-label {
+  color: #DCDCDC;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  padding: 6px 0 0;
+}
+
+/* ── BTN VISIO ───────────────────────────── */
+.btn-visio {
+  background: linear-gradient(135deg, #065f46, #047857);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  cursor: pointer;
+  border: none; width: 100%;
+  color: white; font-size: 15px; font-weight: 500;
+}
+.btn-visio:active { filter: brightness(0.9); }
+/* 2026-08-16 : état "occupé" — un autre aidant est déjà en ligne. Le bouton
+   est grisé ET réellement désactivé (pas seulement d'apparence), et affiche
+   avec QUI, pour que l'aidant sache s'il doit rappeler plus tard. */
+.btn-visio:disabled {
+  background: rgba(255,255,255,0.06);
+  color: rgb(180, 180, 180);
+  cursor: not-allowed;
+  filter: none;
+}
+.btn-visio:disabled:active { filter: none; }
+/* 2026-08-18 : hors plage horaire (M33) — même logique visuelle que
+   .btn-send.plage (messages) : couleur ambre/marron plutôt que vert, pour
+   signaler que l'appel visio n'est pas dans son créneau normal. Le bouton
+   reste cliquable : voir launchVisio() (confirmation "urgent ?" au clic). */
+.btn-visio.hors-plage {
+  background: linear-gradient(135deg, #92400e, #78350f);
+}
+/* Bouton secondaire, discret, pour raccrocher — éteint l'appel des deux
+   côtés (l'écran de la personne aidée revient seul à son affichage normal). */
+.btn-visio-end {
+  background: rgba(255,255,255,0.06);
+  border-radius: var(--radius);
+  padding: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  cursor: pointer;
+  border: none; width: 100%;
+  color: var(--text2); font-size: 13px; font-weight: 500;
+  margin-top: 6px;
+}
+.btn-visio-end:active { filter: brightness(0.85); }
+
+/* ── PARAMS SUMMARY ──────────────────────── */
+.params-summary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 13px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.params-row { display: flex; align-items: center; justify-content: space-between; }
+.params-row span:first-child { color: rgb(180, 180, 180); font-size: 11px; }
+.params-row span:last-child  { color: var(--text2); font-size: 12px; font-weight: 500; }
+.params-edit { color: rgb(180, 180, 180); font-size: 10px; text-align: right; text-decoration: underline; margin-top: 2px; }
+
+/* ── USER NAME ───────────────────────────── */
+.user-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.user-name { font-size: 14px; }
+.user-hint { color: rgb(180, 180, 180); font-size: 10px; margin-left: auto; }
+
+/* ── TEXTAREA ────────────────────────────── */
+.msg-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 13px;
+}
+.msg-label { color: rgb(180, 180, 180); font-size: 10px; margin-bottom: 5px; }
+/* 2026-09-13 : le compteur de caractères du MESSAGE est placé derrière le
+   libellé (même ligne) au lieu d'être sous la zone de saisie. */
+.msg-label-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+.msg-label-row .msg-label { margin-bottom: 0; }
+.msg-label-row .char-counter { margin-top: 0; padding: 0; }
+/* 2026-09-13 : toute la ligne (libellé + compteur) passe en blanc dès 1 caractère */
+.msg-label-row.filled .msg-label { color: var(--text); }
+textarea {
+  background: none; border: none; outline: none;
+  color: var(--text); font-size: 14px; width: 100%;
+  resize: none; font-family: inherit; line-height: 1.4;
+  min-height: 60px;
+}
+textarea::placeholder { color: var(--text3); font-style: italic; }
+/* 2026-09-13 : placeholders des champs MESSAGE et NOTE en blanc (plus visibles) */
+#msg-input::placeholder, #rdv-note::placeholder { color: var(--text); }
+
+/* ── CHAR COUNTER ────────────────────────── */
+.char-counter {
+  color: rgb(180, 180, 180); font-size: 11px;
+  display: flex; align-items: center; gap: 5px;
+  padding: 0 2px; margin-top: -4px;
+}
+/* 2026-09-13 : blanc dès qu'un caractère est saisi (gris à 0). Placé AVANT
+   warn/danger pour que l'orange/rouge des seuils gardent la priorité. */
+.char-counter.filled { color: var(--text); }
+.char-counter.warn { color: var(--orange); }
+.char-counter.danger { color: var(--red); }
+
+/* ── SEND BUTTON ─────────────────────────── */
+.btn-send {
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  cursor: pointer;
+  border: none; width: 100%;
+  color: white; font-size: 14px; font-weight: 500;
+  transition: filter 0.1s;
+}
+.btn-send:active { filter: brightness(0.85); }
+.btn-send.ready   { background: linear-gradient(135deg, #16a34a, #15803d); box-shadow: 0 4px 16px rgba(22,163,74,0.35); }
+.btn-send.typing  { background: linear-gradient(135deg, #2563eb, #1d4ed8); cursor: not-allowed; }
+.btn-send.full    { background: linear-gradient(135deg, #4b5563, #374151); cursor: not-allowed; }
+.btn-send.plage   { background: linear-gradient(135deg, #92400e, #78350f); cursor: not-allowed; }
+.btn-send.limited { background: linear-gradient(135deg, #92400e, #b45309); cursor: not-allowed; }
+.btn-send.empty   { background: linear-gradient(135deg, #4b5563, #374151); cursor: not-allowed; opacity: 0.6; }
+
+/* ── MESSAGES LIST ───────────────────────── */
+.msgs-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 13px; }
+.msgs-title { color: #DCDCDC; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 9px; }
+.msg-current { border-left: 2px solid var(--blue-light); padding-left: 9px; margin-bottom: 10px; }
+.msg-current-badge { color: var(--blue-light); font-size: 10px; font-weight: 600; margin-bottom: 3px; }
+.msg-current-age { color: rgb(180, 180, 180); font-size: 10px; }
+.msg-current-text { font-size: 13px; font-style: italic; margin: 2px 0; }
+.msg-current-author { color: rgb(180, 180, 180); font-size: 11px; }
+.msg-none { color: rgb(180, 180, 180); font-size: 13px; font-style: italic; }
+.queue-title { color: rgb(180, 180, 180); font-size: 10px; margin: 8px 0 6px; }
+.queue-item { border-left: 2px solid var(--surface2); padding-left: 9px; margin-bottom: 7px; }
+.queue-item:last-child { margin-bottom: 0; }
+.queue-item-meta { display: flex; justify-content: space-between; margin-bottom: 2px; }
+.queue-item-author { color: var(--text2); font-size: 10px; font-weight: 500; }
+.queue-item-time { color: rgb(180, 180, 180); font-size: 10px; }
+.queue-item-text { color: var(--text2); font-size: 12px; }
+
+.rdv-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  border-left: 2px solid var(--surface2); padding-left: 9px; margin-bottom: 7px;
+}
+.rdv-item:last-child { margin-bottom: 0; }
+.rdv-item-info { flex: 1; min-width: 0; }
+.rdv-item-date { color: var(--text2); font-size: 10px; font-weight: 500; }
+.rdv-item-text { color: var(--text2); font-size: 12px; margin-top: 1px; word-break: break-word; }
+.rdv-del-btn {
+  background: none; border: none; color: var(--red); font-size: 17px;
+  cursor: pointer; padding: 4px 6px; flex-shrink: 0; line-height: 1;
+}
+
+/* ── CONFIRM MODAL ───────────────────────── */
+.confirm-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: none; align-items: center; justify-content: center;
+  z-index: 300; padding: 24px;
+}
+.confirm-overlay.open { display: flex; }
+.confirm-box {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; max-width: 340px; width: 100%; text-align: center;
+}
+.confirm-text { font-size: 15px; margin-bottom: 18px; line-height: 1.4; }
+.confirm-buttons { display: flex; gap: 10px; }
+.confirm-btn { flex: 1; padding: 12px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
+.confirm-btn.non { background: var(--surface2); color: var(--text); }
+.confirm-btn.oui { background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; }
+.confirm-btn.valider { background: linear-gradient(135deg, #16a34a, #15803d); color: white; }
+
+/* ── JOURS RÉCURRENCE ────────────────────── */
+.day-check {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--text2);
+}
+.day-check input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--blue-light); cursor: pointer; }
+
+/* ── STATUS HINT ─────────────────────────── */
+.hint-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--amber);
+}
+
+/* ── BANDEAU ─────────────────────────────── */
+.bandeau-card {
+  background: #0f1e35;
+  border: 1px solid #1d4ed8;
+  border-radius: var(--radius);
+  padding: 10px 13px;
+}
+.bandeau-label { color: rgb(180, 180, 180); font-size: 10px; letter-spacing: 0.4px; margin-bottom: 4px; }
+.bandeau-text { color: #93c5fd; font-size: 13px; }
+
+/* ── SETTINGS ────────────────────────────── */
+.settings-section { display: flex; flex-direction: column; gap: 8px; }
+.ctrl-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.ctrl-row:last-child { border-bottom: none; }
+.ctrl-label { font-size: 13px; }
+.ctrl-sub { color: rgb(180, 180, 180); font-size: 11px; margin-top: 2px; }
+.stepper { display: flex; align-items: center; gap: 14px; }
+.stepper-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--blue-light); font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.stepper-val { font-size: 20px; font-weight: 500; min-width: 24px; text-align: center; }
+.fenetre-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+.fenetre-opt {
+  padding: 7px 4px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text2); font-size: 12px; cursor: pointer;
+  text-align: center;
+}
+.fenetre-opt.selected { background: var(--blue); border-color: var(--blue); color: white; }
+input[type="time"], input[type="date"] {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 16px; padding: 6px 10px; outline: none;
+  font-family: inherit; cursor: pointer;
+}
+input[type="time"]:focus, input[type="date"]:focus { border-color: var(--blue-light); }
+/* 2026-09-13 : icônes natives des champs date/heure (calendrier + horloge) —
+   noires par défaut sur fond sombre, inversées en gris clair ~180. */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.71);
+  cursor: pointer;
+}
+
+/* ── SETUP SCREEN ────────────────────────── */
+.setup-wrap {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 32px 24px; gap: 20px;
+}
+.setup-logo { font-size: 48px; margin-bottom: 8px; }
+.setup-title { font-size: 22px; font-weight: 600; text-align: center; }
+.setup-sub { color: var(--text2); font-size: 13px; text-align: center; line-height: 1.5; }
+.setup-field { width: 100%; }
+.setup-field label { color: rgb(180, 180, 180); font-size: 11px; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+.setup-field input[type="text"], .setup-field input[type="password"] {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-size: 14px; padding: 12px 14px;
+  outline: none; font-family: inherit;
+}
+.setup-field input:focus { border-color: var(--blue-light); }
+.btn-primary {
+  width: 100%; background: linear-gradient(135deg, var(--blue), #1d4ed8);
+  border: none; border-radius: 12px; color: white; font-size: 15px; font-weight: 500;
+  padding: 14px; cursor: pointer; font-family: inherit;
+}
+.btn-primary:active { filter: brightness(0.9); }
+.setup-error { color: var(--red); font-size: 12px; text-align: center; display: none; }
+
+/* ── TOAST ───────────────────────────────── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: #1e293b; border: 1px solid var(--border); border-radius: 12px;
+  padding: 10px 20px; font-size: 13px; color: var(--text);
+  transition: transform 0.25s ease; z-index: 100; white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── SPINNER ─────────────────────────────── */
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── BOUTONS PAGES DÉDIÉES (2026-08-15) ──────────────────── */
+.dedie-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.dedie-btn {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text); font-size: 12px;
+  padding: 14px 6px; text-align: center; cursor: pointer;
+}
+.dedie-btn:active { opacity: 0.75; }
+.dedie-btn .dedie-icon { font-size: 22px; margin-bottom: 4px; display: block; }
+
+/* ── MODE "ONLY" (pages dédiées, 2026-08-15) ─────────────────
+   Ajouté pour calendrier.html (?only=rdv), qui embarque aidant.html en
+   iframe et n'affiche que le bloc rendez-vous. N'a aucun effet quand le
+   paramètre ?only= est absent (usage normal inchangé). */
+html.only-rdv #screen-main .content > *:not(#only-rdv-block) { display: none !important; }
+/* 2026-09-13 : le header d'aidant est masqué en mode rdv — calendrier.html
+   fournit déjà son propre header (évitait un double en-tête visible). */
+html.only-rdv .header { display: none !important; }
+
+/* 2026-08-15 (suite) : "Prendre un rendez-vous" retiré de l'écran principal
+   normal — la page dédiée calendrier.html suffit désormais. Le bloc reste
+   dans le DOM (nécessaire pour calendrier.html, qui l'affiche via
+   ?only=rdv) mais n'apparaît plus par défaut. */
+#only-rdv-block { display: none; }
+html.only-rdv #only-rdv-block { display: flex; flex-direction: column; gap: 10px; }
+
+/* 2026-09-13 : même espacement entre les blocs que Vidésio (config.html) —
+   les sections internes n'avaient aucun espace entre leurs cartes. */
+#section-temp, #section-messages, #section-visio {
+  display: flex; flex-direction: column; gap: 10px;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ SCREEN SETUP ═══════════ -->
+<div id="screen-setup" class="screen active">
+  <div class="setup-wrap">
+    <div class="setup-logo">🏠</div>
+    <div class="setup-title">Interface Aidant</div>
+    <div class="setup-sub">Entrez votre token d'accès Home Assistant.<br>Il sera mémorisé sur cet appareil.</div>
+
+    <div class="setup-field">
+      <label>Token d'accès personnel</label>
+      <input type="password" id="input-token" placeholder="eyJ0eXAiOiJKV1..." autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="setup-error" id="setup-error">Token invalide ou HA inaccessible.</div>
+
+    <button class="btn-primary" id="btn-connect" onclick="doConnect()">Se connecter</button>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN MAIN ═══════════ -->
+<div id="screen-main" class="screen">
+
+  <div class="header">
+    <span>🏠</span>
+    <span class="header-title">Interface Aidant</span>
+    <span class="header-icon" id="icon-config" style="display:none;" onclick="openConfig()" title="Configuration modules">🔧</span>
+  </div>
+
+  <div class="content">
+
+
+    <!-- ALERTES -->
+    <div id="alert-zone" style="display:none;"></div>
+
+    <!-- T° GRID — masqué si module_m01_temp_hygro désactivé (applyModuleVisibility) -->
+    <div id="section-temp">
+    <div class="grid2">
+      <div class="card card-pad">
+        <div style="color:rgb(180,180,180);font-size:10px;margin-bottom:4px;">🛋️ Salon</div>
+        <div style="display:flex;align-items:baseline;gap:5px;">
+          <span id="temp-salon" style="font-size:26px;font-weight:500;">—°</span>
+        </div>
+      </div>
+      <div class="card card-pad">
+        <div style="color:rgb(180,180,180);font-size:10px;margin-bottom:4px;">🛏️ Chambre</div>
+        <div style="display:flex;align-items:baseline;gap:5px;">
+          <span id="temp-chambre" style="font-size:26px;font-weight:500;">—°</span>
+        </div>
+      </div>
+    </div>
+    </div><!-- /section-temp -->
+
+    <!-- VISIO — section masquée si module_m33_visio désactivé (applyModuleVisibility) -->
+    <div id="section-visio">
+    <!-- 2026-08-16 : le bouton vert disparaît pendant l'appel (remplacé par
+         "Raccrocher" dans le panneau ci-dessous) — évite de proposer
+         "Appel Visio" alors qu'un appel est déjà en cours. -->
+    <!-- 2026-08-18 (refonte) : la case "Urgence" cochée en permanence a été
+         retirée (retour utilisateur — jamais demandée en tant que case,
+         redondante avec ce que le bouton affiche déjà). Hors plage horaire,
+         cliquer sur ce bouton ouvre directement une confirmation "appel
+         urgent ?" (pavé rouge, voir launchVisio()/askConfirm()) — rien à
+         cocher à l'avance, rien à afficher quand on est dans les horaires
+         normaux. -->
+    <button class="btn-visio" id="btn-visio-appeler" onclick="launchVisio()">
+      📹 Appel Visio
+    </button>
+
+    <!-- 2026-08-16 : panneau d'appel (visio maison WebRTC). Masqué tant
+         qu'aucun appel n'est en cours. "Correspondant" = l'image renvoyée
+         par l'écran de la personne aidée (si celui-ci a une caméra). -->
+    <div id="visio-panel" style="display:none;margin-top:8px;">
+      <div style="position:relative;border-radius:var(--radius);overflow:hidden;background:#000;">
+        <!-- 2026-08-16 : object-fit "contain" et non "cover". "cover" remplit
+             le cadre en ROGNANT les bords, ce qui donnait un effet de zoom
+             marqué sur la caméra frontale (retour utilisateur) — le visage
+             était coupé par rapport à l'aperçu local. "contain" garde
+             l'image entière, quitte à laisser des bandes noires. -->
+        <video id="visio-remote" autoplay playsinline
+               style="width:100%;aspect-ratio:4/3;object-fit:contain;background:#000;display:block;"></video>
+        <video id="visio-local" autoplay muted playsinline
+               style="position:absolute;right:8px;bottom:8px;width:28%;object-fit:contain;border-radius:8px;
+                      border:2px solid rgba(255,255,255,0.5);background:#000;"></video>
+        <div id="visio-etat"
+             style="position:absolute;left:8px;top:8px;background:rgba(0,0,0,0.55);
+                    border-radius:6px;padding:3px 8px;font-size:11px;">…</div>
+      </div>
+      <button class="btn-visio-end" onclick="raccrocherVisio()">
+        📴 Raccrocher
+      </button>
+    </div>
+    </div><!-- /section-visio -->
+
+    <!-- PAGES DÉDIÉES (2026-08-15) : chaque bouton ouvre sa propre page,
+         protégée par un code PIN partagé (input_text.m10_pin_pages_dediees,
+         réglable dans config.html > Sécurité). Volontairement en dehors de
+         #only-rdv-block : ce bloc disparaît déjà automatiquement quand cette
+         page est elle-même embarquée via ?only=rdv dans calendrier.html. -->
+    <div class="section-label">🔗 Pages dédiées</div>
+    <div class="dedie-grid">
+      <div class="dedie-btn" id="btn-video" style="display:none;" onclick="openVideo()">
+        <span class="dedie-icon">📺</span>Vidésio
+      </div>
+      <div class="dedie-btn" id="btn-musique" onclick="openMusique()">
+        <span class="dedie-icon">🎵</span>Musique
+      </div>
+      <div class="dedie-btn" id="btn-photos" style="display:none;" onclick="openPhotos()">
+        <span class="dedie-icon">📷</span>Photos
+      </div>
+      <div class="dedie-btn" id="btn-message" style="display:none;" onclick="openMessageSettings()">
+        <span class="dedie-icon">💬</span>Message
+      </div>
+      <div class="dedie-btn" id="btn-calendrier" style="display:none;" onclick="openCalendrier()">
+        <span class="dedie-icon">📅</span>Calendrier
+      </div>
+    </div>
+
+    <!-- MESSAGES — section masquée si module_m03_ecran_msg désactivé (applyModuleVisibility) -->
+    <div id="section-messages">
+    <div style="height:1px;background:var(--surface);"></div>
+    <div class="section-label">💬 Message pour la personne aidée</div>
+
+    <!-- PARAMS SUMMARY -->
+    <div class="params-summary">
+      <div class="params-row">
+        <span>🛡️ Limite</span>
+        <span id="params-limite">— msg / — min</span>
+      </div>
+      <div class="params-row">
+        <span>🕐 Plage autorisée</span>
+        <span id="params-plage">—:— – —:—</span>
+      </div>
+    </div>
+
+    <!-- USER NAME -->
+    <div class="user-card">
+      <span>💛</span>
+      <span class="user-name" id="display-user">—</span>
+      <span class="user-hint">compte connecté</span>
+    </div>
+
+    <!-- MESSAGE -->
+    <div class="msg-card">
+      <div class="msg-label-row">
+        <span class="msg-label">MESSAGE (max 60 caractères)</span>
+        <span class="char-counter" id="char-counter"><span>✏️</span><span id="char-text">0/60 caractères</span></span>
+      </div>
+      <textarea id="msg-input" maxlength="60" placeholder="Saisir un message…" rows="3" oninput="onMsgInput()"></textarea>
+    </div>
+
+    <!-- SEND BUTTON -->
+    <button class="btn-send empty" id="btn-send" onclick="sendMessage()">
+      <span id="send-icon">📤</span>
+      <span id="send-label">Envoyer le message</span>
+    </button>
+
+    <!-- BANDEAU -->
+    <div class="bandeau-card">
+      <div class="bandeau-label">BANDEAU KIOSK (LIVE)</div>
+      <div class="bandeau-text" id="bandeau-text">—</div>
+    </div>
+
+    <!-- STATUS HINT -->
+    <div class="hint-card" id="hint-card" style="display:none;">
+      <span>ℹ️</span>
+      <span id="hint-text"></span>
+    </div>
+
+    <!-- MESSAGES LIST -->
+    <div class="msgs-card">
+      <div class="msgs-title">📨 MESSAGES EN COURS</div>
+      <div id="msgs-content">
+        <div class="msg-none">Aucun message affiché.</div>
+      </div>
+    </div>
+    </div><!-- /section-messages -->
+
+    <!-- 2026-08-15 : bloc encadré par #only-rdv-block pour permettre à
+         calendrier.html d'isoler cette zone via ?only=rdv (voir mode "only"
+         plus bas dans init()). Ne change rien au comportement normal. -->
+    <div id="only-rdv-block">
+    <div style="height:1px;background:var(--surface);"></div>
+    <div class="section-label">📅 Prendre un rendez-vous</div>
+
+    <!-- RDV -->
+    <div class="msg-card">
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">
+          <div class="msg-label">DATE</div>
+          <input type="date" id="rdv-date" oninput="onRdvInput()"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+                   color:var(--text);font-size:14px;padding:6px 10px;outline:none;font-family:inherit;">
+        </div>
+        <div style="flex:1;">
+          <div class="msg-label">HEURE</div>
+          <input type="time" id="rdv-heure" oninput="onRdvInput()" style="width:100%;">
+        </div>
+      </div>
+      <div class="msg-label-row" style="margin-top:10px;">
+        <span class="msg-label">NOTE (max 60 caractères)</span>
+        <span class="char-counter" id="rdv-char-counter"><span>✏️</span><span id="rdv-char-text">0/60 caractères</span></span>
+      </div>
+      <textarea id="rdv-note" maxlength="60" placeholder="Ex : Visite du médecin" rows="2" oninput="onRdvInput()"></textarea>
+    </div>
+
+    <!-- RDV BUTTON -->
+    <button class="btn-send empty" id="btn-rdv" onclick="creerRdv()">
+      <span id="rdv-icon">📅</span>
+      <span id="rdv-label">Créer le rendez-vous</span>
+    </button>
+
+    <!-- RDV LIST -->
+    <div class="msgs-card">
+      <div class="msgs-title">📋 RENDEZ-VOUS À VENIR</div>
+      <div id="rdv-list-content">
+        <div class="msg-none">Chargement…</div>
+      </div>
+    </div>
+
+    <!-- RDV RÉCURRENTS LIST -->
+    <div class="msgs-card">
+      <div class="msgs-title">🔁 RENDEZ-VOUS RÉCURRENTS</div>
+      <div id="rdv-recur-list-content">
+        <div class="msg-none">Chargement…</div>
+      </div>
+    </div>
+    </div><!-- /only-rdv-block -->
+
+    <!-- LOGOUT -->
+    <div style="text-align:center;padding:8px 0 4px;">
+      <span onclick="doLogout()" style="color:rgb(180,180,180);font-size:11px;cursor:pointer;text-decoration:underline;">
+        Déconnecter cet appareil
+      </span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN SETTINGS ═══════════ -->
+<div id="screen-settings" class="screen">
+
+  <div class="header">
+    <button class="btn-back" onclick="showScreen('main')" title="Retour">←</button>
+    <span>⚙️</span>
+    <span class="header-title">Paramètres messages</span>
+  </div>
+
+  <div class="content">
+
+    <!-- QUEUE MAX -->
+    <div class="section-label">📋 Taille maximale de la file</div>
+    <div class="card card-pad">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div>
+          <div class="ctrl-label">Messages max en file : <span id="queue-max-val">5</span></div>
+          <div class="ctrl-sub" style="color:var(--amber);">5 recommandé</div>
+        </div>
+      </div>
+      <input type="range" id="slider-queue-max" min="1" max="10" value="5" step="1"
+        oninput="document.getElementById('queue-max-val').textContent=this.value"
+        onchange="saveQueueMax(this.value)"
+        style="width:100%;accent-color:var(--blue-light);cursor:pointer;">
+      <div style="display:flex;justify-content:space-between;color:rgb(180,180,180);font-size:10px;margin-top:4px;">
+        <span>1</span><span>10</span>
+      </div>
+    </div>
+
+    <!-- DUREE AFFICHAGE -->
+    <div class="section-label">⏱️ Durée d'affichage par message</div>
+    <div class="card card-pad">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div>
+          <div class="ctrl-label">Durée : <span id="duree-val">15</span> min</div>
+          <div class="ctrl-sub" style="color:var(--amber);">15 min recommandé</div>
+        </div>
+      </div>
+      <input type="range" id="slider-duree" min="1" max="30" value="15" step="1"
+        oninput="document.getElementById('duree-val').textContent=this.value"
+        onchange="saveDuree(this.value)"
+        style="width:100%;accent-color:var(--blue-light);cursor:pointer;">
+      <div style="display:flex;justify-content:space-between;color:rgb(180,180,180);font-size:10px;margin-top:4px;">
+        <span>1 min</span><span>30 min</span>
+      </div>
+    </div>
+
+    <!-- LIMITE ENVOI -->
+    <div class="section-label">🛡️ Limite d'envoi par aidant</div>
+    <div class="card card-pad settings-section">
+      <div class="ctrl-row">
+        <div>
+          <div class="ctrl-label">Messages max par fenêtre</div>
+          <div class="ctrl-sub">Nombre d'envois autorisés par aidant</div>
+        </div>
+        <div class="stepper">
+          <button class="stepper-btn" onclick="changeRlMax(-1)">−</button>
+          <span class="stepper-val" id="rl-max-val">2</span>
+          <button class="stepper-btn" onclick="changeRlMax(+1)">+</button>
+        </div>
+      </div>
+      <div>
+        <div class="ctrl-label" style="margin-bottom:4px;">Fenêtre de temps</div>
+        <div class="fenetre-options" id="fenetre-opts">
+          <div class="fenetre-opt" data-val="5"  onclick="selectFenetre(this)">5 min</div>
+          <div class="fenetre-opt" data-val="10" onclick="selectFenetre(this)">10 min</div>
+          <div class="fenetre-opt" data-val="15" onclick="selectFenetre(this)">15 min</div>
+          <div class="fenetre-opt" data-val="30" onclick="selectFenetre(this)">30 min</div>
+          <div class="fenetre-opt" data-val="45" onclick="selectFenetre(this)">45 min</div>
+          <div class="fenetre-opt" data-val="60" onclick="selectFenetre(this)">60 min</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLAGE HORAIRE -->
+    <div class="section-label">🕐 Plage d'envoi autorisée</div>
+    <div class="card card-pad">
+      <div class="ctrl-row">
+        <div><div class="ctrl-label">Début</div></div>
+        <input type="time" id="input-debut" onchange="savePlage('debut')">
+      </div>
+      <div class="ctrl-row">
+        <div><div class="ctrl-label">Fin</div></div>
+        <input type="time" id="input-fin" onchange="savePlage('fin')">
+      </div>
+    </div>
+
+    <!-- RESET VALEURS PAR DEFAUT -->
+    <div class="section-label">🔄 Réinitialisation</div>
+    <div class="card card-pad">
+      <div class="ctrl-sub" style="margin-bottom:10px;">
+        Remet la taille de file, la durée d'affichage, la limite d'envoi et la plage horaire aux valeurs d'usine. Le lien Visio n'est pas modifié.
+      </div>
+      <button onclick="resetReglagesDefaut()"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+               color:var(--text);font-size:13px;padding:10px;cursor:pointer;font-family:inherit;">
+        Remettre les valeurs par défaut
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- PANNEAU ALARME -->
+<div class="alarm-panel" id="alarm-panel">
+  <div class="alarm-header">
+    <span style="font-size:20px;">🚨</span>
+    <span class="alarm-header-title">Panneau d'alarmes</span>
+    <span class="alarm-close" onclick="closeAlarmPanel()">✕</span>
+  </div>
+  <div class="alarm-content" id="alarm-content">
+    <div class="alarm-ok">
+      <div class="alarm-ok-icon">✅</div>
+      <div class="alarm-ok-text">Tout va bien</div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ── CONFIG ──────────────────────────────────────────────
+const BASE      = window.location.origin;
+const MAX_CHARS = 60;
+const REFRESH   = 30000; // ms
+
+// ── MODE "ONLY" (pages dédiées, 2026-08-15) ─────────────────
+// ?only=rdv (utilisé par calendrier.html en iframe) : isole le bloc RDV
+// (#only-rdv-block, voir HTML) et cache le reste via CSS (voir <style>).
+// Comportement 100% inchangé si le paramètre est absent.
+const ONLY_MODE = new URLSearchParams(window.location.search).get('only');
+if (ONLY_MODE === 'rdv') document.documentElement.classList.add('only-rdv');
+
+// ── STATE ────────────────────────────────────────────────
+let token    = localStorage.getItem('ha_token') || '';
+let userName = localStorage.getItem('ha_user_name') || '';
+let states   = {};
+let refreshTimer = null;
+
+// ── CHARGEMENT DES VALEURS D'USINE (config.json) ────────
+// Valeurs d'usine EMBARQUEES en dur (surcouche : config.json).
+// Meme si le fetch echoue ou est en cache, les defauts s'appliquent.
+var DEFAUTS = {
+  ha_user_name: 'La famille',
+  envoi_debut: '08:00',
+  envoi_fin: '19:00',
+  rl_max: 1,
+  rl_fenetre: '30',
+  affichage_duree: 15,
+  queue_max: 5
+};
+var USINE = null;
+(function loadUsine() {
+  fetch('./config.json', { cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw new Error('config.json absent'); return r.json(); })
+    .then(function (cfg) {
+      USINE = cfg;
+      // Chaque cle a la forme { defaut, actuel } : on prend actuel s'il existe,
+      // sinon defaut. Le localStorage reste prioritaire s'il est deja rempli.
+      function valeur(cle) {
+        if (!cfg[cle]) return null;
+        return (cfg[cle].actuel !== undefined && cfg[cle].actuel !== null)
+          ? cfg[cle].actuel : cfg[cle].defaut;
+      }
+      if (!localStorage.getItem('ha_user_name')) {
+        localStorage.setItem('ha_user_name', valeur('ha_user_name') || DEFAUTS.ha_user_name);
+      }
+    })
+    .catch(function () { /* pas de config.json -> defauts embarques */ });
+})();
+// Helper : valeur M03 = config.json (actuel>defaut) sinon defaut embarque.
+function usineM03(cle) {
+  if (USINE && USINE.defauts_m03 && USINE.defauts_m03[cle]) {
+    var o = USINE.defauts_m03[cle];
+    if (o.actuel !== undefined && o.actuel !== null) return o.actuel;
+    if (o.defaut !== undefined && o.defaut !== null) return o.defaut;
+  }
+  return DEFAUTS[cle];
+}
+
+// ── SESSION HA (même origine) ────────────────────────────
+// Quand la page est servie par HA (/local/aidant.html), elle partage le
+// localStorage du frontend. HA y stocke sa session sous la clé "hassTokens".
+// On s'en sert en priorité : aucun token long-lived à saisir.
+// Le frontend HA (onglet parent / app Companion) rafraîchit ce token tout seul.
+function haSessionToken() {
+  try {
+    const raw = localStorage.getItem('hassTokens');
+    if (!raw) return '';
+    const t = JSON.parse(raw);
+    if (!t || !t.access_token) return '';
+    // Périmé ? on laisse tomber, le fallback prendra le relais.
+    if (t.expires && Date.now() > t.expires) return '';
+    return t.access_token;
+  } catch (e) { return ''; }
+}
+
+// Token effectif : session HA si dispo, sinon token long-lived mémorisé.
+function currentToken() {
+  return haSessionToken() || token;
+}
+
+// 2026-08-15 (correctif, propagé depuis photos.html) : le token de session
+// HA (hassTokens, ~30 min) peut être invalide/expiré sans que notre test
+// d'expiration le détecte de façon fiable (confirmé par un log HA "Login
+// attempt failed... invalid authentication" pendant le débogage de l'upload
+// photo). fetchAuth() retente automatiquement avec l'AUTRE source de token
+// en cas de 401, au lieu de rester bloqué sur un token de session pourri
+// alors qu'un token longue durée valide existe en repli. Utilisé par
+// haGet/haPost et les appels camera_proxy — PAS par fetchProfile() (qui
+// teste explicitement le token candidat pendant la connexion, un retry
+// automatique n'aurait pas de sens à cet endroit précis).
+async function fetchAuth(url, opts) {
+  opts = opts || {};
+  const baseHeaders = opts.headers || {};
+  async function attempt(tok) {
+    const headers = Object.assign({}, baseHeaders, { 'Authorization': 'Bearer ' + tok });
+    return fetch(url, Object.assign({}, opts, { headers }));
+  }
+  const first = currentToken();
+  let r = await attempt(first);
+  if (r.status === 401) {
+    const alt = (first === token) ? haSessionToken() : token;
+    if (alt && alt !== first) r = await attempt(alt);
+  }
+  return r;
+}
+
+// ── INIT ─────────────────────────────────────────────────
+(function init() {
+  if (!userName) userName = localStorage.getItem('ha_user_name') || 'La famille';
+  if (currentToken()) doInit();
+  else showScreen('setup');
+})();
+
+/* ─── DROITS D'ACCÈS RÉELS (2026-08-15, correctif — trou de sécurité) ───
+   Signalé par l'utilisateur : "ANAIS a le droit de modifier les messages
+   alors que rien est coché". Cause réelle trouvée : l'icône ⚙️ (Paramètres
+   messages) faisait juste `showScreen('settings')`, SANS AUCUNE vérification
+   — ni ici, ni ailleurs. Contrairement à 🔧/📅/📺/📷 qui ouvrent des pages
+   séparées désormais protégées par leur propre gate (config.html,
+   calendrier.html, video.html, photos.html — voir m10_gestion_aidants.yaml),
+   l'écran "Paramètres messages" est un simple changement d'écran À
+   L'INTÉRIEUR d'aidant.html : il n'existait tout simplement AUCUN gate pour
+   lui, ni avant cette session ni après (le droit "⚙️ messages" du bitmask
+   était coché/décoché dans config.html sans jamais rien vérifier nulle
+   part — décoratif depuis l'origine). Corrigé ici avec la même logique
+   WebSocket auth/current_user que les 4 autres fichiers (dupliquée par
+   fichier, convention du projet) : résout l'identité réelle une fois au
+   chargement (MY_ACCESS), puis (a) cache les icônes/boutons pour lesquels
+   l'aidant n'a pas le droit, ET (b) bloque l'action elle-même (pas
+   seulement l'affichage — un bouton caché n'est qu'un frein cosmétique). */
+const DROIT_BIT = { config: 1, messages: 2, calendrier: 4, video: 8, photos: 16, alertes: 32 };
+let MY_ACCESS = null; // résultat de resolveAccess(), null tant que non résolu
+
+async function apiGetAllStates() {
+  const r = await fetchAuth(`${BASE}/api/states`);
+  if (!r.ok) return [];
+  return r.json();
+}
+async function loadDroits() {
+  const r = await fetchAuth(`${BASE}/api/states/input_text.m10_droits_aidants`);
+  if (!r.ok) return {};
+  const s = await r.json();
+  if (!s || !s.state || s.state === 'unknown') return {};
+  try { return JSON.parse(s.state); } catch (e) { return {}; }
+}
+function wsCurrentUser(tok) {
+  return new Promise((resolve, reject) => {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${proto}//${window.location.host}/api/websocket`);
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) { settled = true; try { ws.close(); } catch(e) {} reject(new Error('timeout')); }
+    }, 8000);
+    ws.onmessage = (ev) => {
+      let msg; try { msg = JSON.parse(ev.data); } catch (e) { return; }
+      if (msg.type === 'auth_required') {
+        ws.send(JSON.stringify({ type: 'auth', access_token: tok }));
+      } else if (msg.type === 'auth_ok') {
+        ws.send(JSON.stringify({ id: 1, type: 'auth/current_user' }));
+      } else if (msg.type === 'auth_invalid') {
+        if (!settled) { settled = true; clearTimeout(timer); ws.close(); reject(new Error('auth_invalid')); }
+      } else if (msg.type === 'result' && msg.id === 1) {
+        if (!settled) {
+          settled = true; clearTimeout(timer); ws.close();
+          if (msg.success) resolve(msg.result); else reject(new Error('ws_error'));
+        }
+      }
+    };
+    ws.onerror = () => { if (!settled) { settled = true; clearTimeout(timer); reject(new Error('ws_connection_error')); } };
+  });
+}
+async function resolveAccess() {
+  const tok = currentToken();
+  if (!tok) return null;
+  let user;
+  try { user = await wsCurrentUser(tok); } catch (e) { return null; }
+  if (user.is_admin || user.is_owner) return { admin: true, name: user.name };
+  const allStates = await apiGetAllStates();
+  const person = allStates.find(s => s.entity_id.startsWith('person.') && s.attributes && s.attributes.user_id === user.id);
+  if (!person) return { admin: false, mask: 0, name: user.name };
+  const droits = await loadDroits();
+  const objectId = person.entity_id.replace('person.', '');
+  return { admin: false, mask: droits[objectId] || 0, name: person.attributes.friendly_name || user.name };
+}
+function hasDroit(bit) {
+  return !!MY_ACCESS && (MY_ACCESS.admin || ((MY_ACCESS.mask || 0) & bit) !== 0);
+}
+async function refreshAccessUI() {
+  MY_ACCESS = await resolveAccess();
+  const map = [
+    ['btn-message', DROIT_BIT.messages],
+    ['icon-config', DROIT_BIT.config],
+    ['btn-calendrier', DROIT_BIT.calendrier],
+    ['btn-video', DROIT_BIT.video],
+    ['btn-photos', DROIT_BIT.photos],
+  ];
+  map.forEach(([id, bit]) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = hasDroit(bit) ? '' : 'none';
+  });
+  // Masquer en plus les sections dont le MODULE est désactivé dans config
+  await applyModuleVisibility();
+}
+
+// 2026-08-21 : masque les sections/boutons correspondant à un module désactivé.
+// Appelé après refreshAccessUI() pour surcharger les droits (un module OFF
+// = section disparaît même si l'aidant a le droit correspondant).
+// Fail-open : si l'API est indisponible, on laisse tout visible.
+async function applyModuleVisibility() {
+  const modState = async (eid) => {
+    try {
+      const s = await haGet('/api/states/' + eid);
+      return s && s.state === 'on';
+    } catch { return true; }
+  };
+  const [m01, m03, m04, m08, m33, m34, m31, m32] = await Promise.all([
+    modState('input_boolean.module_m01_temp_hygro'),
+    modState('input_boolean.module_m03_ecran_msg'),
+    modState('input_boolean.module_m04_calendrier'),
+    modState('input_boolean.module_m30_kiosk_ecran'),
+    modState('input_boolean.module_m33_visio'),
+    modState('input_boolean.module_m34_television'),
+    modState('input_boolean.module_m31_kiosk_foto'),
+    modState('input_boolean.module_m32_kiosk_zic'),
+  ]);
+
+  const show = (id, visible) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = visible ? '' : 'none';
+  };
+
+  show('section-temp', m01);
+  // 2026-09-13 : section visio visible même si M11 OFF (bouton conservé pour
+  // l'appel d'urgence uniquement — le texte du bouton indique l'état)
+  show('section-visio', m08);
+  // Plage horaire dans le bouton visio
+  if (m33 && m08) {
+    try {
+      const [deb, fin] = await Promise.all([
+        haGet('/api/states/input_datetime.m33_horaire_debut'),
+        haGet('/api/states/input_datetime.m33_horaire_fin'),
+      ]);
+      const btn = document.getElementById('btn-visio-appeler');
+      if (btn && deb && fin && deb.state && fin.state) {
+        const h = (s) => s.slice(0,5);
+        btn.textContent = `📹 Appel Visio de: ${h(deb.state)} <–> ${h(fin.state)}`;
+      }
+    } catch { /* silencieux */ }
+  } else if (m08) {
+    // M11 OFF : bouton conservé pour l'appel d'urgence uniquement
+    const btn = document.getElementById('btn-visio-appeler');
+    if (btn) {
+      btn.className = 'btn-visio hors-plage';
+      btn.textContent = '⏰ Appel Visio OFF — appel d\'urgence uniquement';
+    }
+  }
+  // Messages : M03 actif ET M08 actif
+  show('section-messages', m03 && m08);
+  show('btn-message', m03 && m08);
+  // Calendrier/RDV : M04 actif ET M08 actif
+  if (!m04 || !m08) { show('btn-calendrier', false); show('only-rdv-block', false); }
+  // btn-video : droit + M08 actif + (M33 OU M34)
+  if (!m08 || (!m33 && !m34)) show('btn-video', false);
+  // btn-photos : droit + M08 actif + M31
+  if (!m08 || !m31) show('btn-photos', false);
+  // btn-musique : M08 actif + M32 (pas de droit dédié pour l'instant)
+  show('btn-musique', !!(m32 && m08));
+}
+function openMessageSettings() {
+  if (!hasDroit(DROIT_BIT.messages)) { showToast('⛔ Droit Messages requis'); return; }
+  showScreen('settings');
+}
+
+/* 2026-09-13 : 5ème bouton — Musique (M32). Ouvre la page de programmation
+   des créneaux musique + gestion des liens YouTube. */
+function openMusique() {
+  const frame = document.getElementById('musique-iframe');
+  frame.src = '/local/musique.html?v=' + Date.now();
+  document.getElementById('screen-musique').style.display = 'block';
+}
+function closeMusique() {
+  document.getElementById('screen-musique').style.display = 'none';
+}
+
+function openConfig() {
+  if (!hasDroit(DROIT_BIT.config)) { showToast('⛔ Droit 🔧 Config requis'); return; }
+  const frame = document.getElementById('config-iframe');
+  // Cache-bust : évite que le navigateur serve une vieille version de
+  // config.html mise en cache après une modification du fichier.
+  frame.src = '/local/config.html?v=' + Date.now();
+  document.getElementById('screen-config').style.display = 'block';
+}
+function closeConfig() {
+  document.getElementById('screen-config').style.display = 'none';
+}
+
+// 2026-08-15 (correctif majeur, retour utilisateur — 401 persistant sur
+// l'app Home Assistant Android malgré un token valide) : les 3 boutons
+// "pages dédiées" faisaient un window.location.href (navigation complète)
+// vers /local/calendrier.html etc. Le log HA a montré que ça échouait aussi
+// sur PC (pas seulement le téléphone), en particulier pour des requêtes qui
+// n'ont rien à voir avec l'upload — signe que le problème n'était pas
+// spécifique à photos.html mais à la NAVIGATION COMPLÈTE elle-même. Sur
+// l'appli Home Assistant Android en particulier, une navigation complète
+// hors du contexte de la WebView embarquée peut atterrir dans un contexte
+// de navigateur SANS le token/session déjà injecté par l'appli — exactement
+// comme config.html aurait le même problème s'il n'était pas déjà chargé en
+// iframe ici (jamais en navigation complète). Solution : même mécanisme que
+// config.html — les 3 pages dédiées s'ouvrent maintenant en iframe DANS
+// aidant.html, jamais en page séparée. Elles restent utilisables en
+// autonome (URL directe) pour les tests, mais l'usage normal passe par ici.
+function openCalendrier() {
+  if (!hasDroit(DROIT_BIT.calendrier)) { showToast('⛔ Droit 📅 Calendrier requis'); return; }
+  const frame = document.getElementById('calendrier-iframe');
+  frame.src = '/local/calendrier.html?v=' + Date.now();
+  document.getElementById('screen-calendrier').style.display = 'block';
+}
+function closeCalendrier() {
+  document.getElementById('screen-calendrier').style.display = 'none';
+}
+function openVideo() {
+  if (!hasDroit(DROIT_BIT.video)) { showToast('⛔ Droit 📺 Vidésio requis'); return; }
+  const frame = document.getElementById('video-iframe');
+  frame.src = '/local/video.html?v=' + Date.now();
+  document.getElementById('screen-video').style.display = 'block';
+}
+function closeVideo() {
+  document.getElementById('screen-video').style.display = 'none';
+}
+function openPhotos() {
+  if (!hasDroit(DROIT_BIT.photos)) { showToast('⛔ Droit 📷 Photos requis'); return; }
+  const frame = document.getElementById('photos-iframe');
+  frame.src = '/local/photos.html?v=' + Date.now();
+  document.getElementById('screen-photos').style.display = 'block';
+}
+function closePhotos() {
+  document.getElementById('screen-photos').style.display = 'none';
+}
+
+async function doInit() {
+  try {
+    await fetchProfile();
+    showScreen('main');
+    refreshAccessUI(); // async, n'attend pas — cache les icônes dès que résolu
+    await refreshAll();
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(refreshAll, REFRESH);
+    majEtatBoutonAppel();
+    setInterval(majEtatBoutonAppel, ETAT_APPEL_POLL);
+  } catch(e) {
+    console.error(e);
+    // Setup uniquement si 401 (token invalide/révoqué) — pas sur erreur réseau
+    if (e.message === 'auth') showScreen('setup');
+    else {
+      // Erreur réseau → on affiche quand même le main avec le nom mis en cache
+      showScreen('main');
+      refreshAccessUI();
+      if (refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = setInterval(refreshAll, REFRESH);
+    }
+  }
+}
+
+async function fetchProfile() {
+  // Valider le token via /api/ (endpoint universel HA)
+  const r = await fetch(BASE + '/api/', {
+    headers: { 'Authorization': 'Bearer ' + currentToken() }
+  });
+  if (!r.ok) throw new Error('auth');
+
+  // Récupérer le nom via /api/profile
+  const profileR = await fetch(BASE + '/api/profile', {
+    headers: { 'Authorization': 'Bearer ' + currentToken(), 'Content-Type': 'application/json' }
+  });
+  if (profileR.ok) {
+    const p = await profileR.json();
+    if (p.name) {
+      userName = p.name;
+      localStorage.setItem('ha_user_name', userName);
+    }
+  }
+}
+
+// ── AUTH ─────────────────────────────────────────────────
+async function doConnect() {
+  const btn = document.getElementById('btn-connect');
+  const errEl = document.getElementById('setup-error');
+  const t = document.getElementById('input-token').value.trim();
+  if (!t) return;
+
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+  errEl.style.display = 'none';
+
+  token = t;
+  try {
+    await fetchProfile();
+    localStorage.setItem('ha_token', token);
+    document.getElementById('display-user').textContent = userName;
+    showScreen('main');
+    refreshAccessUI();
+    await refreshAll();
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(refreshAll, REFRESH);
+  } catch(e) {
+    token = '';
+    errEl.style.display = 'block';
+    btn.innerHTML = 'Se connecter';
+    btn.disabled = false;
+  }
+}
+
+function doLogout() {
+  if (!confirm('Déconnecter cet appareil ?')) return;
+  localStorage.removeItem('ha_token');
+  localStorage.removeItem('ha_user_name');
+  token = ''; userName = 'La famille';
+  if (refreshTimer) clearInterval(refreshTimer);
+  showScreen('setup');
+}
+
+// ── NAVIGATION ────────────────────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('screen-' + name);
+  if (el) el.classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ── HA API ────────────────────────────────────────────────
+async function haGet(path) {
+  const r = await fetchAuth(BASE + path);
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+async function haPost(path, data = {}) {
+  const r = await fetchAuth(BASE + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  return r;
+}
+
+function st(key) {
+  const s = (states[key] || {}).state || '';
+  return (s === 'unknown' || s === 'unavailable') ? '' : s;
+}
+
+// ── REFRESH ───────────────────────────────────────────────
+async function refreshAll() {
+  const keys = [
+    'timer.m03_rotation',
+    'input_text.m03_queue_msg',
+    'input_text.m03_queue_auteur',
+    'input_text.m03_queue_timestamps',
+    'input_text.m03_affiche_msg',
+    'input_text.m03_affiche_auteur',
+    'input_datetime.m03_affiche_depuis',
+    'input_text.m03_rate_limit',
+    'input_number.m03_rl_max',
+    'input_number.m03_affichage_duree',
+    'input_number.m03_queue_max',
+    'input_select.m03_rl_fenetre',
+    'input_datetime.m03_envoi_debut',
+    'input_datetime.m03_envoi_fin',
+    'sensor.snzb02d_salon_temperature',
+    'sensor.snzb02d_chambre_temperature',
+    'input_number.sim_temp_salon',
+    'input_number.sim_temp_chambre',
+    'binary_sensor.snzb04p_porte_ext_contact',
+    'sensor.m03_bandeau_principal',
+    ...ALERT_SENSORS.map(s => s.entity),
+  ];
+
+  const results = await Promise.allSettled(keys.map(k => haGet('/api/states/' + k)));
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') states[keys[i]] = r.value;
+  });
+
+  updateUI();
+  updateSendButton();
+  refreshRdvList();
+  refreshRdvRecurrentsList();
+}
+
+// ── ALERTES ───────────────────────────────────────────────
+// Définition des capteurs surveillés — à compléter au fur et à mesure des appairages
+const ALERT_SENSORS = [
+  // Fuites
+  { entity: 'binary_sensor.fuite_cuisine_water_leak',        label: '💧 Fuite cuisine',        trigger: 'on' },
+  { entity: 'binary_sensor.fuite_sdb_water_leak',            label: '💧 Fuite SDB',            trigger: 'on' },
+  { entity: 'binary_sensor.fuite_cumulus_water_leak',        label: '💧 Fuite cumulus',        trigger: 'on' },
+  { entity: 'binary_sensor.fuite_lave_linge_water_leak',     label: '💧 Fuite lave-linge',     trigger: 'on' },
+  { entity: 'binary_sensor.fuite_lave_vaisselle_water_leak', label: '💧 Fuite lave-vaisselle', trigger: 'on' },
+  // SOS
+  { entity: 'binary_sensor.bouton_sos_action',               label: '🆘 Bouton SOS activé',    trigger: 'on' },
+  // Porte entrée — affiche la caméra salon
+  { entity: 'binary_sensor.contact_porte_entree_contact',    label: '🚪 Porte entrée ouverte', trigger: 'off', camera: 'camera.living_room_net' },
+];
+
+// Caméra : rafraîchissement
+let camInterval = null;
+
+let activeAlerts = [];
+
+function updateAlerts() {
+  const zone = document.getElementById('alert-zone');
+  activeAlerts = ALERT_SENSORS.filter(s => st(s.entity) === s.trigger);
+
+  if (activeAlerts.length === 0) {
+    zone.style.display = 'none';
+    // Mettre à jour le panneau si ouvert
+    document.getElementById('alarm-content').innerHTML = `
+      <div class="alarm-ok">
+        <div class="alarm-ok-icon">✅</div>
+        <div class="alarm-ok-text">Tout va bien</div>
+      </div>`;
+    return;
+  }
+
+  const n = activeAlerts.length;
+  zone.style.display = 'block';
+  zone.innerHTML = `
+    <div class="alert-banner" onclick="openAlarmPanel()">
+      <span class="alert-banner-text">⚠️ ${n} alerte${n > 1 ? 's' : ''} active${n > 1 ? 's' : ''}</span>
+      <span class="alert-banner-arrow">›</span>
+    </div>`;
+
+  // Mettre à jour le contenu du panneau
+  const heure = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  const camEntity = activeAlerts.find(a => a.camera)?.camera;
+
+  document.getElementById('alarm-content').innerHTML =
+    activeAlerts.map(a => `
+      <div class="alarm-item">
+        <div class="alarm-item-icon">${a.label.split(' ')[0]}</div>
+        <div>
+          <div class="alarm-item-label">${a.label.split(' ').slice(1).join(' ')}</div>
+          <div class="alarm-item-since">Actif · vérifié à ${heure}</div>
+        </div>
+      </div>`).join('')
+    + (camEntity ? `
+      <div style="border-radius:12px;overflow:hidden;border:1px solid rgba(239,68,68,0.3);">
+        <div style="background:#1a0a0a;padding:6px 10px;font-size:10px;color:#fca5a5;letter-spacing:1px;">📷 CAMÉRA SALON — LIVE</div>
+        <img id="cam-live" style="width:100%;display:block;min-height:120px;background:#0a0f1e;" alt="caméra">
+      </div>` : '');
+
+  // Rafraîchir le flux caméra via fetch (auth header obligatoire)
+  if (camInterval) clearInterval(camInterval);
+  if (camEntity) {
+    const loadCam = async () => {
+      const img = document.getElementById('cam-live');
+      if (!img) return;
+      try {
+        const r = await fetchAuth(`${BASE}/api/camera_proxy/${camEntity}`);
+        if (r.ok) {
+          const blob = await r.blob();
+          const old = img.src;
+          img.src = URL.createObjectURL(blob);
+          if (old.startsWith('blob:')) URL.revokeObjectURL(old);
+        }
+      } catch(e) { console.error('cam', e); }
+    };
+    loadCam();
+    camInterval = setInterval(loadCam, 3000);
+  }
+}
+
+function openAlarmPanel() {
+  document.getElementById('alarm-panel').classList.add('open');
+  const camEntity = activeAlerts.find(a => a.camera)?.camera;
+  if (camEntity && !camInterval) {
+    const loadCam = async () => {
+      const img = document.getElementById('cam-live');
+      if (!img) return;
+      try {
+        const r = await fetchAuth(`${BASE}/api/camera_proxy/${camEntity}`);
+        if (r.ok) {
+          const blob = await r.blob();
+          const old = img.src;
+          img.src = URL.createObjectURL(blob);
+          if (old.startsWith('blob:')) URL.revokeObjectURL(old);
+        }
+      } catch(e) {}
+    };
+    loadCam();
+    camInterval = setInterval(loadCam, 3000);
+  }
+}
+
+function closeAlarmPanel() {
+  document.getElementById('alarm-panel').classList.remove('open');
+  if (camInterval) { clearInterval(camInterval); camInterval = null; }
+}
+
+// ── UPDATE UI ─────────────────────────────────────────────
+function updateUI() {
+  // User name
+  document.getElementById('display-user').textContent = userName;
+  updateAlerts();
+
+  // Chips
+  const tSalon = parseFloat(st('sensor.snzb02d_salon_temperature')) || parseFloat(st('input_number.sim_temp_salon')) || null;
+  const porte = st('binary_sensor.snzb04p_porte_ext_contact');
+  const elPorte = document.getElementById('chip-porte');
+  if (elPorte) elPorte.textContent =
+    porte === 'off' ? '🚪 Ouverte' : porte === 'on' ? '🚪 Fermée' : '🚪 —';
+
+  const bandeau = st('sensor.m03_bandeau_principal');
+  const elMsg = document.getElementById('chip-msg');
+  if (elMsg) elMsg.textContent =
+    bandeau === 'vide' || !bandeau ? '💬 Aucun msg' : '💬 Message actif';
+
+  // T°
+  document.getElementById('temp-salon').textContent =
+    tSalon ? `${tSalon.toFixed(1)}°` : '—°';
+  const tCh = parseFloat(st('sensor.snzb02d_chambre_temperature')) || parseFloat(st('input_number.sim_temp_chambre')) || null;
+  document.getElementById('temp-chambre').textContent =
+    tCh ? `${tCh.toFixed(1)}°` : '—°';
+
+  // Params summary
+  const rlMax = parseInt(st('input_number.m03_rl_max')) || 1;
+  const rlFen = st('input_select.m03_rl_fenetre') || '30';
+  document.getElementById('params-limite').textContent = `${rlMax} msg / ${rlFen} min`;
+
+  const debut = st('input_datetime.m03_envoi_debut');
+  const fin   = st('input_datetime.m03_envoi_fin');
+  // Fallback usine (embarque ou config.json) quand HA est vide/unknown
+  const usDeb = usineM03('envoi_debut');
+  const usFin = usineM03('envoi_fin');
+  const debV = (debut && debut !== 'unknown' && debut !== 'unavailable') ? debut.slice(0,5) : (usDeb || '--:--');
+  const finV = (fin   && fin   !== 'unknown' && fin   !== 'unavailable') ? fin.slice(0,5)   : (usFin || '--:--');
+  document.getElementById('params-plage').textContent = `${debV} – ${finV}`;
+
+  // Bandeau
+  const bandeauAttr = (states['sensor.m03_bandeau_principal'] || {}).attributes || {};
+  let bandeauTxt = bandeauAttr.texte || 'Aucun message ni événement';
+  /* 2026-09-13 : horodatage du message, visible UNIQUEMENT dans l'interface
+     aidant (l'utilisateur l'a fait retirer du kiosk le même jour). Permet de
+     vérifier quand le dernier message a été envoyé, même en consultant plus
+     tard. Le kiosk, lui, lit sensor.m03_texto_formate sans horodatage. */
+  if ((states['sensor.m03_bandeau_principal'] || {}).state === 'texto') {
+    const dep = st('input_datetime.m03_affiche_depuis');
+    if (dep && !['unknown', 'unavailable', ''].includes(dep)) {
+      const sec = Math.floor((Date.now() - new Date(dep).getTime()) / 1000);
+      const age = sec < 60 ? "à l'instant"
+        : sec < 3600 ? `il y a ${Math.floor(sec / 60)} min`
+        : `il y a ${Math.floor(sec / 3600)}h${String(Math.floor((sec % 3600) / 60)).padStart(2, '0')}`;
+      bandeauTxt += ` — ${age}`;
+    }
+  }
+  document.getElementById('bandeau-text').textContent = bandeauTxt;
+
+  // Messages list
+  renderMessages();
+
+  // Settings fields
+  const duree = parseInt(st('input_number.m03_affichage_duree')) || 15;
+  document.getElementById('slider-duree').value = duree;
+  document.getElementById('duree-val').textContent = duree;
+  const qMax = parseInt(st('input_number.m03_queue_max')) || 5;
+  document.getElementById('slider-queue-max').value = qMax;
+  document.getElementById('queue-max-val').textContent = qMax;
+  document.getElementById('rl-max-val').textContent = rlMax;
+  document.querySelectorAll('.fenetre-opt').forEach(el => {
+    el.classList.toggle('selected', el.dataset.val === rlFen);
+  });
+  if (debut && debut !== 'unknown' && debut !== 'unavailable') {
+    document.getElementById('input-debut').value = debut.slice(0,5);
+  } else if (usDeb) {
+    document.getElementById('input-debut').value = usDeb;
+  }
+  if (fin && fin !== 'unknown' && fin !== 'unavailable') {
+    document.getElementById('input-fin').value = fin.slice(0,5);
+  } else if (usFin) {
+    document.getElementById('input-fin').value = usFin;
+  }
+}
+
+function renderMessages() {
+  const affMsg = st('input_text.m03_affiche_msg');
+  const affAut = st('input_text.m03_affiche_auteur') || 'La famille';
+  const affDep = st('input_datetime.m03_affiche_depuis');
+  const qMsg   = st('input_text.m03_queue_msg');
+  const qAut   = st('input_text.m03_queue_auteur');
+  const qTs    = st('input_text.m03_queue_timestamps');
+
+  let html = '';
+
+  // Current displayed message
+  if (affMsg && !['', 'unknown', 'unavailable'].includes(affMsg)) {
+    let ageStr = '';
+    if (affDep && !['unknown','unavailable'].includes(affDep)) {
+      const ageSec = Math.floor((Date.now() - new Date(affDep).getTime()) / 1000);
+      ageStr = ageSec < 60 ? "à l'instant" :
+               ageSec < 3600 ? `il y a ${Math.floor(ageSec/60)} min` :
+               `il y a ${Math.floor(ageSec/3600)}h${String(Math.floor((ageSec%3600)/60)).padStart(2,'0')}`;
+    }
+    html += `<div class="msg-current">
+      <div class="msg-current-badge">🟢 EN COURS D'AFFICHAGE <span class="msg-current-age">${ageStr}</span></div>
+      <div class="msg-current-text">"${escHtml(affMsg)}"</div>
+      <div class="msg-current-author">— ${escHtml(affAut)}</div>
+    </div>`;
+  } else {
+    html += '<div class="msg-none">Aucun message affiché.</div>';
+  }
+
+  // Queue
+  if (qMsg && !['', 'unknown', 'unavailable'].includes(qMsg)) {
+    const msgs = qMsg.split('|');
+    const auts = qAut && qAut !== 'unknown' ? qAut.split('|') : [];
+    const tss  = qTs  && qTs  !== 'unknown' ? qTs.split('|')  : [];
+    html += `<div class="queue-title">⏳ En attente (${msgs.length}/5) :</div>`;
+    msgs.forEach((m, i) => {
+      const a = auts[i] || 'La famille';
+      const t = tss[i]  || '—';
+      html += `<div class="queue-item">
+        <div class="queue-item-meta">
+          <span class="queue-item-author">${escHtml(a)}</span>
+          <span class="queue-item-time">${escHtml(t)}</span>
+        </div>
+        <div class="queue-item-text">${escHtml(m)}</div>
+      </div>`;
+    });
+  }
+
+  document.getElementById('msgs-content').innerHTML = html;
+
+  // Hint
+  const qCount = qMsg && !['','unknown','unavailable'].includes(qMsg) ? qMsg.split('|').length : 0;
+  const hintEl = document.getElementById('hint-card');
+  if (qCount > 0) {
+    hintEl.style.display = 'flex';
+    // Calcul temps restant depuis timer.m03_rotation
+    let timerStr = '';
+    const timerState = states['timer.m03_rotation'];
+    if (timerState && timerState.state === 'active' && timerState.attributes && timerState.attributes.finishes_at) {
+      const remaining = Math.max(0, Math.round((new Date(timerState.attributes.finishes_at) - Date.now()) / 1000));
+      const m = Math.floor(remaining / 60);
+      const s = remaining % 60;
+      timerStr = m > 0 ? ` — dans ${m} min` : ` — dans < 1 min`;
+    }
+    document.getElementById('hint-text').textContent =
+      `${qCount} message${qCount > 1 ? 's' : ''} en attente${timerStr}`;
+  } else {
+    // 2026-08-14 : le cas "message en cours d'affichage" est retiré ici —
+    // déjà visible dans BANDEAU KIOSK et dans MESSAGES EN COURS
+    // (tag "EN COURS D'AFFICHAGE"), ça faisait triple affichage de la
+    // même info.
+    hintEl.style.display = 'none';
+  }
+}
+
+// ── SEND BUTTON STATE ─────────────────────────────────────
+function updateSendButton() {
+  const btn      = document.getElementById('btn-send');
+  const icon     = document.getElementById('send-icon');
+  const label    = document.getElementById('send-label');
+  const msgVal   = (document.getElementById('msg-input').value || '').trim();
+  const qMsg     = st('input_text.m03_queue_msg');
+  const qCount   = qMsg && !['','unknown','unavailable'].includes(qMsg) ? qMsg.split('|').length : 0;
+  const debut    = st('input_datetime.m03_envoi_debut');
+  const fin      = st('input_datetime.m03_envoi_fin');
+  const rlData   = st('input_text.m03_rate_limit');
+  const rlMax    = parseInt(st('input_number.m03_rl_max')) || 1;
+  const rlFenMin = parseInt(st('input_select.m03_rl_fenetre')) || 30;
+  const debStr   = debut && debut !== 'unknown' ? debut.slice(0,5) : null;
+  const finStr   = fin   && fin   !== 'unknown' ? fin.slice(0,5)   : null;
+
+  btn.className = 'btn-send';
+
+  // ⚠️ 2026-08-14 : les restrictions (file pleine / plage horaire / limite
+  // de débit) sont vérifiées AVANT de regarder si un message est saisi —
+  // pour que le bouton affiche tout de suite la vraie raison (ex. "Envoi
+  // désactivé") dès le chargement de la page, sans attendre que
+  // l'utilisateur commence à taper (bug signalé : la restriction ne
+  // s'affichait qu'au premier caractère tapé).
+  const qMax = parseInt(st('input_number.m03_queue_max')) || 5;
+  if (qCount >= qMax) {
+    btn.classList.add('full');
+    icon.textContent = '🚫'; label.textContent = `File pleine — max ${qMax} messages`;
+    return;
+  }
+  if (debStr && finStr && !checkPlage(debStr, finStr)) {
+    btn.classList.add('plage');
+    icon.textContent = '⏰'; label.textContent = `Envoi de message désactivé (${debStr}–${finStr})`;
+    return;
+  }
+  const rl = checkRateLimit(rlData, userName, rlMax, rlFenMin);
+  if (!rl.ok) {
+    btn.classList.add('limited');
+    icon.textContent = '⏳'; label.textContent = `Envoi de message — attendre encore ~${rl.remainMin} min`;
+    return;
+  }
+
+  const MIN_CHARS = 5;
+  if (!msgVal) {
+    btn.classList.add('empty');
+    icon.textContent = '📤'; label.textContent = 'Saisir un message…';
+    return;
+  }
+  if (msgVal.length < MIN_CHARS) {
+    btn.classList.add('typing');
+    icon.textContent = '✏️'; label.textContent = `Message — encore ${MIN_CHARS - msgVal.length} caractère${MIN_CHARS - msgVal.length > 1 ? 's' : ''}…`;
+    return;
+  }
+  btn.classList.add('ready');
+  icon.textContent = '📨'; label.textContent = 'Envoyer le message';
+}
+
+function checkPlage(deb, fin) {
+  const now = new Date();
+  const nowM = now.getHours() * 60 + now.getMinutes();
+  const debM = parseInt(deb.split(':')[0]) * 60 + parseInt(deb.split(':')[1]);
+  const finM = parseInt(fin.split(':')[0]) * 60 + parseInt(fin.split(':')[1]);
+  return nowM >= debM && nowM < finM;
+}
+
+function checkRateLimit(rlState, auteur, maxMsg, fenetreMin) {
+  const fenetreS = fenetreMin * 60;
+  if (!rlState || rlState === 'unknown' || rlState === 'unavailable')
+    return { ok: true, remainMin: 0 };
+  const nowSec = Math.floor(Date.now() / 1000);
+  let msgCount = 0, remainMin = fenetreMin;
+  for (const e of rlState.split('|')) {
+    const idx = e.indexOf('=');
+    if (idx > -1 && e.substring(0, idx) === auteur) {
+      for (const ts of e.substring(idx + 1).split(',')) {
+        const age = nowSec - parseInt(ts);
+        if (age < fenetreS) {
+          msgCount++;
+          remainMin = Math.min(remainMin, Math.ceil((fenetreS - age) / 60));
+        }
+      }
+      break;
+    }
+  }
+  return { ok: msgCount < maxMsg, remainMin };
+}
+
+// ── SEND MESSAGE ──────────────────────────────────────────
+async function sendMessage() {
+  const btn = document.getElementById('btn-send');
+  if (!btn.classList.contains('ready')) return;
+
+  const msg = (document.getElementById('msg-input').value || '').trim();
+  if (!msg) return;
+
+  const icon  = document.getElementById('send-icon');
+  const label = document.getElementById('send-label');
+  icon.innerHTML = '<span class="spinner"></span>';
+  label.textContent = 'Envoi de message…';
+  btn.disabled = true;
+
+  try {
+    // 1. Mettre le message dans m03_message_famille
+    await haPost('/api/services/input_text/set_value', {
+      entity_id: 'input_text.m03_message_famille',
+      value: msg
+    });
+    // 2. Appeler le script avec l'auteur
+    await haPost('/api/services/script/m03_envoyer', {
+      auteur: userName
+    });
+    document.getElementById('msg-input').value = '';
+    onMsgInput();
+    showToast('✅ Message envoyé !');
+    setTimeout(refreshAll, 1200);
+  } catch(e) {
+    showToast('❌ Erreur d\'envoi');
+  } finally {
+    btn.disabled = false;
+    icon.innerHTML = '📤';
+    updateSendButton();
+  }
+}
+
+// ── INPUT HANDLERS ────────────────────────────────────────
+function onMsgInput() {
+  const n = document.getElementById('msg-input').value.length;
+  const remaining = MAX_CHARS - n;
+  const el = document.getElementById('char-counter');
+  const txt = document.getElementById('char-text');
+
+  el.className = 'char-counter' + (n > 0 ? ' filled' : '');
+  // 2026-09-13 : toute la ligne (libellé MESSAGE + compteur) passe en blanc
+  const row = el.closest('.msg-label-row');
+  if (row) row.classList.toggle('filled', n > 0);
+  if (n === 0)        txt.textContent = `0/${MAX_CHARS} caractères`;
+  else if (remaining <= 5) { txt.textContent = `⚠️ ${remaining} restant${remaining !== 1 ? 's' : ''}`; el.classList.add('danger'); }
+  else if (remaining <= 15){ txt.textContent = `${n}/${MAX_CHARS} — ${remaining} restants`; el.classList.add('warn'); }
+  else                txt.textContent = `${n}/${MAX_CHARS} caractères`;
+
+  updateSendButton();
+}
+
+// ── RDV (calendrier local) ───────────────────────────────
+// 2026-08-14 : calendar.calendrier_local (intégration native HA "Local
+// Calendar") — remplace le projet Google Calendar (abandonné, confidentialité).
+// Service HA générique calendar.create_event, aucun package/script requis.
+const RDV_MAX_CHARS = 60;
+
+function onRdvInput() {
+  const date = document.getElementById('rdv-date').value;
+  const heure = document.getElementById('rdv-heure').value;
+  const note = document.getElementById('rdv-note').value;
+  const n = note.length;
+
+  const el = document.getElementById('rdv-char-counter');
+  const txt = document.getElementById('rdv-char-text');
+  const remaining = RDV_MAX_CHARS - n;
+  el.className = 'char-counter' + (n > 0 ? ' filled' : '');
+  // 2026-09-13 : toute la ligne (libellé NOTE + compteur) passe en blanc (même protocole que MESSAGE)
+  const row = el.closest('.msg-label-row');
+  if (row) row.classList.toggle('filled', n > 0);
+  if (n === 0)              txt.textContent = `0/${RDV_MAX_CHARS} caractères`;
+  else if (remaining <= 5)  { txt.textContent = `⚠️ ${remaining} restant${remaining !== 1 ? 's' : ''}`; el.classList.add('danger'); }
+  else if (remaining <= 15) { txt.textContent = `${n}/${RDV_MAX_CHARS} — ${remaining} restants`; el.classList.add('warn'); }
+  else                       txt.textContent = `${n}/${RDV_MAX_CHARS} caractères`;
+
+  const btn = document.getElementById('btn-rdv');
+  btn.className = 'btn-send';
+  if (!date && !heure && n === 0)      btn.classList.add('empty');
+  else if (date && heure && n > 0)     btn.classList.add('ready');
+  else                                  btn.classList.add('typing');
+}
+
+async function creerRdv() {
+  const btn = document.getElementById('btn-rdv');
+  if (!btn.classList.contains('ready')) return;
+
+  const date = document.getElementById('rdv-date').value;
+  const heure = document.getElementById('rdv-heure').value;
+  const note = (document.getElementById('rdv-note').value || '').trim();
+  if (!date || !heure || !note) return;
+
+  // 1. Récurrent ? (popup OUI/NON, réutilise la modale générique)
+  const recurrent = await askConfirm('Ce rendez-vous est-il récurrent ?');
+
+  // 2. Si oui : choix des jours (même heure pour tous, pas de champ heure séparé)
+  // ⚠️ 2026-08-14 : HA (2026.8.2) ne supporte PAS de champ rrule sur
+  // calendar.create_event (vérifié sur la doc officielle — demande
+  // d'évolution encore ouverte côté HA). La récurrence se fait donc via
+  // une règle stockée (shell_command.m03_rdv_recurrents) + automation
+  // quotidienne qui crée l'événement du jour — voir m03_rdv_recurrents.yaml.
+  let days = null;
+  if (recurrent) {
+    days = await askRdvDays(heure);
+    if (!days || days.length === 0) {
+      showToast('Création annulée');
+      return;
+    }
+  }
+
+  const icon  = document.getElementById('rdv-icon');
+  const label = document.getElementById('rdv-label');
+  icon.innerHTML = '<span class="spinner"></span>';
+  label.textContent = 'Création…';
+  btn.disabled = true;
+
+  try {
+    const start = new Date(date + 'T' + heure + ':00');
+    const end   = new Date(start.getTime() + 30 * 60 * 1000); // durée par défaut : 30 min
+    const fmt = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0') + ' ' + String(d.getHours()).padStart(2,'0') + ':' +
+      String(d.getMinutes()).padStart(2,'0') + ':00';
+
+    /* 2026-09-13 : anti-doublon. Si un événement IDENTIQUE (même intitulé,
+       même date, même heure) existe déjà, ne pas en créer un second — c'est
+       ce qui produisait des RDV empilés quand on recréait une récurrence
+       (l'ancien événement restait, le nouveau s'ajoutait par-dessus). */
+    const jourDebut = fmt(start).slice(0, 10);
+    const cibleDebut = fmt(start).slice(0, 16); // 'YYYY-MM-DD HH:MM'
+    let dejaExiste = false;
+    try {
+      const rg = await haPost('/api/services/calendar/get_events?return_response', {
+        entity_id: 'calendar.calendrier_local',
+        start_date_time: jourDebut + ' 00:00:00',
+        end_date_time: jourDebut + ' 23:59:59'
+      });
+      if (rg.ok) {
+        const rd = await rg.json();
+        const sr = (rd && rd.service_response) || {};
+        const evs = ((sr['calendar.calendrier_local'] || {}).events) || [];
+        dejaExiste = evs.some(ev => ev.summary === note &&
+          String(ev.start || '').slice(0, 16).replace('T', ' ') === cibleDebut);
+      }
+    } catch (e) { /* en cas de doute, on garde l'ancien comportement (créer) */ }
+
+    // Première occurrence : RDV normal (identique au cas non récurrent)
+    if (!dejaExiste) {
+      const r = await haPost('/api/services/calendar/create_event', {
+        entity_id: 'calendar.calendrier_local',
+        summary: note,
+        start_date_time: fmt(start),
+        end_date_time: fmt(end)
+      });
+      if (!r.ok) throw new Error(r.status);
+    }
+
+    // Occurrences suivantes : règle persistante (jours + heure + note)
+    if (days) {
+      const noteSure = note.replace(/\|/g, '-'); // "|" = séparateur du fichier de règles
+      const r2 = await haPost('/api/services/shell_command/m03_rdv_recurrents', {
+        action: 'add', arg2: days.join(','), arg3: heure, arg4: noteSure
+      });
+      if (!r2.ok) throw new Error('recur:' + r2.status);
+    }
+
+    document.getElementById('rdv-date').value = '';
+    document.getElementById('rdv-heure').value = '';
+    document.getElementById('rdv-note').value = '';
+    onRdvInput();
+    showToast(days
+      ? '✅ Rendez-vous récurrent créé !'
+      : (dejaExiste ? '✅ Déjà présent — aucun doublon créé' : '✅ Rendez-vous créé !'));
+  } catch (e) {
+    showToast('❌ Erreur de création du rendez-vous');
+  } finally {
+    btn.disabled = false;
+    icon.innerHTML = '📅';
+    label.textContent = 'Créer le rendez-vous';
+  }
+  refreshRdvList();
+  refreshRdvRecurrentsList();
+}
+
+// ── CONFIRM MODAL (générique) ────────────────────────────
+let confirmResolve = null;
+function askConfirm(text) {
+  document.getElementById('confirm-text').textContent = text;
+  document.getElementById('confirm-overlay').classList.add('open');
+  return new Promise(resolve => { confirmResolve = resolve; });
+}
+function closeConfirm(result) {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  if (confirmResolve) { confirmResolve(result); confirmResolve = null; }
+}
+
+// ── RDV — CHOIX DES JOURS (récurrence) ───────────────────
+// Cases vides par défaut (demande utilisateur 14/08) — la personne coche
+// elle-même ses jours, ou utilise les boutons raccourcis 5j/7j. Un seul
+// champ heure existe dans le formulaire : tous les jours cochés partagent
+// la même heure (pas de saisie par jour).
+let rdvDaysResolve = null;
+function askRdvDays(heureStr) {
+  document.getElementById('rdv-days-heure').textContent = heureStr;
+  document.querySelectorAll('#rdv-days-overlay input[type="checkbox"]').forEach(cb => cb.checked = false);
+  document.getElementById('rdv-days-overlay').classList.add('open');
+  return new Promise(resolve => { rdvDaysResolve = resolve; });
+}
+function selectRdvDays(days) {
+  document.querySelectorAll('#rdv-days-overlay input[type="checkbox"]').forEach(cb => {
+    cb.checked = days.includes(cb.dataset.day);
+  });
+}
+function closeRdvDays(confirmed) {
+  document.getElementById('rdv-days-overlay').classList.remove('open');
+  if (!rdvDaysResolve) return;
+  if (!confirmed) { rdvDaysResolve(null); rdvDaysResolve = null; return; }
+  const checked = Array.from(document.querySelectorAll('#rdv-days-overlay input[type="checkbox"]:checked'))
+    .map(cb => cb.dataset.day);
+  rdvDaysResolve(checked);
+  rdvDaysResolve = null;
+}
+
+// ── RDV LIST (calendar.calendrier_local) ─────────────────
+async function refreshRdvList() {
+  const box = document.getElementById('rdv-list-content');
+  try {
+    const now = new Date();
+    const end = new Date(now.getTime() + 60 * 24 * 3600 * 1000); // 60 jours
+    const events = await haGet(
+      '/api/calendars/calendar.calendrier_local?start=' +
+      encodeURIComponent(now.toISOString()) + '&end=' + encodeURIComponent(end.toISOString())
+    );
+    if (!Array.isArray(events) || events.length === 0) {
+      box.innerHTML = '<div class="msg-none">Aucun rendez-vous à venir.</div>';
+      return;
+    }
+    events.sort((a, b) =>
+      new Date(a.start.dateTime || a.start.date) - new Date(b.start.dateTime || b.start.date)
+    );
+    // Un événement récurrent (infirmière tous les matins, etc.) revient
+    // plusieurs fois dans la fenêtre 60 jours avec le même uid — on n'affiche
+    // que sa PROCHAINE occurrence, avec un badge 🔁, pour ne pas noyer la
+    // liste sous 60 lignes identiques.
+    const countByUid = {};
+    events.forEach(ev => { countByUid[ev.uid] = (countByUid[ev.uid] || 0) + 1; });
+    const seen = new Set();
+    const uniq = events.filter(ev => {
+      if (seen.has(ev.uid)) return false;
+      seen.add(ev.uid);
+      return true;
+    });
+    box.innerHTML = uniq.map(ev => {
+      const start = new Date(ev.start.dateTime || ev.start.date);
+      const dateStr = start.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+      const heureStr = ev.start.dateTime ? start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+      const uid = ev.uid || '';
+      const recurrent = countByUid[ev.uid] > 1;
+      return `<div class="rdv-item">
+        <div class="rdv-item-info">
+          <div class="rdv-item-date">${escHtml(dateStr)}${heureStr ? ' à ' + escHtml(heureStr) : ''}${recurrent ? ' 🔁' : ''}</div>
+          <div class="rdv-item-text">${escHtml(ev.summary || '')}</div>
+        </div>
+        <button class="rdv-del-btn" data-uid="${escHtml(uid)}" data-summary="${escHtml(ev.summary || '')}" data-recurrent="${recurrent}"
+          onclick="supprimerRdvClick(this)" title="${recurrent ? 'Supprimer toute la série' : 'Supprimer'}">🗑️</button>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    box.innerHTML = '<div class="msg-none">Agenda indisponible.</div>';
+  }
+}
+
+function supprimerRdvClick(btn) {
+  supprimerRdv(btn.dataset.uid, btn.dataset.summary, btn.dataset.recurrent === 'true');
+}
+
+/* 2026-09-13 : la suppression passait par le service REST
+   calendar.delete_event — qui N'EXISTE PAS côté REST (HA n'expose que
+   create_event et get_events ; delete/update ne sont disponibles qu'en
+   WebSocket). Résultat : « Erreur de suppression » systématique (HTTP 400)
+   et impossible d'effacer le moindre rendez-vous. Corrigé via la commande
+   WebSocket calendar/event/delete. */
+function haDeleteEventWebSocket(uid) {
+  return new Promise((resolve, reject) => {
+    let fini = false;
+    const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const ws = new WebSocket(proto + location.host + '/api/websocket');
+    const timeout = setTimeout(() => {
+      if (!fini) { fini = true; try { ws.close(); } catch (e) {} reject(new Error('timeout')); }
+    }, 10000);
+    ws.onmessage = (ev) => {
+      let m;
+      try { m = JSON.parse(ev.data); } catch (e) { return; }
+      if (m.type === 'auth_required') {
+        ws.send(JSON.stringify({ type: 'auth', access_token: token }));
+      } else if (m.type === 'auth_ok') {
+        ws.send(JSON.stringify({ id: 1, type: 'calendar/event/delete',
+          entity_id: 'calendar.calendrier_local', uid: uid }));
+      } else if (m.type === 'auth_invalid') {
+        if (!fini) { fini = true; clearTimeout(timeout); try { ws.close(); } catch (e) {} reject(new Error('auth')); }
+      } else if (m.id === 1 && !fini) {
+        fini = true; clearTimeout(timeout); try { ws.close(); } catch (e) {}
+        if (m.success) resolve(true); else reject(new Error('refus'));
+      }
+    };
+    ws.onerror = () => { if (!fini) { fini = true; clearTimeout(timeout); reject(new Error('ws')); } };
+  });
+}
+
+async function supprimerRdv(uid, summary, recurrent) {
+  if (!uid) { showToast('❌ Impossible d\'identifier ce rendez-vous'); return; }
+  /* Le message ne doit PAS annoncer « toute la série récurrente sera
+     supprimée » : ce bouton n'efface QUE cet événement-là. Pour arrêter une
+     récurrence, la corbeille est sur la carte « RENDEZ-VOUS RÉCURRENTS »
+     (message distinct). Le paramètre recurrent reste accepté pour compat
+     avec les appels existants. */
+  const texte = 'Voulez-vous effacer « ' + summary + ' » ? (cet événement uniquement)';
+  const ok = await askConfirm(texte);
+  if (!ok) return;
+  try {
+    await haDeleteEventWebSocket(uid);
+    showToast('✅ Rendez-vous supprimé');
+    refreshRdvList();
+  } catch (e) {
+    showToast('❌ Erreur de suppression');
+  }
+}
+
+// ── RDV RÉCURRENTS LIST (règles → m03_rdv_recurrents.py) ─
+// 2026-08-15 : bug confirmé en live sur le même pattern dans kiosk.html
+// (module M31 photos) — "?return_response=true" renvoie {} (objet vide),
+// la doc officielle HA (developers.home-assistant.io/docs/api/rest) veut
+// le paramètre nu "?return_response", sans valeur. Corrigé ici par analogie
+// (non re-testé en direct pour CE endpoint précis, mais même mécanisme).
+const JOURS_LABEL = { MO:'Lun', TU:'Mar', WE:'Mer', TH:'Jeu', FR:'Ven', SA:'Sam', SU:'Dim' };
+
+async function refreshRdvRecurrentsList() {
+  const box = document.getElementById('rdv-recur-list-content');
+  try {
+    const r = await haPost('/api/services/shell_command/m03_rdv_recurrents?return_response', { action: 'list' });
+    if (!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    const resp = (data && data.service_response) || {};
+    const entry = resp['shell_command.m03_rdv_recurrents'] || resp;
+    const stdout = (entry && entry.stdout) || '';
+    const lignes = stdout.trim().split('\n').filter(l => l.trim() !== '');
+    if (lignes.length === 0) {
+      box.innerHTML = '<div class="msg-none">Aucun rendez-vous récurrent.</div>';
+      return;
+    }
+    box.innerHTML = lignes.map(l => {
+      const parts = l.split('|');
+      if (parts.length < 4) return '';
+      const id = parts[0], jours = parts[1], heure = parts[2], note = parts.slice(3).join('|');
+      const joursTxt = jours.split(',').map(j => JOURS_LABEL[j] || j).join(', ');
+      return `<div class="rdv-item">
+        <div class="rdv-item-info">
+          <div class="rdv-item-date">${escHtml(joursTxt)} à ${escHtml(heure)}</div>
+          <div class="rdv-item-text">${escHtml(note)}</div>
+        </div>
+        <button class="rdv-del-btn" data-id="${escHtml(id)}" data-summary="${escHtml(note)}" data-heure="${escHtml(heure)}"
+          onclick="supprimerRdvRecurrentClick(this)" title="Arrêter la récurrence">🗑️</button>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    box.innerHTML = '<div class="msg-none">Indisponible.</div>';
+  }
+}
+
+function supprimerRdvRecurrentClick(btn) {
+  supprimerRdvRecurrent(btn.dataset.id, btn.dataset.summary, btn.dataset.heure);
+}
+
+/* 2026-09-13 : à la demande de l'utilisateur — arrêter une récurrence doit
+   AUSSI supprimer les rendez-vous À VENIR déjà créés par cette règle (même
+   intitulé + même heure de départ). Avant : la règle partait, les RDV
+   restaient dans « RENDEZ-VOUS À VENIR », et une recréation en ajoutait
+   par-dessus (empilement). L'automation ne recréant plus rien (règle
+   supprimée), le ménage est complet. */
+async function supprimerRdvRecurrent(id, summary, heure) {
+  const texte = 'Arrêter la récurrence « ' + summary + ' » ?'
+    + ' (les prochains jours ne seront plus créés et les rendez-vous À VENIR « ' + summary + ' » seront supprimés)';
+  const ok = await askConfirm(texte);
+  if (!ok) return;
+  try {
+    // 1. Arrêter la règle (l'automation quotidienne ne créera plus rien)
+    const r = await haPost('/api/services/shell_command/m03_rdv_recurrents', { action: 'delete', arg2: id });
+    if (!r.ok) throw new Error(r.status);
+
+    // 2. Supprimer les rendez-vous À VENIR correspondants (même intitulé,
+    //    même heure). Format de date local sans offset : accepté par HA.
+    let supprimes = 0;
+    try {
+      const d2 = n => String(n).padStart(2, '0');
+      const isoLocal = d => d.getFullYear() + '-' + d2(d.getMonth()+1) + '-' + d2(d.getDate())
+        + 'T' + d2(d.getHours()) + ':' + d2(d.getMinutes()) + ':00';
+      const maintenant = new Date();
+      const dans60j = new Date(maintenant.getTime() + 60 * 24 * 3600 * 1000);
+      const evs = await haGet('/api/calendars/calendar.calendrier_local?start='
+        + encodeURIComponent(isoLocal(maintenant)) + '&end=' + encodeURIComponent(isoLocal(dans60j)));
+      const cibleH = (heure || '').slice(0, 5);
+      for (const ev of (evs || [])) {
+        const debut = (ev.start && (ev.start.dateTime || ev.start.date)) || '';
+        const hhmm = debut.length >= 16 ? debut.slice(11, 16) : '';
+        if (ev.summary === summary && ev.uid && (!cibleH || hhmm === cibleH)) {
+          await haDeleteEventWebSocket(ev.uid);
+          supprimes++;
+        }
+      }
+    } catch (e2) { /* liste/suppression impossible : la règle est déjà arrêtée, on n'échoue pas */ }
+
+    showToast(supprimes > 0
+      ? '✅ Récurrence arrêtée — ' + supprimes + ' rendez-vous à venir supprimé' + (supprimes > 1 ? 's' : '')
+      : '✅ Récurrence arrêtée');
+    refreshRdvRecurrentsList();
+    refreshRdvList();
+  } catch (e) {
+    showToast('❌ Erreur de suppression');
+  }
+}
+
+// ── SETTINGS ──────────────────────────────────────────────
+async function changeRlMax(delta) {
+  const cur = parseInt(st('input_number.m03_rl_max')) || 1;
+  const next = Math.min(5, Math.max(1, cur + delta));
+  document.getElementById('rl-max-val').textContent = next;
+  await haPost('/api/services/input_number/set_value', {
+    entity_id: 'input_number.m03_rl_max', value: next
+  });
+  showToast(`Limite : ${next} msg`);
+  setTimeout(refreshAll, 800);
+}
+
+async function selectFenetre(el) {
+  document.querySelectorAll('.fenetre-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  await haPost('/api/services/input_select/select_option', {
+    entity_id: 'input_select.m03_rl_fenetre', option: el.dataset.val
+  });
+  showToast(`Fenêtre : ${el.dataset.val} min`);
+  setTimeout(refreshAll, 800);
+}
+
+async function saveQueueMax(val) {
+  await haPost('/api/services/input_number/set_value', {
+    entity_id: 'input_number.m03_queue_max', value: parseInt(val)
+  });
+  showToast(`File max : ${val} messages`);
+}
+
+async function saveDuree(val) {
+  await haPost('/api/services/input_number/set_value', {
+    entity_id: 'input_number.m03_affichage_duree', value: parseInt(val)
+  });
+  showToast(`Durée affichage : ${val} min`);
+}
+
+async function savePlage(which) {
+  const val = document.getElementById('input-' + which).value;
+  if (!val) return;
+  const entity = which === 'debut' ? 'input_datetime.m03_envoi_debut' : 'input_datetime.m03_envoi_fin';
+  await haPost('/api/services/input_datetime/set_datetime', {
+    entity_id: entity, time: val + ':00'
+  });
+  showToast(`Plage ${which} : ${val}`);
+  setTimeout(refreshAll, 800);
+}
+
+// ── RESET VALEURS PAR DEFAUT (hors lien Visio) ───────────
+async function resetReglagesDefaut() {
+  if (!confirm('Remettre la taille de file, la durée, la limite d\'envoi et la plage horaire aux valeurs par défaut ?')) return;
+  const queueMax = parseInt(usineM03('queue_max')) || 5;
+  const duree    = parseInt(usineM03('affichage_duree')) || 15;
+  const rlMax    = parseInt(usineM03('rl_max')) || 1;
+  const rlFen    = String(usineM03('rl_fenetre') || '30');
+  const debut    = usineM03('envoi_debut') || '08:00';
+  const fin      = usineM03('envoi_fin') || '19:00';
+
+  await haPost('/api/services/input_number/set_value', { entity_id: 'input_number.m03_queue_max', value: queueMax });
+  await haPost('/api/services/input_number/set_value', { entity_id: 'input_number.m03_affichage_duree', value: duree });
+  await haPost('/api/services/input_number/set_value', { entity_id: 'input_number.m03_rl_max', value: rlMax });
+  await haPost('/api/services/input_select/select_option', { entity_id: 'input_select.m03_rl_fenetre', option: rlFen });
+  await haPost('/api/services/input_datetime/set_datetime', { entity_id: 'input_datetime.m03_envoi_debut', time: debut + ':00' });
+  await haPost('/api/services/input_datetime/set_datetime', { entity_id: 'input_datetime.m03_envoi_fin', time: fin + ':00' });
+
+  showToast('✅ Valeurs par défaut restaurées');
+  setTimeout(refreshAll, 800);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VISIO MAISON (WebRTC) — 2026-08-16
+   ═══════════════════════════════════════════════════════════════════════
+   Côté APPELANT (aidant). Remplace définitivement les services externes :
+     - Google Meet imposait un écran "Rejoindre" à la personne aidée ;
+     - meet.jit.si exige en plus une authentification du premier participant,
+       impossible depuis un iframe embarqué (vérifié le 16/08) ;
+     - l'intégration `visio_jitsi` (trouvée sur l'instance, construite le
+       10/08 hors de ce projet) reposait sur browser_mod, dont les
+       identifiants de navigateur étaient périmés à trois endroits différents.
+   Aucune de ces solutions ne garantissait le "zéro clic" côté personne aidée,
+   qui est pourtant l'exigence de base ici (Alzheimer).
+
+   Ici, l'image et le son passent DIRECTEMENT d'un appareil à l'autre. Home
+   Assistant ne sert qu'à s'échanger les informations de connexion pendant
+   les quelques secondes d'établissement (voir m33_visio_signal.py), et à
+   prévenir le kiosk qu'un appel arrive (input_boolean.m33_appel_en_cours).
+   Aucun service externe, aucun compte, aucune salle à gérer.
+
+   ⚠️ Nécessite HTTPS (assuré par Tailscale) : hors contexte sécurisé, le
+   navigateur refuse l'accès caméra/micro.
+*/
+const VISIO_ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+let visioPc = null, visioStream = null, visioTimer = null, visioEnCours = false;
+
+// btoa() ne gère pas l'UTF-8 : on passe explicitement par les octets.
+function b64enc(str) {
+  const octets = new TextEncoder().encode(str);
+  let bin = '';
+  octets.forEach(o => { bin += String.fromCharCode(o); });
+  return btoa(bin);
+}
+function b64dec(b64) {
+  const bin = atob(b64);
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+
+async function visioEnvoyer(destinataire, obj) {
+  try {
+    await haPost('/api/services/shell_command/m33_visio_signal_envoyer',
+      { destinataire, message: b64enc(JSON.stringify(obj)) });
+  } catch (e) { console.error('visio: envoi signal', e); }
+}
+
+// ⚠️ "?return_response" SANS "=true" (piège confirmé le 15/08, cf. M31).
+async function visioLire(destinataire) {
+  try {
+    const r = await haPost('/api/services/shell_command/m33_visio_signal_lire?return_response', { destinataire });
+    const j = await r.json();
+    const resp = (j && j.service_response && j.service_response['shell_command.m33_visio_signal_lire'])
+      || (j && j.service_response) || null;
+    const stdout = (resp && typeof resp.stdout === 'string') ? resp.stdout : '';
+    return stdout.split('\n').map(s => s.trim()).filter(Boolean)
+      .map(l => { try { return JSON.parse(b64dec(l)); } catch (e) { return null; } })
+      .filter(Boolean);
+  } catch (e) { return []; }
+}
+
+/* 2026-08-16 (suite) : UN SEUL APPEL À LA FOIS.
+   Il n'y a qu'un écran et qu'une personne aidée : deux appels simultanés
+   n'auraient aucun sens. Sans ce garde-fou, le second aidant restait bloqué
+   indéfiniment sur "Appel en cours…" — le kiosk ignorant sa demande puisqu'un
+   appel était déjà actif — et, pire, sa purge des boîtes de signalisation
+   pouvait DÉTRUIRE le premier appel s'il était encore en train de s'établir.
+   Trou trouvé sur question de l'utilisateur, pas en test. */
+async function visioOccupeParAutre() {
+  try {
+    const s = await haGet('/api/states/input_boolean.m33_appel_en_cours');
+    if (!s || s.state !== 'on') return null;
+    if (visioEnCours) return null;          // c'est notre propre appel
+    const qui = await haGet('/api/states/input_text.m33_appel_par');
+    const nom = (qui && qui.state && qui.state !== 'unknown' && qui.state !== 'unavailable')
+      ? qui.state.trim() : '';
+    return nom || 'un autre aidant';
+  } catch (e) { return null; }
+}
+
+/* 2026-08-18 : plage horaire (idée émise le 16/08 — "ne pas réveiller la
+   personne en pleine nuit"). Réutilise checkPlage() (déjà utilisé pour la
+   plage d'envoi des messages, même logique horaire) sur les entités M33
+   dédiées.
+   2026-08-18 (suite) : extrait en visioHoraire() séparé, qui renvoie aussi
+   les heures en texte (pas juste un booléen) — nécessaire pour que le
+   bouton "Appel Visio" affiche "⏰ Appel désactivé (09:00–17:00)" hors plage,
+   même logique/texte que le bouton d'envoi des messages
+   (.btn-send.plage / "Envoi de message désactivé (…)"). */
+async function visioHoraire() {
+  let deb, fin;
+  try {
+    [deb, fin] = await Promise.all([
+      haGet('/api/states/input_datetime.m33_horaire_debut'),
+      haGet('/api/states/input_datetime.m33_horaire_fin'),
+    ]);
+  } catch (e) { return { debStr: null, finStr: null, erreur: true }; }
+  const debStr = (deb && deb.state && deb.state !== 'unknown' && deb.state !== 'unavailable') ? deb.state.slice(0,5) : null;
+  const finStr = (fin && fin.state && fin.state !== 'unknown' && fin.state !== 'unavailable') ? fin.state.slice(0,5) : null;
+  return { debStr, finStr, erreur: false };
+}
+
+// Si les entités n'existent pas encore (avant le redémarrage HA qui les
+// crée) ou en cas d'erreur réseau, on NE bloque PAS l'appel — un souci
+// technique ne doit jamais empêcher un vrai appel, seul un réglage explicite
+// de la plage doit le faire.
+async function visioDansPlage() {
+  const { debStr, finStr, erreur } = await visioHoraire();
+  if (erreur) return true;
+  // Pas encore réglé (00:00–00:00 par défaut à la création) -> plage vide ->
+  // bloqué sauf urgence, décision volontaire (voir config.html > Confort).
+  if (!debStr || !finStr) return false;
+  return checkPlage(debStr, finStr);
+}
+
+/* 2026-08-18 (refonte) : la case "Urgence" cochée à l'avance a été retirée
+   (retour utilisateur : "ça sert à quoi ? c'est moi qui ai demandé ?" — la
+   plage horaire + la dérogation urgence, oui ; la case à cocher en
+   permanence, c'était un choix d'implémentation, pas une demande). Remplacée
+   par une confirmation à la demande, SEULEMENT quand elle sert réellement :
+   hors plage, le clic sur "Appel Visio" ouvre le pavé rouge d'alerte déjà
+   utilisé ailleurs dans l'app (askConfirm(), bouton "Oui" en rouge) au lieu
+   d'une case cochée en silence — dans la plage horaire normale, rien de
+   tout ça n'apparaît jamais. */
+async function launchVisio() {
+  if (visioEnCours) { showToast('📞 Appel Visio déjà en cours'); return; }
+  if (!window.isSecureContext) {
+    showToast('⚠️ Connexion non sécurisée — la caméra sera refusée');
+    return;
+  }
+
+  const occupePar = await visioOccupeParAutre();
+  if (occupePar) {
+    showToast('📞 Appel Visio déjà en cours avec ' + occupePar);
+    majEtatBoutonAppel();
+    return;
+  }
+
+  let urgent = false;
+
+  // M11 OFF : visio désactivée au quotidien — appel d'urgence uniquement
+  const m33s = await haGet('/api/states/input_boolean.module_m33_visio');
+  const m33on = !!(m33s && m33s.state === 'on');
+
+  if (!m33on) {
+    const ok = await askConfirm(
+      '⚠️ Écran Visioconférence désactivé (M11 OFF).\nConfirmer un appel d\'URGENCE à la personne aidée ?'
+    );
+    if (!ok) { showToast('Appel annulé'); return; }
+    urgent = true;
+  } else {
+    const { debStr, finStr, erreur } = await visioHoraire();
+    const enPlage = erreur || (debStr && finStr && checkPlage(debStr, finStr));
+    if (!enPlage) {
+      const plageTxt = (debStr && finStr) ? ` (${debStr}–${finStr})` : '';
+      const ok = await askConfirm(
+        `⚠️ Hors plage horaire${plageTxt}.\nConfirmer un appel visio URGENT à la personne aidée ?`
+      );
+      if (!ok) { showToast('Appel annulé'); return; }
+      urgent = true;
+    }
+  }
+
+  try {
+    // On repart d'une boîte vide : les restes d'un appel interrompu
+    // (page fermée en pleine négociation) feraient échouer celui-ci.
+    // ⚠️ Uniquement ici, APRÈS avoir vérifié qu'aucun appel n'est actif —
+    // sinon on effacerait la signalisation d'un appel en train de s'établir.
+    await haPost('/api/services/shell_command/m33_visio_signal_purger', {});
+
+    visioStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  } catch (e) {
+    showToast('❌ Caméra/micro refusés — autorise-les pour ce site');
+    return;
+  }
+
+  visioEnCours = true;
+  document.getElementById('btn-visio-appeler').style.display = 'none';
+  document.getElementById('visio-panel').style.display = 'block';
+  document.getElementById('visio-local').srcObject = visioStream;
+  document.getElementById('visio-etat').textContent = 'Appel en cours…';
+
+  visioPc = new RTCPeerConnection({ iceServers: VISIO_ICE });
+  visioStream.getTracks().forEach(t => visioPc.addTrack(t, visioStream));
+
+  visioPc.ontrack = (e) => {
+    const v = document.getElementById('visio-remote');
+    if (v && e.streams[0]) v.srcObject = e.streams[0];
+    document.getElementById('visio-etat').textContent = 'Connecté';
+  };
+  visioPc.onicecandidate = (e) => {
+    if (e.candidate) visioEnvoyer('kiosk', { kind: 'ice', candidate: e.candidate.toJSON() });
+  };
+  visioPc.onconnectionstatechange = () => {
+    if (!visioPc) return;
+    const el = document.getElementById('visio-etat');
+    if (visioPc.connectionState === 'failed') {
+      if (el) el.textContent = 'Connexion impossible';
+      showToast('❌ Connexion impossible avec l\'écran');
+    } else if (visioPc.connectionState === 'connected' && el) {
+      el.textContent = 'Connecté';
+    }
+  };
+
+  const offer = await visioPc.createOffer();
+  await visioPc.setLocalDescription(offer);
+  await visioEnvoyer('kiosk', { kind: 'offer', sdp: offer.sdp });
+
+  // Qui appelle — affiché aux AUTRES aidants ("Appel en cours avec Anîs")
+  // plutôt qu'un bouton grisé sans explication.
+  const monNom = (MY_ACCESS && MY_ACCESS.name) ? MY_ACCESS.name : (userName || 'un aidant');
+  await haPost('/api/services/input_text/set_value',
+    { entity_id: 'input_text.m33_appel_par', value: monNom.slice(0, 60) });
+
+  // 2026-08-18 : reflète la case "Urgence" AVANT d'allumer m33_appel_en_cours
+  // — le kiosk (garde-fou redondant) doit voir le bon état de ce drapeau dès
+  // qu'il constate que l'appel est en cours, pas après.
+  await haPost('/api/services/input_boolean/' + (urgent ? 'turn_on' : 'turn_off'),
+    { entity_id: 'input_boolean.m33_appel_urgent' });
+
+  // Prévient le kiosk : il verra l'interrupteur à son prochain cycle de
+  // rafraîchissement et répondra tout seul, sans aucun geste de la personne.
+  await haPost('/api/services/input_boolean/turn_on', { entity_id: 'input_boolean.m33_appel_en_cours' });
+
+  visioTimer = setInterval(async () => {
+    const messages = await visioLire('aidant');
+    for (const m of messages) {
+      try {
+        if (m.kind === 'answer' && visioPc && !visioPc.currentRemoteDescription) {
+          await visioPc.setRemoteDescription({ type: 'answer', sdp: m.sdp });
+        } else if (m.kind === 'ice' && m.candidate && visioPc) {
+          await visioPc.addIceCandidate(m.candidate).catch(() => {});
+        }
+      } catch (err) { console.error('visio: signal', err); }
+    }
+  }, 1000);
+}
+
+/* 2026-08-16 (retour utilisateur : "j'ai fermé l'appli HA et j'ai ma trombine
+   affichée") — cas le plus fréquent en usage réel : l'aidant ferme son
+   application sans penser à raccrocher. Sans ce garde-fou, l'image se FIGE
+   sur l'écran de la personne aidée, qui n'a aucun moyen de comprendre ni de
+   réagir. C'est exactement la situation à ne jamais laisser arriver ici.
+
+   Le kiosk sait déjà détecter la rupture par WebRTC, mais celui-ci attend de
+   constater l'absence de réponse — une trentaine de secondes dans le
+   navigateur. Beaucoup trop long. On prévient donc HA directement au moment
+   où la page se ferme.
+
+   `pagehide` plutôt que `beforeunload` : c'est le seul qui se déclenche de
+   façon fiable sur mobile (fermeture d'application, changement d'onglet
+   définitif). Et `keepalive: true` est indispensable — sans lui, le
+   navigateur annule toute requête encore en vol quand la page disparaît. */
+window.addEventListener('pagehide', () => {
+  if (!visioEnCours) return;
+  try {
+    fetch(BASE + '/api/services/input_boolean/turn_off', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + currentToken(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ entity_id: 'input_boolean.m33_appel_en_cours' }),
+      keepalive: true
+    });
+  } catch (e) { /* page en cours de fermeture : rien de plus à tenter */ }
+});
+
+// Raccroche des deux côtés : éteindre l'interrupteur suffit à faire revenir
+// le kiosk à son affichage normal (photos ou TV) au cycle suivant.
+async function raccrocherVisio() {
+  if (visioTimer) { clearInterval(visioTimer); visioTimer = null; }
+  if (visioPc) { try { visioPc.close(); } catch (e) {} visioPc = null; }
+  if (visioStream) { visioStream.getTracks().forEach(t => t.stop()); visioStream = null; }
+  visioEnCours = false;
+
+  const panel = document.getElementById('visio-panel');
+  if (panel) panel.style.display = 'none';
+  const btnAppeler = document.getElementById('btn-visio-appeler');
+  if (btnAppeler) btnAppeler.style.display = '';
+  const vl = document.getElementById('visio-local');
+  const vr = document.getElementById('visio-remote');
+  if (vl) vl.srcObject = null;
+  if (vr) vr.srcObject = null;
+
+  try {
+    await haPost('/api/services/input_boolean/turn_off', { entity_id: 'input_boolean.m33_appel_en_cours' });
+    await haPost('/api/services/input_boolean/turn_off', { entity_id: 'input_boolean.m33_appel_urgent' });
+    await haPost('/api/services/input_text/set_value',
+      { entity_id: 'input_text.m33_appel_par', value: '' });
+    await haPost('/api/services/shell_command/m33_visio_signal_purger', {});
+    showToast('📴 Appel Visio terminé');
+  } catch (e) { showToast('⚠️ Erreur en raccrochant'); }
+  majEtatBoutonAppel();
+}
+
+/* Surveillance de l'état du bouton « Appel Visio » : grisé et désactivé tant
+   qu'un autre aidant est en ligne. Sondage dédié (4 s) car le cycle général
+   tourne à 30 s — beaucoup trop lent pour un bouton qui doit refléter une
+   situation en temps réel. Ne lit que deux entités, c'est très léger. */
+const ETAT_APPEL_POLL = 4000;
+
+/* 2026-08-18 (refonte) : le bouton reflète toujours la plage horaire (M33),
+   même logique visuelle ET même TEXTE que le bouton d'envoi des messages
+   (.btn-send.plage / "Envoi de message désactivé (…)") :
+     - dans la plage : vert, "📹 Appel Visio".
+     - hors plage : ambre/marron, texte "⏰ Appel Visio désactivé (09:00–
+       17:00)" — heures RÉELLEMENT configurées, comme pour les messages. Le
+       bouton reste cliquable : cliquer dessus hors plage ouvre la
+       confirmation "appel urgent ?" (voir launchVisio()) au lieu d'être un
+       simple affichage informatif.
+   Il n'y a plus d'état "urgence" permanent sur le bouton lui-même — la case
+   à cocher a été retirée (retour utilisateur : redondante, jamais
+   demandée en tant que case). L'urgence ne se déclenche plus qu'au moment
+   du clic, via le pavé rouge de confirmation.
+   Rafraîchi par le sondage 4 s existant. */
+async function majEtatBoutonAppel() {
+  const btn = document.getElementById('btn-visio-appeler');
+  if (!btn || visioEnCours) return;   // pendant notre appel, le bouton est masqué
+
+  const occupePar = await visioOccupeParAutre();
+  if (occupePar) {
+    btn.disabled = true;
+    btn.className = 'btn-visio';
+    btn.textContent = '📞 Appel Visio en cours avec ' + occupePar;
+    return;
+  }
+
+  btn.disabled = false;
+
+  // M11 OFF : visio désactivée au quotidien — appel d'urgence uniquement
+  const m33s = await haGet('/api/states/input_boolean.module_m33_visio');
+  if (!m33s || m33s.state !== 'on') {
+    btn.className = 'btn-visio hors-plage';
+    btn.textContent = '⏰ Appel Visio OFF — appel d\'urgence uniquement';
+    return;
+  }
+
+  const { debStr, finStr, erreur } = await visioHoraire();
+  const enPlage = erreur || (debStr && finStr && checkPlage(debStr, finStr));
+
+  btn.className = 'btn-visio' + (enPlage ? '' : ' hors-plage');
+  if (enPlage) {
+    btn.textContent = '📹 Appel Visio';
+  } else {
+    const plageTxt = (debStr && finStr) ? `${debStr}–${finStr}` : '—';
+    btn.textContent = `⏰ Appel Visio désactivé (${plageTxt})`;
+  }
+}
+
+// ── UTILS ─────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+<div id="screen-config" class="screen" style="display:none;position:fixed;inset:0;z-index:50;background:var(--bg);">
+  <iframe id="config-iframe" src="" style="width:100%;height:100%;border:none;"></iframe>
+</div>
+
+<!-- 2026-08-15 : pages dédiées en iframe (même mécanisme que screen-config
+     ci-dessus) — voir openCalendrier()/openVideo()/openPhotos() plus haut. -->
+<div id="screen-calendrier" class="screen" style="display:none;position:fixed;inset:0;z-index:50;background:var(--bg);">
+  <iframe id="calendrier-iframe" src="" style="width:100%;height:100%;border:none;"></iframe>
+</div>
+<div id="screen-video" class="screen" style="display:none;position:fixed;inset:0;z-index:50;background:var(--bg);">
+  <iframe id="video-iframe" src="" style="width:100%;height:100%;border:none;"></iframe>
+</div>
+<div id="screen-photos" class="screen" style="display:none;position:fixed;inset:0;z-index:50;background:var(--bg);">
+  <iframe id="photos-iframe" src="" style="width:100%;height:100%;border:none;"></iframe>
+</div>
+
+<!-- 2026-09-13 : écran Musique (M32) -->
+<div id="screen-musique" class="screen" style="display:none;position:fixed;inset:0;z-index:50;background:var(--bg);">
+  <iframe id="musique-iframe" src="" style="width:100%;height:100%;border:none;"></iframe>
+</div>
+
+<!-- CONFIRM MODAL (générique : suppression RDV, récurrence oui/non) -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-text" id="confirm-text">—</div>
+    <div class="confirm-buttons">
+      <button class="confirm-btn non" onclick="closeConfirm(false)">NON</button>
+      <button class="confirm-btn oui" onclick="closeConfirm(true)">OUI</button>
+    </div>
+  </div>
+</div>
+
+<!-- RDV — CHOIX DES JOURS DE RÉCURRENCE -->
+<div class="confirm-overlay" id="rdv-days-overlay">
+  <div class="confirm-box" style="max-width:380px;">
+    <div class="confirm-text" style="margin-bottom:6px;">Quels jours ?</div>
+    <div style="color:rgb(180,180,180);font-size:11px;margin-bottom:14px;">
+      Même heure pour tous les jours cochés : <b id="rdv-days-heure">—</b>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:14px;justify-content:center;flex-wrap:wrap;">
+      <label class="day-check"><input type="checkbox" data-day="MO"><span>Lun</span></label>
+      <label class="day-check"><input type="checkbox" data-day="TU"><span>Mar</span></label>
+      <label class="day-check"><input type="checkbox" data-day="WE"><span>Mer</span></label>
+      <label class="day-check"><input type="checkbox" data-day="TH"><span>Jeu</span></label>
+      <label class="day-check"><input type="checkbox" data-day="FR"><span>Ven</span></label>
+      <label class="day-check"><input type="checkbox" data-day="SA"><span>Sam</span></label>
+      <label class="day-check"><input type="checkbox" data-day="SU"><span>Dim</span></label>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button class="confirm-btn non" onclick="selectRdvDays(['MO','TU','WE','TH','FR'])" style="font-size:12px;">5 jours (Lun-Ven)</button>
+      <button class="confirm-btn non" onclick="selectRdvDays(['MO','TU','WE','TH','FR','SA','SU'])" style="font-size:12px;">7 jours</button>
+    </div>
+    <div class="confirm-buttons">
+      <button class="confirm-btn non" onclick="closeRdvDays(false)">Annuler</button>
+      <button class="confirm-btn valider" onclick="closeRdvDays(true)">Valider</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

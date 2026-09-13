@@ -1,0 +1,133 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │      M03 — RENDEZ-VOUS RÉCURRENTS (CONTOURNEMENT ABSENCE DE RRULE)          │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# 2026-08-14 : le service HA calendar.create_event (2026.8.2, vérifié sur
+# https://www.home-assistant.io/actions/calendar.create_event/) ne supporte
+# QUE summary/description/start_date_time/end_date_time/start_date/end_date/
+# in/location — PAS de champ rrule (demande d'évolution encore ouverte côté
+# HA, pas un bug de ce projet). Un premier essai envoyant un rrule maison au
+# service a été silencieusement ignoré (RDV créé mais jamais récurrent).
+#
+# Contournement retenu (recommandé par l'utilisateur) : stocker la règle
+# (jours + heure + note) dans www/rdv_recurrents.txt via
+# shell_scripts/m03_rdv_recurrents.py, et une automation quotidienne crée
+# l'événement du jour sur calendar.calendrier_local si le jour de la semaine
+# correspond. Récurrence indéfinie, un seul événement créé à la fois — pas
+# de pré-remplissage de dizaines d'événements à l'avance.
+#
+# La toute première occurrence (date choisie dans le formulaire aidant.html)
+# est créée immédiatement via calendar.create_event normal, comme un RDV
+# simple — ce module ne gère que les occurrences des jours suivants.
+
+shell_command:
+  m03_rdv_recurrents: >-
+    python3 /config/shell_scripts/m03_rdv_recurrents.py {{ action | default('') }} "{{ arg2 | default('') }}" "{{ arg3 | default('') }}" "{{ arg4 | default('') }}"
+
+automation:
+  - id: m03_rdv_recurrents_creer_du_jour
+    alias: "M03 — RDV récurrents : créer les événements du jour + demain"
+    mode: single
+    trigger:
+      - trigger: time
+        at: "00:05:00"
+    action:
+      # ── Anti-doublon (2026-09-13) ─────────────────────────────────────────
+      # Relever les événements DÉJÀ présents (aujourd'hui → après-demain).
+      # Sans cette vérification : le bloc « demain » créait le RDV de J+1,
+      # puis le bloc « aujourd'hui » du lendemain le recréait — deux fois le
+      # même RDV chaque jour (constaté en direct : les RDV s'empilaient à
+      # chaque (re)création de récurrence côté interface aidant).
+      - action: calendar.get_events
+        target:
+          entity_id: calendar.calendrier_local
+        data:
+          start_date_time: "{{ now().strftime('%Y-%m-%d') }} 00:00:00"
+          end_date_time: "{{ (now() + timedelta(days=2)).strftime('%Y-%m-%d') }} 00:00:00"
+        response_variable: m03_rdv_deja
+
+      # ── Bloc 1 : événements d'AUJOURD'HUI ─────────────────────────────────
+      - action: shell_command.m03_rdv_recurrents
+        data:
+          action: today
+          arg2: "{{ ['MO','TU','WE','TH','FR','SA','SU'][now().weekday()] }}"
+        response_variable: m03_rdv_today
+      - variables:
+          brut_today: "{{ (m03_rdv_today['stdout'] | trim) if m03_rdv_today else '' }}"
+          lignes_today: "{{ brut_today.split('\n') if brut_today != '' else [] }}"
+      - repeat:
+          for_each: "{{ lignes_today }}"
+          sequence:
+            - variables:
+                parts: "{{ repeat.item.split('|', 1) }}"
+                heure_str: "{{ parts[0] }}"
+                note_str: "{{ parts[1] if parts | length > 1 else 'Rendez-vous' }}"
+                debut_str: "{{ now().strftime('%Y-%m-%d') ~ ' ' ~ heure_str ~ ':00' }}"
+                # 2026-09-13 : fix bug — start_dt était une CHAÎNE (template),
+                # donc `start_dt + timedelta` plantait (TypeError) et AUCUN
+                # événement récurrent n'était créé. Tout le calcul est
+                # maintenant fait dans UNE seule expression.
+                fin_str: "{{ (((now().strftime('%Y-%m-%d') ~ ' ' ~ heure_str ~ ':00') | as_datetime) + timedelta(minutes=30)).strftime('%Y-%m-%d %H:%M:%S') }}"
+            # 2026-09-13 : anti-doublon — ne pas recréer un événement
+            # identique (même intitulé, même heure) déjà présent.
+            - condition: template
+              value_template: >-
+                {% set heures = (m03_rdv_deja['calendar.calendrier_local']['events'] | default([]))
+                   | selectattr('summary', 'eq', note_str)
+                   | map(attribute='start') | map('string') | map('replace', 'T', ' ')
+                   | list %}
+                {{ heures | select('search', '^' ~ debut_str[:16]) | list | count == 0 }}
+            - action: calendar.create_event
+              target:
+                entity_id: calendar.calendrier_local
+              data:
+                summary: "{{ note_str }}"
+                start_date_time: "{{ debut_str }}"
+                end_date_time: "{{ fin_str }}"
+      # ── Bloc 2 : événements de DEMAIN ─────────────────────────────────────
+      # Objectif : éviter le trou d'affichage entre 08:30 et 00:05 le lendemain.
+      # Sans ça, après 08:30, le calendrier HA est vide jusqu'à l'exécution
+      # suivante de cette automation — le kiosk affichait "Aucun rendez-vous".
+      - action: shell_command.m03_rdv_recurrents
+        data:
+          action: today
+          arg2: "{{ ['MO','TU','WE','TH','FR','SA','SU'][(now().weekday()+1)%7] }}"
+        response_variable: m03_rdv_demain
+      - variables:
+          brut_demain: "{{ (m03_rdv_demain['stdout'] | trim) if m03_rdv_demain else '' }}"
+          lignes_demain: "{{ brut_demain.split('\n') if brut_demain != '' else [] }}"
+          date_demain: "{{ (now() + timedelta(days=1)).strftime('%Y-%m-%d') }}"
+      - repeat:
+          for_each: "{{ lignes_demain }}"
+          sequence:
+            - variables:
+                parts: "{{ repeat.item.split('|', 1) }}"
+                heure_str: "{{ parts[0] }}"
+                note_str: "{{ parts[1] if parts | length > 1 else 'Rendez-vous' }}"
+                debut_str: "{{ date_demain ~ ' ' ~ heure_str ~ ':00' }}"
+                # Même fix que le bloc 1 (2026-09-13) : calcul en une expression.
+                fin_str: "{{ (((date_demain ~ ' ' ~ heure_str ~ ':00') | as_datetime) + timedelta(minutes=30)).strftime('%Y-%m-%d %H:%M:%S') }}"
+            # 2026-09-13 : anti-doublon — ne pas recréer un événement
+            # identique (même intitulé, même heure) déjà présent.
+            - condition: template
+              value_template: >-
+                {% set heures = (m03_rdv_deja['calendar.calendrier_local']['events'] | default([]))
+                   | selectattr('summary', 'eq', note_str)
+                   | map(attribute='start') | map('string') | map('replace', 'T', ' ')
+                   | list %}
+                {{ heures | select('search', '^' ~ debut_str[:16]) | list | count == 0 }}
+            - action: calendar.create_event
+              target:
+                entity_id: calendar.calendrier_local
+              data:
+                summary: "{{ note_str }}"
+                start_date_time: "{{ debut_str }}"
+                end_date_time: "{{ fin_str }}"
+
+# annotations_log:
+# - 2026-08-21 : fix trou d'affichage kiosk — l'automation crée désormais
+#   l'événement du jour + celui de DEMAIN à chaque exécution (00:05). Sans
+#   ça, après l'heure du RDV (ex: 08:30) jusqu'à 00:05 le lendemain, le
+#   calendrier HA était vide → kiosk affichait "Aucun rendez-vous à venir".
+# - 2026-08-14 : création — contournement de l'absence de rrule côté HA
+#   pour les RDV récurrents (infirmière tous les matins, etc.). Voir
+#   docs/03_modules_packages/03_communication/M03_ecran_msg.md.

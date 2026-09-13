@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Launch</title>
+</head>
+<body>
+<script>
+// Page-pont : ne change JAMAIS -> son cache de 31 jours ne gene pas.
+// Redirige toujours vers aidant.html avec une URL fraiche (?v=timestamp),
+// donc pas de cache navigateur sur la page aidant apres une mise a jour.
+location.replace('aidant.html?v=' + Date.now());
+</script>
+</body>
+</html>

@@ -1,0 +1,778 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M34 — TÉLÉVISION : 3 SESSIONS CONFIGURABLES (PACKAGE)      │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Rôle : bascule Photos (M08) ↔ TV sur l'unique écran (TV salon, mini-PC/RPi4
+#        en HDMI, navigateur enregistré dans Browser Mod), selon jusqu'à
+#        3 "sessions TV" indépendantes, chacune avec son propre interrupteur
+#        on/off, ses horaires, et son choix de chaîne (France 2/Arte/France 5)
+#        ou YouTube. Pilotage par redirection du navigateur
+#        (browser_mod.javascript), PAS par casting Chromecast (abandonné le
+#        2026-07-04, voir hardware.md).
+#
+# Révision 2026-07-04 (v2) : généralisation de l'ancien système à 2 créneaux
+# fixes (créneau1 EPG + créneau2 YouTube fixe) vers 3 sessions identiques et
+# configurables individuellement (demande utilisateur : "calendrier" avec
+# jusqu'à 3 sessions, chacune activable/désactivable).
+#
+# Pour chaque session N (1 à 3) :
+#   - input_boolean.m34_sessionN_actif      → active/désactive CETTE session sans effacer sa config
+#   - input_datetime.m34_sessionN_debut/fin → heures cibles (fallback si pas d'EPG, ou horaire fixe si YouTube)
+#   - input_select.m34_sessionN_chaine      → France 2 / Arte / France 5 / YouTube
+#   - input_text.m34_sessionN_youtube_url   → URL vidéo YouTube (si chaîne = YouTube)
+#
+# ⚠️ POINTS NON CONFIRMÉS / À SURVEILLER :
+#   1. [RETIRÉ 2026-08-18] Ancien point "SÉCURITÉ BROWSER_ID" — ne s'applique
+#      plus. input_text.m34_browser_id_tv (et le mécanisme de redirection
+#      navigateur qu'il sécurisait) a été supprimé : plus utilisé depuis la
+#      bascule du 14/08 vers kiosk.html en HTML pur (affichage par iframe,
+#      pas de redirection de navigateur externe pour la TV).
+#   2. EPG : confirmé le 2026-07-04 avec XMLTV EPG (HACS) + source xmltvfr.fr
+#      (https://xmltvfr.fr/xmltv/xmltv_tnt.xml.gz). Attributs réels : `start`/`end`.
+#      Ne s'applique qu'aux sessions réglées sur France 2/Arte/France 5 — les
+#      sessions YouTube utilisent toujours l'horaire fixe (durée vidéo connue).
+#   3. Navigation via browser_mod.javascript (window.location.href) : mécanisme
+#      JS standard plausible, non testé en conditions réelles.
+#   4. URLs "direct" France 2/Arte/France 5 : correctes au 2026-07-04, peuvent
+#      changer sans préavis (structure de site web).
+#
+# annotations_log:
+# - Création module M34 (2026-07-04).
+# - v1 : 2 créneaux fixes (créneau1 EPG+chaîne, créneau2 YouTube fixe).
+# - v2 (2026-07-04, même jour) : généralisé à 3 sessions identiques et
+#   indépendamment activables, avec dérivation automatique de l'entité EPG
+#   depuis la chaîne choisie (fin de la config manuelle fragile input_text
+#   m34_epg_entity_creneau1 qui pouvait désynchroniser du input_select).
+# - v3 (2026-07-05) : tentative camera.m34_tv_flux (platform generic YAML,
+#   stream_source = URL HLS directe Arte) pour remplacer la redirection
+#   navigateur par un flux caméra affiché nativement dans le dashboard
+#   (intégration WebRTC Camera/AlexxIT + go2rtc déjà installées côté HA).
+#   ÉCHEC : HA rejette la plateforme "generic" en YAML depuis plusieurs
+#   versions ("does not support platform setup", confirmé dans /config/logs
+#   le 2026-07-05 17:52). Retiré du package — à configurer via l'UI HA
+#   (Paramètres > Appareils et services > Ajouter une intégration > Generic
+#   Camera) à la place. Toujours hardcodé sur Arte pour l'instant, pas encore
+#   généralisé aux 3 sessions/3 chaînes.
+#   script.m34_lancer_session + browser_mod.javascript (redirection navigateur)
+#   deviennent obsolètes avec l'approche caméra — la bascule se fait
+#   uniquement par les cartes conditionnelles du dashboard sur
+#   sensor.confo_m34_etat_global, sans action HA nécessaire. Pas encore
+#   nettoyés/retirés (à trancher).
+# - v4 (2026-07-07) : APPROCHE CAMÉRA ABANDONNÉE DÉFINITIVEMENT, retour à
+#   100% sur script.m34_lancer_session + browser_mod.javascript (redirection
+#   navigateur), qui redevient donc le mécanisme actif — plus du tout
+#   obsolète. Deux bugs corrigés :
+#   1. input_text.m34_browser_id_tv contenait l'entry_id de l'INTÉGRATION
+#      Browser Mod (01KWPA620GM5RQTG2ZR4V3FAJE), pas un Browser ID de
+#      navigateur individuel — confusion entre les deux (voir
+#      .storage/core.config_entries vs Paramètres Browser Mod > Browser ID).
+#      Corrigé avec le vrai Browser ID du PC de test, enregistré via
+#      /browser-mod (toggle "Register" ON) : browser_mod_e7c11348_360592ea.
+#   2. France 2/Arte/France 5 exigent désormais un compte France TV gratuit
+#      pour le direct (politique du diffuseur depuis 2023-2024, pas un bug
+#      HA). Compte créé (erodi@free.fr) et connecté sur le profil Brave
+#      persistant du PC de test — session conservée, pas de reconnexion à
+#      chaque lecture. Testé et confirmé fonctionnel de bout en bout le
+#      2026-07-07 (redirection + lecture vidéo réelle, sans mur de connexion).
+#   ⚠️ Reste à faire : refaire cette même procédure de Register Browser ID +
+#   connexion France TV sur le vrai appareil kiosque final (mini-PC/RPi4),
+#   PAS seulement sur ce PC de test — chaque navigateur a son propre Browser
+#   ID. dashboard_kiosk.yaml (Z:) référence toujours camera.m34_tv_flux
+#   (carte webrtc-camera cassée, "Camera not found") — à revenir à une
+#   version sans dépendance caméra, non fait à ce stade.
+# - v5 (2026-08-05) : suppression de tous les `initial:` sur ce fichier.
+#   Piège HA : `initial:` réinitialise la valeur à CHAQUE redémarrage (pas
+#   juste à la création) — ça écrasait les réglages TV (chaînes, horaires,
+#   Browser ID, URLs) choisis sur le dashboard Configuration après chaque
+#   reboot. Sans `initial:`, HA restaure le dernier état connu.
+# - v6 (2026-08-14) : renommage m11_→m34_ (13/08) a changé l'entity_id des
+#   input_datetime de session → nouvelles entités sans historique → horaires
+#   par défaut perdus (constaté par l'utilisateur). PAS de retour à `initial:`
+#   (v5 reste valable). Ajout d'un seed UNE SEULE FOIS au démarrage HA, gardé
+#   par input_boolean.m34_horaires_initialises : s'applique une fois puis ne
+#   touche plus jamais rien, même après reboot (contrairement à `initial:`).
+#   Valeurs par défaut (demandées utilisateur) : Session1 09:00-12:00 ON,
+#   Session2 14:00-17:00 ON, Session3 18:00-22:00 ON, Session4 00:00-00:00 OFF.
+#   Les chaînes (input_select) ont le même problème (retombées sur "france tv"
+#   par défaut, 1er choix de la liste) — récupérées depuis les anciennes
+#   entités m11_session*_chaine dans .storage/core.restore_state :
+#   Session1 france tv, Session2 Arte, Session3 TV5 Monde, Session4 TV5 Monde.
+#   Idem input_text.m34_browser_id_tv (SÉCURITÉ, vide = touche TOUS les
+#   navigateurs Browser Mod — voir point 1 plus haut) et les URLs YouTube des
+#   sessions 1-3 (session 4 était déjà vide avant le renommage) — récupérés
+#   depuis .storage/core.restore_state également.
+# - v7 (2026-08-14) : BUG DE FOND trouvé — sensor.m34_etat_global cherchait
+#   les fenêtres horaires sur sensor.m34_session_N_fenetre (sans préfixe
+#   "confo_"), qui n'existent PAS. Les vrais entity_id (confirmés dans
+#   .storage/core.entity_registry) sont sensor.confo_m34_session_1/3/4_fenetre
+#   ET sensor.confo_m34_session_fenetre pour la session 2 (slug irrégulier,
+#   sans le "2" — dérivé du texte name: au moment de la création, ne suit pas
+#   les renommages ultérieurs du texte). state_attr() sur une entité
+#   inexistante renvoie None → aucune session jamais détectée active → TV
+#   toujours retombée sur "photos" depuis le renommage du 13/08, quelle que
+#   soit l'heure. C'était la vraie cause de "pas de vidéo", pas un problème
+#   de cache de template comme supposé plus tôt dans la journée.
+# - v8 (2026-08-14) : trou de conception connu ("on a eu ce souci déjà") —
+#   changer la CHAÎNE d'une session déjà active ne relançait jamais
+#   script.m34_lancer_session (m34_verifier_sessions ne réagit qu'aux
+#   transitions de SESSION, pas aux changements de chaîne en cours de
+#   session). Ajout de m34_chaine_changee_en_session_active : relance
+#   immédiatement la session si sa chaîne change pendant qu'elle est active.
+# - v9 (2026-08-14) : marquage "déjà_vu" prématuré — script.m34_lancer_session
+#   marquait l'ancienne vidéo dès qu'il re-tournait (y compris via v8 sur un
+#   simple changement de chaîne), sans rapport avec le fait que la vidéo ait
+#   été réellement regardée. Nouveau système : durée réelle récupérée via
+#   yt-dlp (action "duration" du script Python, corrigé au passage — le
+#   fichier physique shell_scripts/m16_liens_youtube.py n'avait jamais été
+#   renommé en m34_, shell_command.m34_liens_youtube pointait dans le vide),
+#   marquage programmé 5 min avant la fin réelle via 4 nouveaux
+#   input_datetime.m34_sessionN_marquer_vu_a + l'automation
+#   m34_marquer_vu_apres_visionnage (m34_liens_youtube.yaml).
+
+input_text:
+  # ⚠️ 2026-08-18 : input_text.m34_browser_id_tv SUPPRIMÉ (retour utilisateur
+  # : "ça sert oui ou non ?"). Vérifié : plus lu nulle part dans le
+  # mécanisme réel d'affichage TV (script.m34_lancer_session / kiosk.html)
+  # depuis la bascule du 14/08 vers kiosk.html en HTML pur — la seule
+  # utilisation restante était script.m31_lancer_diaporama (m31_photos.yaml),
+  # vidée de son contenu au même moment (voir ce fichier). Voir
+  # M34_television.md pour le détail complet.
+  m34_session1_youtube_url:
+    name: "M34 Session 1 — URL YouTube (si chaîne = YouTube)"
+    max: 255
+    icon: mdi:youtube
+
+  m34_session2_youtube_url:
+    name: "M34 Session 2 — URL YouTube (si chaîne = YouTube)"
+    max: 255
+    icon: mdi:youtube
+
+  m34_session3_youtube_url:
+    name: "M34 Session 3 — URL YouTube (si chaîne = YouTube)"
+    max: 255
+    icon: mdi:youtube
+
+  m34_session4_youtube_url:
+    name: "M34 Session 4 — URL YouTube (si chaîne = YouTube)"
+    max: 255
+    icon: mdi:youtube
+
+  m34_session_affichee:
+    name: "M34 État interne — Session actuellement affichée"
+    max: 20
+    icon: mdi:flag
+
+input_select:
+  m34_session1_chaine:
+    name: "M34 Session 1 — Chaîne"
+    options: ["france tv", "Arte", "TV5 Monde", "Nat Geo"]
+    icon: mdi:television-classic
+
+  m34_session2_chaine:
+    name: "M34 Session 2 — Chaîne"
+    options: ["france tv", "Arte", "TV5 Monde", "Nat Geo"]
+    icon: mdi:television-classic
+
+  m34_session3_chaine:
+    name: "M34 Session 3 — Chaîne"
+    options: ["france tv", "Arte", "TV5 Monde", "Nat Geo"]
+    icon: mdi:television-classic
+
+  m34_session4_chaine:
+    name: "M34 Session 4 — Chaîne"
+    options: ["france tv", "Arte", "TV5 Monde", "Nat Geo"]
+    icon: mdi:television-classic
+
+input_boolean:
+  m34_session1_actif:
+    name: "M34 Session 1 — Active"
+    icon: mdi:television-play
+  m34_session2_actif:
+    name: "M34 Session 2 — Active"
+    icon: mdi:television-play
+  m34_session3_actif:
+    name: "M34 Session 3 — Active"
+    icon: mdi:television-play
+  m34_session4_actif:
+    name: "M34 Session 4 — Active"
+    icon: mdi:television-play
+
+  m34_horaires_initialises:
+    name: "M34 État interne — Horaires par défaut appliqués"
+    icon: mdi:clock-check-outline
+
+input_button:
+  m34_session1_ok:
+    name: "M34 Session 1 — OK (relancer)"
+    icon: mdi:check-circle
+  m34_session2_ok:
+    name: "M34 Session 2 — OK (relancer)"
+    icon: mdi:check-circle
+  m34_session3_ok:
+    name: "M34 Session 3 — OK (relancer)"
+    icon: mdi:check-circle
+  m34_session4_ok:
+    name: "M34 Session 4 — OK (relancer)"
+    icon: mdi:check-circle
+
+input_datetime:
+  m34_session1_debut:
+    name: "M34 Session 1 — Heure cible début"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-start
+  m34_session1_fin:
+    name: "M34 Session 1 — Heure cible fin"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-end
+
+  m34_session2_debut:
+    name: "M34 Session 2 — Heure cible début"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-start
+  m34_session2_fin:
+    name: "M34 Session 2 — Heure cible fin"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-end
+
+  m34_session3_debut:
+    name: "M34 Session 3 — Heure cible début"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-start
+  m34_session3_fin:
+    name: "M34 Session 3 — Heure cible fin"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-end
+
+  m34_session4_debut:
+    name: "M34 Session 4 — Heure cible début"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-start
+  m34_session4_fin:
+    name: "M34 Session 4 — Heure cible fin"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-end
+
+  # État interne (pas affiché dashboard) : horodatage auquel la vidéo en
+  # cours de CETTE session doit être marquée "déjà_vu" — calculé par
+  # script.m34_lancer_session comme (début lecture + durée réelle - 5 min).
+  # Voir automation m34_marquer_vu_apres_visionnage dans m34_liens_youtube.yaml.
+  m34_session1_marquer_vu_a:
+    name: "M34 État interne — Session 1 marquer vu à"
+    has_time: true
+    has_date: true
+    icon: mdi:clock-check-outline
+  m34_session2_marquer_vu_a:
+    name: "M34 État interne — Session 2 marquer vu à"
+    has_time: true
+    has_date: true
+    icon: mdi:clock-check-outline
+  m34_session3_marquer_vu_a:
+    name: "M34 État interne — Session 3 marquer vu à"
+    has_time: true
+    has_date: true
+    icon: mdi:clock-check-outline
+  m34_session4_marquer_vu_a:
+    name: "M34 État interne — Session 4 marquer vu à"
+    has_time: true
+    has_date: true
+    icon: mdi:clock-check-outline
+
+# ⚠️ camera.m34_tv_flux : PAS configurable en YAML (platform generic rejetée
+# par HA — "does not support platform setup"). Configuré via l'UI à la place
+# (Paramètres > Appareils et services > Ajouter une intégration > Generic
+# Camera). Voir annotations_log plus bas.
+
+template:
+  - sensor:
+      # ─────────────────────────────────────────────
+      # FENÊTRES HORAIRES (une par session, EPG-aware)
+      # ─────────────────────────────────────────────
+      - name: "M34 Session 1 Fenêtre"
+        unique_id: m34_session1_fenetre
+        icon: mdi:clock-outline
+        state: "ok"
+        attributes:
+          debut_reel: >
+            {% set chaine = states('input_select.m34_session1_chaine') %}
+            {% set cible = states('input_datetime.m34_session1_debut') %}
+            {% if chaine == 'YouTube' %}{{ cible }}{% else %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set marge = 30 %}
+              {% set start_attr = state_attr(epg_entity, 'start') if epg_entity else None %}
+              {% set cible_min = (cible.split(':')[0] | int) * 60 + (cible.split(':')[1] | int) %}
+              {% if start_attr is not none %}
+                {% set start_t = start_attr | as_datetime | as_local %}
+                {% set start_min = start_t.hour * 60 + start_t.minute %}
+                {{ start_t.strftime('%H:%M:%S') if (start_min - cible_min) | abs <= marge else cible }}
+              {% else %}{{ cible }}{% endif %}
+            {% endif %}
+          fin_reelle: >
+            {% set chaine = states('input_select.m34_session1_chaine') %}
+            {% set cible_debut = states('input_datetime.m34_session1_debut') %}
+            {% set cible_fin = states('input_datetime.m34_session1_fin') %}
+            {% if chaine == 'YouTube' %}{{ cible_fin }}{% else %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set marge = 30 %}
+              {% set marge_fin = 5 %}
+              {% set start_attr = state_attr(epg_entity, 'start') if epg_entity else None %}
+              {% set stop_attr = state_attr(epg_entity, 'end') if epg_entity else None %}
+              {% set cible_debut_min = (cible_debut.split(':')[0] | int) * 60 + (cible_debut.split(':')[1] | int) %}
+              {% if start_attr is not none and stop_attr is not none %}
+                {% set start_t = start_attr | as_datetime | as_local %}
+                {% set start_min = start_t.hour * 60 + start_t.minute %}
+                {% if (start_min - cible_debut_min) | abs <= marge %}
+                  {% set stop_t = (stop_attr | as_datetime | as_local) + timedelta(minutes=marge_fin) %}
+                  {{ stop_t.strftime('%H:%M:%S') }}
+                {% else %}{{ cible_fin }}{% endif %}
+              {% else %}{{ cible_fin }}{% endif %}
+            {% endif %}
+
+      - name: "M34 Session 2 Fenêtre"
+        unique_id: m34_session2_fenetre
+        icon: mdi:clock-outline
+        state: "ok"
+        attributes:
+          debut_reel: >
+            {% set chaine = states('input_select.m34_session2_chaine') %}
+            {% set cible = states('input_datetime.m34_session2_debut') %}
+            {% if chaine == 'YouTube' %}{{ cible }}{% else %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set marge = 30 %}
+              {% set start_attr = state_attr(epg_entity, 'start') if epg_entity else None %}
+              {% set cible_min = (cible.split(':')[0] | int) * 60 + (cible.split(':')[1] | int) %}
+              {% if start_attr is not none %}
+                {% set start_t = start_attr | as_datetime | as_local %}
+                {% set start_min = start_t.hour * 60 + start_t.minute %}
+                {{ start_t.strftime('%H:%M:%S') if (start_min - cible_min) | abs <= marge else cible }}
+              {% else %}{{ cible }}{% endif %}
+            {% endif %}
+          fin_reelle: >
+            {% set chaine = states('input_select.m34_session2_chaine') %}
+            {% set cible_debut = states('input_datetime.m34_session2_debut') %}
+            {% set cible_fin = states('input_datetime.m34_session2_fin') %}
+            {% if chaine == 'YouTube' %}{{ cible_fin }}{% else %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set marge = 30 %}
+              {% set marge_fin = 5 %}
+              {% set start_attr = state_attr(epg_entity, 'start') if epg_entity else None %}
+              {% set stop_attr = state_attr(epg_entity, 'end') if epg_entity else None %}
+              {% set cible_debut_min = (cible_debut.split(':')[0] | int) * 60 + (cible_debut.split(':')[1] | int) %}
+              {% if start_attr is not none and stop_attr is not none %}
+                {% set start_t = start_attr | as_datetime | as_local %}
+                {% set start_min = start_t.hour * 60 + start_t.minute %}
+                {% if (start_min - cible_debut_min) | abs <= marge %}
+                  {% set stop_t = (stop_attr | as_datetime | as_local) + timedelta(minutes=marge_fin) %}
+                  {{ stop_t.strftime('%H:%M:%S') }}
+                {% else %}{{ cible_fin }}{% endif %}
+              {% else %}{{ cible_fin }}{% endif %}
+            {% endif %}
+
+      - name: "M34 Session 3 Fenêtre"
+        unique_id: m34_session3_fenetre
+        icon: mdi:clock-outline
+        state: "ok"
+        attributes:
+          debut_reel: >
+            {% set chaine = states('input_select.m34_session3_chaine') %}
+            {% set cible = states('input_datetime.m34_session3_debut') %}
+            {% if chaine == 'YouTube' %}{{ cible }}{% else %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set marge = 30 %}
+              {% set start_attr = state_attr(epg_entity, 'start') if epg_entity else None %}
+              {% set cible_min = (cible.split(':')[0] | int) * 60 + (cible.split(':')[1] | int) %}
+              {% if start_attr is not none %}
+                {% set start_t = start_attr | as_datetime | as_local %}
+                {% set start_min = start_t.hour * 60 + start_t.minute %}
+                {{ start_t.strftime('%H:%M:%S') if (start_min - cible_min) | abs <= marge else cible }}
+              {% else %}{{ cible }}{% endif %}
+            {% endif %}
+          fin_reelle: >
+            {% set chaine = states('input_select.m34_session3_chaine') %}
+            {% set cible_debut = states('input_datetime.m34_session3_debut') %}
+            {% set cible_fin = states('input_datetime.m34_session3_fin') %}
+            {% if chaine == 'YouTube' %}{{ cible_fin }}{% else %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set marge = 30 %}
+              {% set marge_fin = 5 %}
+              {% set start_attr = state_attr(epg_entity, 'start') if epg_entity else None %}
+              {% set stop_attr = state_attr(epg_entity, 'end') if epg_entity else None %}
+              {% set cible_debut_min = (cible_debut.split(':')[0] | int) * 60 + (cible_debut.split(':')[1] | int) %}
+              {% if start_attr is not none and stop_attr is not none %}
+                {% set start_t = start_attr | as_datetime | as_local %}
+                {% set start_min = start_t.hour * 60 + start_t.minute %}
+                {% if (start_min - cible_debut_min) | abs <= marge %}
+                  {% set stop_t = (stop_attr | as_datetime | as_local) + timedelta(minutes=marge_fin) %}
+                  {{ stop_t.strftime('%H:%M:%S') }}
+                {% else %}{{ cible_fin }}{% endif %}
+              {% else %}{{ cible_fin }}{% endif %}
+            {% endif %}
+
+      - name: "M34 Session 4 Fenêtre"
+        unique_id: m34_session4_fenetre
+        icon: mdi:clock-outline
+        state: "ok"
+        attributes:
+          debut_reel: >
+            {% set chaine = states('input_select.m34_session4_chaine') %}
+            {% set cible = states('input_datetime.m34_session4_debut') %}
+            {% if chaine == 'YouTube' %}{{ cible }}{% else %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set marge = 30 %}
+              {% set start_attr = state_attr(epg_entity, 'start') if epg_entity else None %}
+              {% set cible_min = (cible.split(':')[0] | int) * 60 + (cible.split(':')[1] | int) %}
+              {% if start_attr is not none %}
+                {% set start_t = start_attr | as_datetime | as_local %}
+                {% set start_min = start_t.hour * 60 + start_t.minute %}
+                {{ start_t.strftime('%H:%M:%S') if (start_min - cible_min) | abs <= marge else cible }}
+              {% else %}{{ cible }}{% endif %}
+            {% endif %}
+          fin_reelle: >
+            {% set chaine = states('input_select.m34_session4_chaine') %}
+            {% set cible_debut = states('input_datetime.m34_session4_debut') %}
+            {% set cible_fin = states('input_datetime.m34_session4_fin') %}
+            {% if chaine == 'YouTube' %}{{ cible_fin }}{% else %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set marge = 30 %}
+              {% set marge_fin = 5 %}
+              {% set start_attr = state_attr(epg_entity, 'start') if epg_entity else None %}
+              {% set stop_attr = state_attr(epg_entity, 'end') if epg_entity else None %}
+              {% set cible_debut_min = (cible_debut.split(':')[0] | int) * 60 + (cible_debut.split(':')[1] | int) %}
+              {% if start_attr is not none and stop_attr is not none %}
+                {% set start_t = start_attr | as_datetime | as_local %}
+                {% set start_min = start_t.hour * 60 + start_t.minute %}
+                {% if (start_min - cible_debut_min) | abs <= marge %}
+                  {% set stop_t = (stop_attr | as_datetime | as_local) + timedelta(minutes=marge_fin) %}
+                  {{ stop_t.strftime('%H:%M:%S') }}
+                {% else %}{{ cible_fin }}{% endif %}
+              {% else %}{{ cible_fin }}{% endif %}
+            {% endif %}
+
+      # ─────────────────────────────────────────────
+      # ÉTAT GLOBAL — quelle session (si aucune) est active MAINTENANT
+      # ─────────────────────────────────────────────
+      - name: "M34 État Global"
+        unique_id: m34_etat_global
+        icon: mdi:television-play
+        state: >
+          {% if not is_state('input_boolean.module_m34_television', 'on') %}
+            desactive
+          {% else %}
+            {% set now_t = now().strftime('%H:%M:00') %}
+            {# ⚠️ 2026-08-14 : entity_id réels (confirmés registre HA), PAS les
+               unique_id/noms "propres" — dérivés du texte name: au moment de
+               la création, ne changent pas si le texte change ensuite.
+               Session 2 a un slug particulier (sans le "2") — vérifié en direct. #}
+            {% set d1 = state_attr('sensor.confo_m34_session_1_fenetre','debut_reel') %}
+            {% set f1 = state_attr('sensor.confo_m34_session_1_fenetre','fin_reelle') %}
+            {% set d2 = state_attr('sensor.confo_m34_session_fenetre','debut_reel') %}
+            {% set f2 = state_attr('sensor.confo_m34_session_fenetre','fin_reelle') %}
+            {% set d3 = state_attr('sensor.confo_m34_session_3_fenetre','debut_reel') %}
+            {% set f3 = state_attr('sensor.confo_m34_session_3_fenetre','fin_reelle') %}
+            {% set d4 = state_attr('sensor.confo_m34_session_4_fenetre','debut_reel') %}
+            {% set f4 = state_attr('sensor.confo_m34_session_4_fenetre','fin_reelle') %}
+            {% set s1_ok = is_state('input_boolean.m34_session1_actif', 'on') and d1 is not none and f1 is not none and d1 not in ('', 'unknown') and f1 not in ('', 'unknown') and d1 <= now_t < f1 %}
+            {% set s2_ok = is_state('input_boolean.m34_session2_actif', 'on') and d2 is not none and f2 is not none and d2 not in ('', 'unknown') and f2 not in ('', 'unknown') and d2 <= now_t < f2 %}
+            {% set s3_ok = is_state('input_boolean.m34_session3_actif', 'on') and d3 is not none and f3 is not none and d3 not in ('', 'unknown') and f3 not in ('', 'unknown') and d3 <= now_t < f3 %}
+            {% set s4_ok = is_state('input_boolean.m34_session4_actif', 'on') and d4 is not none and f4 is not none and d4 not in ('', 'unknown') and f4 not in ('', 'unknown') and d4 <= now_t < f4 %}
+            {% if s1_ok %}session1
+            {% elif s2_ok %}session2
+            {% elif s3_ok %}session3
+            {% elif s4_ok %}session4
+            {% else %}photos{% endif %}
+          {% endif %}
+        attributes:
+          texte_affichage: >
+            {% set etat = states('sensor.confo_m34_etat_global') %}
+            {% if etat == 'desactive' %}Écran Télévision (désactivée)
+            {% elif etat in ['session1','session2','session3','session4'] %}
+              {% set n = etat[-1] %}
+              {% set chaine = states('input_select.m34_session' ~ n ~ '_chaine') %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set titre = state_attr(epg_entity, 'title') if epg_entity else None %}
+              📺 Écran Télévision — {{ chaine }}{% if chaine == 'YouTube' %} (Session {{ n }}){% elif titre %} — {{ titre }}{% endif %}
+            {% else %}📷 Écran Photos Famille{% endif %}
+
+script:
+  m34_lancer_session:
+    alias: "M34 — Lancer la chaîne/vidéo d'une session"
+    fields:
+      num:
+        description: "Numéro de session (1, 2, 3 ou 4)"
+        example: 1
+    sequence:
+      - variables:
+          chaine: "{{ states('input_select.m34_session' ~ num ~ '_chaine') }}"
+          label: >
+            {% if chaine == 'France 2' %}france2
+            {% elif chaine == 'france tv' %}francetv
+            {% elif chaine == 'Arte' %}arte
+            {% elif chaine == 'TV5 Monde' %}tv5monde
+            {% elif chaine == 'Nat Geo' %}natgeo
+            {% else %}all{% endif %}
+      # M34 — Rotation automatique des liens (module M34 activé) : injecte la
+      # plus récente vidéo non vue de la chaîne choisie (ou toutes si
+      # YouTube/autre). Module OFF = pas de rotation (URL manuelle de la
+      # session, vidée). L'affichage se fait via la carte iframe du kiosk
+      # (sensor.confo_m34_video_en_cours_embed).
+      #
+      # ⚠️ 2026-08-14 : NE marque PLUS "déjà_vu" ici immédiatement (ancien
+      # bug signalé par l'utilisateur : marquait la vidéo en cours dès que ce
+      # script re-tournait, même juste commencée/à peine vue — notamment à
+      # chaque changement de chaîne via m34_chaine_changee_en_session_active).
+      # Le marquage se fait maintenant 5 min avant la fin RÉELLE de la vidéo,
+      # via input_datetime.m34_session{num}_marquer_vu_a calculé plus bas +
+      # l'automation m34_marquer_vu_apres_visionnage (m34_liens_youtube.yaml).
+      - if:
+          - condition: template
+            value_template: "{{ is_state('input_boolean.module_m34_liens_youtube', 'on') }}"
+        then:
+          - action: shell_command.m34_liens_youtube
+            data:
+              action: next
+              arg2: "{{ label }}"
+            response_variable: m34_next
+          - variables:
+              url: "{{ m34_next['stdout'] | trim if m34_next else '' }}"
+          - condition: template
+            value_template: "{{ url | trim != '' }}"
+          - action: input_text.set_value
+            target:
+              entity_id: "input_text.m34_session{{ num }}_youtube_url"
+            data:
+              value: "{{ url }}"
+          - variables:
+              video_id: >
+                {% if 'youtu.be/' in url %}{{ url.split('/')[-1].split('?')[0] }}
+                {% elif 'v=' in url %}{{ url.split('v=')[-1].split('&')[0] }}
+                {% else %}{% endif %}
+          - action: shell_command.m34_liens_youtube
+            data:
+              action: duration
+              arg2: "{{ video_id }}"
+            response_variable: m34_duration
+          - variables:
+              duree_s: "{{ (m34_duration['stdout'] | trim | int(0)) if m34_duration else 0 }}"
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: "input_datetime.m34_session{{ num }}_marquer_vu_a"
+            data:
+              timestamp: >
+                {% if duree_s > 300 %}{{ (now().timestamp() + duree_s - 300) | int }}
+                {% else %}{{ (now().timestamp() + 60) | int }}{% endif %}
+
+automation:
+  - id: m34_verifier_sessions
+    alias: "M34 — Vérifier les sessions TV (toutes les minutes)"
+    mode: single
+    trigger:
+      - platform: time_pattern
+        minutes: "/1"
+    condition:
+      - condition: state
+        entity_id: input_boolean.module_m34_television
+        state: "on"
+    action:
+      - variables:
+          etat: "{{ states('sensor.confo_m34_etat_global') }}"
+          affichee: "{{ states('input_text.m34_session_affichee') }}"
+      - condition: template
+        value_template: "{{ etat != affichee }}"
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.m34_session_affichee
+        data:
+          value: "{{ etat }}"
+      - choose:
+          - conditions: "{{ etat == 'session1' }}"
+            sequence:
+              - service: script.m34_lancer_session
+                data:
+                  num: 1
+          - conditions: "{{ etat == 'session2' }}"
+            sequence:
+              - service: script.m34_lancer_session
+                data:
+                  num: 2
+          - conditions: "{{ etat == 'session3' }}"
+            sequence:
+              - service: script.m34_lancer_session
+                data:
+                  num: 3
+          - conditions: "{{ etat == 'session4' }}"
+            sequence:
+              - service: script.m34_lancer_session
+                data:
+                  num: 4
+        default:
+          - service: script.turn_on
+            target:
+              entity_id: script.m31_lancer_diaporama
+
+  - id: m34_reset_desactivation
+    alias: "M34 — Retour photos si module TV désactivé"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: input_boolean.module_m34_television
+        to: "off"
+    action:
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.m34_session_affichee
+        data:
+          value: "aucune"
+      - service: script.turn_on
+        target:
+          entity_id: script.m31_lancer_diaporama
+
+  - id: m34_seed_horaires_defaut
+    alias: "M34 — Horaires par défaut (une seule fois, démarrage HA)"
+    mode: single
+    trigger:
+      - platform: homeassistant
+        event: start
+    condition:
+      - condition: state
+        entity_id: input_boolean.m34_horaires_initialises
+        state: "off"
+    action:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.m34_session1_debut
+        data:
+          time: "09:00:00"
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.m34_session1_fin
+        data:
+          time: "12:00:00"
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.m34_session2_debut
+        data:
+          time: "14:00:00"
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.m34_session2_fin
+        data:
+          time: "17:00:00"
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.m34_session3_debut
+        data:
+          time: "18:00:00"
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.m34_session3_fin
+        data:
+          time: "22:00:00"
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.m34_session4_debut
+        data:
+          time: "00:00:00"
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.m34_session4_fin
+        data:
+          time: "00:00:00"
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.m34_session1_actif
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.m34_session2_actif
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.m34_session3_actif
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.m34_session4_actif
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.m34_session1_chaine
+        data:
+          option: "france tv"
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.m34_session2_chaine
+        data:
+          option: "Arte"
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.m34_session3_chaine
+        data:
+          option: "TV5 Monde"
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.m34_session4_chaine
+        data:
+          option: "TV5 Monde"
+      # [RETIRÉ 2026-08-18] Seed de input_text.m34_browser_id_tv — entité
+      # supprimée, plus utilisée (voir en-tête de fichier + M34_television.md).
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.m34_session1_youtube_url
+        data:
+          value: "https://youtu.be/qTtsuHLHs-8"
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.m34_session2_youtube_url
+        data:
+          value: "https://youtu.be/Qwp87WfdLIQ"
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.m34_session3_youtube_url
+        data:
+          value: "https://youtu.be/RfoBKr1RtJ4"
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.m34_horaires_initialises
+
+  - id: m34_chaine_changee_en_session_active
+    alias: "M34 — Rechargement immédiat si chaîne changée en session active"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id:
+          - input_select.m34_session1_chaine
+          - input_select.m34_session2_chaine
+          - input_select.m34_session3_chaine
+          - input_select.m34_session4_chaine
+    condition:
+      - condition: template
+        value_template: >
+          {% set etat = states('sensor.confo_m34_etat_global') %}
+          {% set num_session = trigger.entity_id.split('.')[1].split('_')[1][-1] %}
+          {{ etat in ['session1','session2','session3','session4'] and etat[-1] == num_session }}
+    action:
+      - variables:
+          num: "{{ trigger.entity_id.split('.')[1].split('_')[1][-1] }}"
+      - service: script.m34_lancer_session
+        data:
+          num: "{{ num }}"
+
+  - id: m34_bouton_ok_session
+    alias: "M34 — Bouton OK : relancer la session avec la chaîne choisie"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id:
+          - input_button.m34_session1_ok
+          - input_button.m34_session2_ok
+          - input_button.m34_session3_ok
+          - input_button.m34_session4_ok
+        to: null
+    action:
+      - variables:
+          num: "{{ trigger.entity_id[-1] }}"
+      - service: script.m34_lancer_session
+        data:
+          num: "{{ num }}"

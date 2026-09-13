@@ -1,0 +1,173 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          DASHBOARD KIOSK TV — AFFICHAGE PERSONNE AIDÉE                     │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Affichage : TV salon via Chromecast / tablette murale
+# Lisibilité prioritaire : grande police, contraste élevé, fond sombre
+# Structure (colonne unique garantie via panel + vertical-stack) :
+#   1. Horloge / Date (une seule ligne, gras)
+#   2. Rappels (M03 — agenda)
+#   3. Messages texto (M03)
+#   4. État écran (Photos OU TV, jamais les 2 à la fois — sensor.m11_etat_global)
+#
+# annotations_log:
+# - Suppression du bloc Température/Hygro (M01) — retiré du kiosk sur demande.
+# - Séparation de l'ancien "Bandeau M03" (bandeau_principal) en 2 blocs distincts :
+#   Rappels (sensor.m03_agenda_formate) et Messages texto (sensor.m03_texto_formate).
+# - Horloge/date fusionnées sur une ligne, hauteur réduite, gras (2026-07-04).
+# - Bloc 4 unifié : un seul emplacement affiche soit l'état TV (chaîne +
+#   programme via sensor.m11_etat_global) soit "Photos famille", jamais les
+#   deux en même temps — remplace l'ancien placeholder statique M08 + l'ancien
+#   bloc 5 séparé (2026-07-04).
+# - Bouton "Plein écran TV" retiré (2026-07-04, plus voulu).
+
+title: "Kiosk TV"
+views:
+  - path: kiosk
+    title: Accueil
+    panel: true
+    theme: default
+    cards:
+      - type: vertical-stack
+        cards:
+
+          # ═══════════════════════════════════════════
+          # 1. HORLOGE & DATE
+          # ═══════════════════════════════════════════
+          - type: custom:button-card
+            entity: sensor.date_time
+            show_state: false
+            show_icon: false
+            show_name: true
+            show_label: false
+            name: >
+              [[[
+                var d = new Date();
+                var h = d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+                var j = d.toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'});
+                return h + '  ·  ' + j;
+              ]]]
+            styles:
+              card:
+                - background: "linear-gradient(135deg, #1e1e2e 0%, #2a2a40 100%)"
+                - border-radius: 16px
+                - border: "1px solid rgba(255,255,255,0.08)"
+                - padding: "10px 24px"
+                - box-shadow: "0 4px 16px rgba(0,0,0,0.4)"
+              name:
+                - font-size: 1.8em
+                - color: "#ffffff"
+                - font-weight: "700"
+                - letter-spacing: "1px"
+                - white-space: nowrap
+
+          # ═══════════════════════════════════════════
+          # 2. RAPPELS (M03 — Agenda)
+          # ═══════════════════════════════════════════
+          - type: custom:button-card
+            entity: sensor.m03_agenda_formate
+            show_state: false
+            show_icon: false
+            show_name: true
+            name: "[[[ return entity.attributes.texte || ''; ]]]"
+            styles:
+              card:
+                - background: >
+                    [[[
+                      var s = entity.state;
+                      if (s === 'urgent' || s === 'en_cours') return 'linear-gradient(135deg, #3a1a1a 0%, #4a2020 100%)';
+                      if (s === 'proche') return 'linear-gradient(135deg, #2a2a10 0%, #3a3a18 100%)';
+                      return 'linear-gradient(135deg, #1a2a3a 0%, #1e3050 100%)';
+                    ]]]
+                - border-radius: 20px
+                - border: >
+                    [[[
+                      var s = entity.state;
+                      if (s === 'urgent' || s === 'en_cours') return '1px solid rgba(255,80,80,0.4)';
+                      if (s === 'proche') return '1px solid rgba(255,200,0,0.3)';
+                      return '1px solid rgba(100,160,255,0.2)';
+                    ]]]
+                - padding: "20px 28px"
+                - box-shadow: "0 4px 20px rgba(0,0,0,0.3)"
+              name:
+                - font-size: 1.7em
+                - color: >
+                    [[[
+                      var s = entity.state;
+                      if (s === 'urgent' || s === 'en_cours') return '#ff8080';
+                      if (s === 'proche') return '#ffd060';
+                      return '#90c8ff';
+                    ]]]
+                - font-weight: "300"
+                - white-space: normal
+                - text-align: left
+                - line-height: "1.5"
+            visibility:
+              - condition: template
+                value_template: >
+                  {{ states('sensor.m03_agenda_formate') not in ['inactif', 'vide', 'passe'] }}
+
+          # ═══════════════════════════════════════════
+          # 3. MESSAGES TEXTO (M03)
+          # ═══════════════════════════════════════════
+          - type: custom:button-card
+            entity: sensor.m03_texto_formate
+            show_state: false
+            show_icon: false
+            show_name: true
+            name: "[[[ return entity.attributes.texte || ''; ]]]"
+            styles:
+              card:
+                - background: "linear-gradient(135deg, #1a2a1a 0%, #1e3020 100%)"
+                - border-radius: 20px
+                - border: "1px solid rgba(120,255,160,0.2)"
+                - padding: "20px 28px"
+                - box-shadow: "0 4px 20px rgba(0,0,0,0.3)"
+              name:
+                - font-size: 1.7em
+                - color: "#90ffb0"
+                - font-weight: "300"
+                - white-space: normal
+                - text-align: left
+                - line-height: "1.5"
+            visibility:
+              - condition: state
+                entity: sensor.m03_texto_formate
+                state: "actif"
+
+          # ═══════════════════════════════════════════
+          # 4. ÉTAT ÉCRAN (Photos OU TV, jamais les 2 en même temps)
+          # Photo réelle affichée en fond de carte quand état = photos
+          # (fichier /config/www/photos_famille/photo_actuelle.jpg,
+          # remplacé manuellement par la famille via le partage Samba —
+          # PAS de rotation/diaporama automatique pour l'instant, voir
+          # Docs/packages/M08_photos.md)
+          # ═══════════════════════════════════════════
+          - type: custom:button-card
+            entity: sensor.m11_etat_global
+            show_state: false
+            show_icon: false
+            show_name: true
+            name: "[[[ return entity.attributes.texte_affichage || 'Chargement...'; ]]]"
+            styles:
+              card:
+                - background: >
+                    [[[
+                      if (entity.state === 'photos') {
+                        return "url('/local/photos_famille/photo_actuelle.jpg?t=" + Date.now() + "') center/cover no-repeat, #111";
+                      }
+                      return 'rgba(255,255,255,0.03)';
+                    ]]]
+                - border-radius: 18px
+                - border: "1px solid rgba(255,255,255,0.1)"
+                - padding: "24px 32px"
+                - min-height: "220px"
+                - display: flex
+                - align-items: flex-end
+                - justify-content: center
+              name:
+                - color: "[[[ return entity.state === 'photos' ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.6)'; ]]]"
+                - font-size: "1.1em"
+                - font-weight: "300"
+                - white-space: normal
+                - text-align: center
+                - text-shadow: "[[[ return entity.state === 'photos' ? '0 2px 8px rgba(0,0,0,0.9)' : 'none'; ]]]"

@@ -1,0 +1,557 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M03 — ÉCRAN MESSAGES (PACKAGE)                             │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Canal 1 : Calendrier local HA (calendar.calendrier_local — intégration
+# native "Local Calendar", créée le 14/08 ; Google Calendar abandonné pour
+# raisons de confidentialité)
+# Canal 2 : Texto famille — file de messages avec rotation 15 min
+# Affichage : bandeau permanent en haut du kiosk
+#
+# LOGIQUE :
+#   - Chaque message reçu est loggé dans /config/m03_historique.txt
+#   - Nouveau message → timer 15 min → puis affichage (message courant reste visible)
+#   - Plusieurs messages → rotation automatique toutes les 15 min (boucle)
+#   - Message unique → affichage permanent
+#   - Minuit → file vidée, dernier message reste à l'écran
+#   - Auteur = hass.user.name (compte HA connecté) — passé en champ via script.m03_envoyer
+
+input_text:
+  m03_message_famille:
+    name: "M03 Saisie Message"
+    max: 60
+    icon: mdi:message-text
+
+  m03_message_auteur:
+    name: "M03 Auteur (dernier envoi)"
+    max: 50
+    initial: "La famille"
+    icon: mdi:account-heart
+
+  m03_queue_msg:
+    name: "M03 File Messages"
+    max: 255
+    icon: mdi:playlist-play
+
+  m03_queue_auteur:
+    name: "M03 File Auteurs"
+    max: 255
+    icon: mdi:account-multiple
+
+  m03_affiche_msg:
+    name: "M03 Message Affiché"
+    max: 255
+    icon: mdi:message-check
+
+  m03_affiche_auteur:
+    name: "M03 Auteur Affiché"
+    max: 50
+    icon: mdi:account-check
+
+  m03_queue_timestamps:
+    name: "M03 File Horodatages"
+    max: 64
+    icon: mdi:clock-outline
+
+  m03_rate_limit:
+    name: "M03 Rate Limit Auteurs"
+    max: 255
+    icon: mdi:timer-lock-outline
+
+input_number:
+  m03_rl_max:
+    name: "M03 Limite — Nb messages"
+    min: 1
+    max: 5
+    step: 1
+    icon: mdi:message-badge-outline
+    mode: box
+
+  m03_affichage_duree:
+    name: "M03 Durée affichage (min)"
+    min: 1
+    max: 30
+    step: 1
+    icon: mdi:timer-play-outline
+    mode: box
+
+  m03_queue_max:
+    name: "M03 File — Nb messages max"
+    min: 1
+    max: 10
+    step: 1
+    icon: mdi:playlist-plus
+    mode: box
+
+input_select:
+  m03_rl_fenetre:
+    name: "M03 Limite — Fenêtre (min)"
+    options: ["5", "10", "15", "30", "45", "60"]
+    icon: mdi:timer-outline
+
+input_datetime:
+  m03_message_envoi:
+    name: "M03 Dernier Envoi"
+    has_date: true
+    has_time: true
+
+  m03_affiche_depuis:
+    name: "M03 Affiché Depuis"
+    has_date: true
+    has_time: true
+
+  m03_envoi_debut:
+    name: "M03 Début Plage Envoi"
+    has_date: false
+    has_time: true
+
+  m03_envoi_fin:
+    name: "M03 Fin Plage Envoi"
+    has_date: false
+    has_time: true
+
+timer:
+  m03_rotation:
+    name: "M03 Rotation Messages"
+    duration: "00:15:00"
+
+shell_command:
+  m03_log_message: >-
+    echo "$(date '+%Y-%m-%d %H:%M') | {{ states('input_text.m03_message_auteur') }} : {{ states('input_text.m03_message_famille') }}" >> /config/m03_historique.txt
+
+automation:
+
+  - id: m03_rotation_timer_finished
+    alias: "M03 — Rotation : afficher message suivant"
+    trigger:
+      - platform: event
+        event_type: timer.finished
+        event_data:
+          entity_id: timer.m03_rotation
+    action:
+      - service: script.m03_afficher_suivant
+
+  - id: m03_reprise_timer_apres_reboot
+    alias: "M03 — Reprendre rotation après redémarrage HA"
+    trigger:
+      - platform: homeassistant
+        event: start
+    action:
+      - delay: "00:00:30"
+      - choose:
+          # Si rien n'est affiché mais queue non vide → afficher immédiatement
+          - conditions:
+              - condition: template
+                value_template: >
+                  {% set q = states('input_text.m03_queue_msg') | trim %}
+                  {% set a = states('input_text.m03_affiche_msg') | trim %}
+                  {{ q not in ['', 'unknown', 'unavailable'] and a in ['', 'unknown', 'unavailable'] }}
+            sequence:
+              - service: script.m03_afficher_suivant
+          # Si quelque chose est déjà affiché et queue non vide → reprendre le timer
+          - conditions:
+              - condition: template
+                value_template: >
+                  {% set q = states('input_text.m03_queue_msg') | trim %}
+                  {{ q not in ['', 'unknown', 'unavailable'] }}
+            sequence:
+              - service: timer.start
+                target:
+                  entity_id: timer.m03_rotation
+                data:
+                  duration: "{{ '00:%02d:00' | format(states('input_number.m03_affichage_duree') | int(15)) }}"
+
+  - id: m03_clear_queue_minuit
+    alias: "M03 — Vider la file à minuit"
+    trigger:
+      - platform: time
+        at: "00:00:00"
+    action:
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.m03_queue_msg
+        data:
+          value: ""
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.m03_queue_auteur
+        data:
+          value: ""
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.m03_queue_timestamps
+        data:
+          value: ""
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.m03_rate_limit
+        data:
+          value: ""
+
+script:
+  m03_envoyer:
+    alias: "M03 — Envoyer un message"
+    mode: queued
+    max: 10
+    fields:
+      auteur:
+        description: "Nom de l'aidant (hass.user.name depuis le dashboard)"
+        example: "Eric"
+    sequence:
+      # Condition : message non vide et valide
+      - condition: template
+        value_template: >
+          {% set m = states('input_text.m03_message_famille') | trim %}
+          {{ m != '' and m not in ['unknown', 'unavailable'] }}
+
+      # Condition : file pas pleine (configurable via input_number.m03_queue_max)
+      - condition: template
+        value_template: >
+          {% set q = states('input_text.m03_queue_msg') | trim %}
+          {% set max_q = states('input_number.m03_queue_max') | int(5) %}
+          {{ q in ['', 'unknown', 'unavailable'] or q.split('|') | length < max_q }}
+
+      # Condition : plage horaire autorisée
+      - condition: template
+        value_template: >
+          {% set d = states('input_datetime.m03_envoi_debut') %}
+          {% set f = states('input_datetime.m03_envoi_fin') %}
+          {% if d in ['unknown','unavailable'] or f in ['unknown','unavailable'] %}true
+          {% else %}
+            {% set now_m = now().hour * 60 + now().minute %}
+            {% set deb_m = d.split(':')[0] | int * 60 + d.split(':')[1] | int %}
+            {% set fin_m = f.split(':')[0] | int * 60 + f.split(':')[1] | int %}
+            {{ now_m >= deb_m and now_m < fin_m }}
+          {% endif %}
+
+      # Condition : rate limit configurable (m03_rl_max msgs / m03_rl_fenetre min)
+      - condition: template
+        value_template: >
+          {% set rl = states('input_text.m03_rate_limit') | trim %}
+          {% set max_msg = states('input_number.m03_rl_max') | int(1) %}
+          {% set fenetre_s = states('input_select.m03_rl_fenetre') | int(30) * 60 %}
+          {% if rl in ['', 'unknown', 'unavailable'] %}true
+          {% else %}
+            {% set count = namespace(val=0) %}
+            {% for e in rl.split('|') %}
+              {% if '=' in e %}
+                {% set parts = e.split('=') %}
+                {% if parts[0] == auteur and parts | length > 1 %}
+                  {% for ts in parts[1].split(',') %}
+                    {% if (now().timestamp() | int) - (ts | int(0)) < fenetre_s %}
+                      {% set count.val = count.val + 1 %}
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+            {{ count.val < max_msg }}
+          {% endif %}
+
+      # Enregistrer l'auteur (pour shell_command + affichage historique)
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.m03_message_auteur
+        data:
+          value: "{{ auteur }}"
+
+      # Horodater
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.m03_message_envoi
+        data:
+          timestamp: "{{ now().timestamp() | int }}"
+
+      # Log fichier txt (lit m03_message_auteur et m03_message_famille via Jinja2)
+      - service: shell_command.m03_log_message
+
+      # Ajouter message à la file (pipe-separated)
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.m03_queue_msg
+        data:
+          value: >
+            {% set q = states('input_text.m03_queue_msg') | trim %}
+            {% set m = states('input_text.m03_message_famille') | trim %}
+            {% if q == '' %}{{ m }}{% else %}{{ q }}|{{ m }}{% endif %}
+
+      # Ajouter auteur à la file
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.m03_queue_auteur
+        data:
+          value: >
+            {% set q = states('input_text.m03_queue_auteur') | trim %}
+            {% if q == '' %}{{ auteur }}{% else %}{{ q }}|{{ auteur }}{% endif %}
+
+      # Ajouter horodatage HH:MM à la file timestamps
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.m03_queue_timestamps
+        data:
+          value: >
+            {% set q = states('input_text.m03_queue_timestamps') | trim %}
+            {% set ts = now().strftime('%H:%M') %}
+            {% if q in ['', 'unknown', 'unavailable'] %}{{ ts }}{% else %}{{ q }}|{{ ts }}{% endif %}
+
+      # Mettre à jour le rate limit (ajoute timestamp, purge les anciens)
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.m03_rate_limit
+        data:
+          value: >
+            {% set rl = states('input_text.m03_rate_limit') | trim %}
+            {% set ts_now = now().timestamp() | int %}
+            {% set fenetre_s = states('input_select.m03_rl_fenetre') | int(30) * 60 %}
+            {% set entries = namespace(items=[], found=false) %}
+            {% if rl not in ['', 'unknown', 'unavailable'] %}
+              {% for e in rl.split('|') %}
+                {% if '=' in e %}
+                  {% set parts = e.split('=') %}
+                  {% set aut_e = parts[0] %}
+                  {% set ts_list = parts[1].split(',') if parts | length > 1 else [] %}
+                  {% set fresh = namespace(items=[]) %}
+                  {% for t in ts_list %}
+                    {% if (ts_now - t | int(0)) < fenetre_s %}
+                      {% set fresh.items = fresh.items + [t] %}
+                    {% endif %}
+                  {% endfor %}
+                  {% if aut_e == auteur %}
+                    {% set fresh.items = fresh.items + [ts_now | string] %}
+                    {% set entries.found = true %}
+                  {% endif %}
+                  {% if fresh.items | length > 0 %}
+                    {% set entries.items = entries.items + [aut_e ~ '=' ~ fresh.items | join(',')] %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+            {% if not entries.found %}
+              {% set entries.items = entries.items + [auteur ~ '=' ~ ts_now | string] %}
+            {% endif %}
+            {{ entries.items | join('|') }}
+
+      # Vider le champ message (feedback immédiat à l'aidant)
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.m03_message_famille
+        data:
+          value: ""
+
+      # Si rien n'est affiché → afficher immédiatement
+      # Sinon → démarrer le timer 15 min si pas déjà actif
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ states('input_text.m03_affiche_msg') | trim in ['', 'unknown', 'unavailable'] }}
+            sequence:
+              - service: script.m03_afficher_suivant
+          - conditions:
+              - condition: state
+                entity_id: timer.m03_rotation
+                state: idle
+            sequence:
+              - service: timer.start
+                target:
+                  entity_id: timer.m03_rotation
+                data:
+                  duration: "{{ '00:%02d:00' | format(states('input_number.m03_affichage_duree') | int(15)) }}"
+
+  m03_afficher_suivant:
+    alias: "M03 — Afficher message suivant"
+    mode: single
+    sequence:
+      - variables:
+          queue: "{{ states('input_text.m03_queue_msg') | trim }}"
+          queue_aut: "{{ states('input_text.m03_queue_auteur') | trim }}"
+          queue_ts: "{{ states('input_text.m03_queue_timestamps') | trim }}"
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ queue != '' }}"
+            sequence:
+              # Afficher le premier de la file
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.m03_affiche_msg
+                data:
+                  value: "{{ queue.split('|')[0] }}"
+
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.m03_affiche_auteur
+                data:
+                  value: "{{ queue_aut.split('|')[0] }}"
+
+              - service: input_datetime.set_datetime
+                target:
+                  entity_id: input_datetime.m03_affiche_depuis
+                data:
+                  timestamp: "{{ now().timestamp() | int }}"
+
+              # ⚠️ 2026-08-14 : le message affiché n'est PLUS remis en fin de
+              # file (avant : rotation infinie, un message envoyé une fois
+              # revenait sans cesse). Une fois montré, il est simplement
+              # retiré de la file — demande utilisateur : "une fois que le
+              # message est apparu à l'écran il faut l'effacer de la liste".
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.m03_queue_msg
+                data:
+                  value: "{{ queue.split('|')[1:] | join('|') }}"
+
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.m03_queue_auteur
+                data:
+                  value: "{{ queue_aut.split('|')[1:] | join('|') }}"
+
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.m03_queue_timestamps
+                data:
+                  value: "{{ queue_ts.split('|')[1:] | join('|') }}"
+
+              # Relancer le timer SEULEMENT s'il reste au moins un message —
+              # sinon rien de plus à faire tourner (le dernier message reste
+              # affiché à l'écran indéfiniment, comportement voulu).
+              - if:
+                  - condition: template
+                    value_template: "{{ (queue.split('|')[1:] | join('|')) != '' }}"
+                then:
+                  - service: timer.start
+                    target:
+                      entity_id: timer.m03_rotation
+                    data:
+                      duration: "{{ '00:%02d:00' | format(states('input_number.m03_affichage_duree') | int(15)) }}"
+
+template:
+  # --- M03 Agenda Formaté (trigger-based — refresh /1 min) ---
+  - trigger:
+      - trigger: time_pattern
+        minutes: "/1"
+      - trigger: state
+        entity_id:
+          - calendar.calendrier_local
+          - input_boolean.module_m03_ecran_msg
+    sensor:
+      - name: "M03 Agenda Formaté"
+        unique_id: m03_agenda_formate
+        icon: mdi:calendar-heart
+        state: >
+          {% if not is_state('input_boolean.module_m03_ecran_msg', 'on') %}
+            inactif
+          {% elif state_attr('calendar.calendrier_local', 'start_time') is none %}
+            vide
+          {% else %}
+            {% set start = state_attr('calendar.calendrier_local', 'start_time') | as_datetime | as_local %}
+            {% set delta_s = (start - now()).total_seconds() %}
+            {% if is_state('calendar.calendrier_local', 'on') %}en_cours
+            {% elif delta_s < 0 %}passe
+            {% elif delta_s < 3600 %}urgent
+            {% elif delta_s < 10800 %}proche
+            {% elif delta_s < 86400 %}aujourd_hui
+            {% elif delta_s < 172800 %}demain
+            {% else %}futur{% endif %}
+          {% endif %}
+        attributes:
+          texte: >
+            {% if not is_state('input_boolean.module_m03_ecran_msg', 'on') %}
+            {% elif state_attr('calendar.calendrier_local', 'start_time') is none %}
+            {% else %}
+              {% set start = state_attr('calendar.calendrier_local', 'start_time') | as_datetime | as_local %}
+              {% set titre = state_attr('calendar.calendrier_local', 'message') | default('Visite') %}
+              {% set delta_s = (start - now()).total_seconds() | int %}
+              {% set delta_m = (delta_s / 60) | int %}
+              {% set delta_h = (delta_s / 3600) | int %}
+              {% if is_state('calendar.calendrier_local', 'on') %}📅 {{ titre }} — en ce moment
+              {% elif delta_s < 0 %}
+              {% elif delta_s < 3600 %}📅 {{ titre }} — dans {{ delta_m }} minute{{ 's' if delta_m > 1 }}
+              {% elif delta_s < 10800 %}📅 {{ titre }} — dans {{ delta_h }}h{{ '%02d' | format(delta_m % 60) if (delta_m % 60) > 0 }}
+              {% elif delta_s < 86400 %}📅 {{ titre }} — aujourd'hui à {{ start.strftime('%Hh%M') }}
+              {% elif delta_s < 172800 %}📅 {{ titre }} — demain à {{ start.strftime('%Hh%M') }}
+              {% else %}📅 {{ titre }} — dans {{ (delta_s / 86400) | int }} jours{% endif %}
+            {% endif %}
+
+  # --- M03 Texto Formaté (trigger-based — refresh /1 min) ---
+  - trigger:
+      - trigger: time_pattern
+        minutes: "/1"
+      - trigger: state
+        entity_id:
+          - input_text.m03_affiche_msg
+          - input_text.m03_affiche_auteur
+          - input_datetime.m03_affiche_depuis
+          - input_boolean.module_m03_ecran_msg
+    sensor:
+      - name: "M03 Texto Formaté"
+        unique_id: m03_texto_formate
+        icon: mdi:message-heart
+        state: >
+          {% if not is_state('input_boolean.module_m03_ecran_msg', 'on') %}inactif
+          {% elif states('input_text.m03_affiche_msg') | trim in ['', 'unknown', 'unavailable'] %}vide
+          {% else %}actif{% endif %}
+        attributes:
+          texte: >
+            {% if not is_state('input_boolean.module_m03_ecran_msg', 'on') %}
+            {% elif states('input_text.m03_affiche_msg') | trim in ['', 'unknown', 'unavailable'] %}
+            {% else %}
+              {% set msg = states('input_text.m03_affiche_msg') %}
+              {% set auteur = states('input_text.m03_affiche_auteur') | default('La famille') %}
+              {% set depuis_raw = states('input_datetime.m03_affiche_depuis') %}
+              {% set seul = states('input_text.m03_queue_msg') | trim in ['', 'unknown', 'unavailable'] %}
+              {% if depuis_raw not in ['unknown', 'unavailable'] %}
+                {% set depuis = depuis_raw | as_datetime | as_local %}
+                {% set age_s = (now() - depuis).total_seconds() | int %}
+                {% set age_m = ((age_s % 3600) // 60) | int %}
+                {% set age_h = (age_s // 3600) | int %}
+                {% if age_s < 120 %}
+                  💬 {{ auteur }} : {{ msg }} — à l'instant
+                {% elif age_s < 900 or seul %}
+                  {% if age_h > 0 %}
+                    💬 {{ auteur }} : {{ msg }} — il y a {{ age_h }}h{{ '%02d' | format(age_m) }}
+                  {% else %}
+                    💬 {{ auteur }} : {{ msg }} — il y a {{ (age_s // 60) | int }} min
+                  {% endif %}
+                {% else %}
+                  💬 {{ auteur }} : {{ msg }}
+                {% endif %}
+              {% else %}
+                💬 {{ auteur }} : {{ msg }}
+              {% endif %}
+            {% endif %}
+
+  # --- M03 Bandeau Principal (trigger-based — refresh /1 min) ---
+  - trigger:
+      - trigger: time_pattern
+        minutes: "/1"
+      - trigger: state
+        entity_id:
+          - sensor.m03_agenda_formate
+          - sensor.m03_texto_formate
+    sensor:
+      - name: "M03 Bandeau Principal"
+        unique_id: m03_bandeau_principal
+        icon: mdi:monitor-star
+        state: >
+          {% set a = states('sensor.m03_agenda_formate') %}
+          {% set t = states('sensor.m03_texto_formate') %}
+          {% if a in ['urgent', 'en_cours'] %}agenda_urgent
+          {% elif a == 'proche' %}agenda_proche
+          {% elif t == 'actif' %}texto
+          {% elif a in ['aujourd_hui', 'demain', 'futur'] %}agenda_futur
+          {% else %}vide{% endif %}
+        attributes:
+          texte: >
+            {% set a = states('sensor.m03_agenda_formate') %}
+            {% set t = states('sensor.m03_texto_formate') %}
+            {% if a in ['urgent', 'en_cours', 'proche'] %}{{ state_attr('sensor.m03_agenda_formate', 'texte') }}
+            {% elif t == 'actif' %}{{ state_attr('sensor.m03_texto_formate', 'texte') }}
+            {% elif a in ['aujourd_hui', 'demain', 'futur'] %}{{ state_attr('sensor.m03_agenda_formate', 'texte') }}
+            {% else %}{% endif %}
+          texte_secondaire: >
+            {% set a = states('sensor.m03_agenda_formate') %}
+            {% set t = states('sensor.m03_texto_formate') %}
+            {% if a in ['urgent', 'en_cours', 'proche'] and t == 'actif' %}{{ state_attr('sensor.m03_texto_formate', 'texte') }}
+            {% elif t == 'actif' and a in ['aujourd_hui', 'demain', 'futur'] %}{{ state_attr('sensor.m03_agenda_formate', 'texte') }}
+            {% else %}{% endif %}

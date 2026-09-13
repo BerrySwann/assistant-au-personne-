@@ -1,0 +1,105 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M00 — INTERRUPTEURS MODULES + UTILITAIRES SYSTÈME           │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Convention entity_id : max 20 chars après "module_"
+#
+# ⚠️ Correctif 2026-08-05 : suppression de tous les `initial:`. Piège HA :
+# `initial:` réinitialise la valeur à CHAQUE redémarrage (pas juste à la
+# création), ce qui écrasait les choix de l'utilisateur sur le dashboard
+# Configuration après chaque reboot. Sans `initial:`, HA restaure le dernier
+# état connu de chaque interrupteur.
+
+sensor:
+  - platform: time_date
+    display_options:
+      - time
+      - date
+      - date_time
+
+input_boolean:
+
+  # ┌─────────────────────────────────────┐
+  # │   OBLIGATOIRES                      │
+  # └─────────────────────────────────────┘
+  module_temp_hygro:
+    name: "M01 Température & Hygro"
+    icon: mdi:thermometer
+
+  module_inactivite:
+    name: "M02 Détection Inactivité"
+    icon: mdi:motion-sensor
+
+  module_ecran_msg:
+    name: "M03 Écran Messages"
+    icon: mdi:message-text-outline
+
+  # ┌─────────────────────────────────────┐
+  # │   OPTIONNELS                        │
+  # └─────────────────────────────────────┘
+  module_sos:
+    name: "M04 Bouton SOS"
+    icon: mdi:alarm-light-outline
+
+  module_capteur_lit:
+    name: "M05 Capteur Lit"
+    icon: mdi:bed-outline
+
+  module_cam_ia:
+    name: "M06 Caméra IA"
+    icon: mdi:eye-outline
+
+  module_kiosk_ecran:
+    name: "M07 Kiosk Écran"
+    icon: mdi:monitor
+
+  module_kiosk_foto:
+    name: "M08 Photos Famille"
+    icon: mdi:image-multiple-outline
+
+  module_kiosk_zic:
+    name: "M09 Musique"
+    icon: mdi:music-note-outline
+
+  module_visio:
+    name: "M10 Visioconférence"
+    icon: mdi:video-outline
+
+  module_television:
+    name: "M11 Télévision"
+    icon: mdi:television-play
+
+  module_douche:
+    name: "M12 Douche"
+    icon: mdi:shower-head
+
+  module_medoc:
+    name: "M13 Médicaments"
+    icon: mdi:pill-multiple
+
+  module_repas:
+    name: "M14 Repas"
+    icon: mdi:food-outline
+
+  module_porte_ext:
+    name: "M15 Porte Extérieure"
+    icon: mdi:door-open
+
+  module_lumiere_nuit:
+    name: "M16 Veilleuse Nuit"
+    icon: mdi:weather-night
+
+  module_chauffage:
+    name: "M17 Chauffage"
+    icon: mdi:radiator
+
+  module_fenetre:
+    name: "M18 Fenêtres"
+    icon: mdi:window-open-variant
+
+  module_dashboard_fam:
+    name: "M19 Dashboard Famille"
+    icon: mdi:home-heart
+
+  module_msg_famille:
+    name: "M20 Messages Famille"
+    icon: mdi:message-outline

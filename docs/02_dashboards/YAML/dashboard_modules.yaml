@@ -1,0 +1,1138 @@
+title: "Configuration"
+views:
+  - path: general
+    title: "✅ Général"
+    icon: mdi:check-circle
+    type: panel
+    cards:
+      - type: vertical-stack
+        cards:
+
+          # ═══════════════════════════════════════════
+          # EN-TÊTE
+          # ═══════════════════════════════════════════
+          - type: custom:button-card
+            show_icon: false
+            show_name: true
+            show_label: true
+            name: "Système d'assistance"
+            label: "Activation des modules — redémarrer HA après modification"
+            styles:
+              card:
+                - background: "linear-gradient(135deg, #1e1e2e 0%, #2a2a40 100%)"
+                - border-radius: "20px"
+                - border: "1px solid rgba(255,255,255,0.07)"
+                - box-shadow: none
+                - padding: "20px 24px"
+              name:
+                - font-size: "1.4em"
+                - font-weight: "300"
+                - color: white
+                - letter-spacing: "1px"
+              label:
+                - font-size: "0.78em"
+                - color: "#6b7280"
+                - font-weight: "400"
+                - padding-top: "4px"
+
+          # ═══════════════════════════════════════════
+          # OBLIGATOIRES
+          # ═══════════════════════════════════════════
+          - type: custom:mushroom-title-card
+            title: "✅ Obligatoires"
+            subtitle: "Toujours actifs — ne pas désactiver"
+            card_mod:
+              style: |
+                ha-card { background: none !important; box-shadow: none !important; }
+                .title { font-size: 0.82em !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 2px !important; color: #22c55e !important; }
+                .subtitle { font-size: 0.75em !important; color: var(--secondary-text-color) !important; }
+
+          - type: custom:button-card
+            entity: input_boolean.module_temp_hygro
+            name: "M01 — Température & Hygrométrie"
+            label: "Surveillance T° et humidité par pièce, alertes froid/canicule"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(34,197,94,0.06)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(34,197,94,0.15)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#22c55e' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          - type: custom:button-card
+            entity: input_boolean.module_inactivite
+            name: "M02 — Détection Inactivité"
+            label: "Alerte si aucun mouvement détecté pendant une durée anormale"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(34,197,94,0.06)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(34,197,94,0.15)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#22c55e' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          - type: custom:button-card
+            entity: input_boolean.module_ecran_msg
+            name: "M03 — Écran Messages"
+            label: "Agenda Google Calendar + messages texto famille sur le kiosk"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(34,197,94,0.06)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(34,197,94,0.15)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#22c55e' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+  - path: securite
+    title: "🛡️ Sécurité & Santé"
+    icon: mdi:shield-heart
+    type: panel
+    cards:
+      - type: vertical-stack
+        cards:
+
+          # ═══════════════════════════════════════════
+          # SÉCURITÉ & SANTÉ
+          # ═══════════════════════════════════════════
+          - type: custom:mushroom-title-card
+            title: "🛡️ Sécurité & Santé"
+            subtitle: "Détection de chute/inactivité, bouton SOS, capteur de lit, caméra, douche, portes, lumière de nuit — et qui reçoit l'alerte SOS"
+            card_mod:
+              style: |
+                ha-card { background: none !important; box-shadow: none !important; margin-top: 8px; }
+                .title { font-size: 0.82em !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 2px !important; color: #f59e0b !important; }
+                .subtitle { font-size: 0.75em !important; color: var(--secondary-text-color) !important; }
+
+          # ─── M04 bis : qui reçoit le SOS (cases à cocher, décochées par défaut) ───
+          - type: custom:mushroom-title-card
+            title: "🚨 M04 — Aidants de proximité (reçoivent le SOS)"
+            subtitle: "Coche les aidants pouvant se déplacer en urgence — décoché = pas de SOS reçu"
+            card_mod:
+              style: |
+                ha-card { background: none !important; box-shadow: none !important; margin-top: -4px; }
+                .title { font-size: 0.78em !important; font-weight: 600 !important; color: #f59e0b !important; }
+                .subtitle { font-size: 0.7em !important; color: var(--secondary-text-color) !important; }
+
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: input_boolean.m04_proximite_aidant_1
+                name: "Aidant 1 admin ok"
+                icon: mdi:account-heart
+              - entity: input_boolean.m04_proximite_aidant_2
+                name: "Aidant 2 ok"
+                icon: mdi:account-heart
+              - entity: input_boolean.m04_proximite_aidant_3
+                name: "Aidant 3 ok"
+                icon: mdi:account-heart
+              - entity: input_boolean.m04_proximite_aidant_4
+                name: "Aidant 4 hs"
+                icon: mdi:account-heart
+              - entity: input_boolean.m04_proximite_aidant_5
+                name: "Aidant 5 hs"
+                icon: mdi:account-heart
+              - entity: input_boolean.m04_proximite_aidant_6
+                name: "Aidant 6 ok"
+                icon: mdi:account-heart
+              - entity: input_boolean.m04_proximite_aidant_7
+                name: "Aidant 7 hs"
+                icon: mdi:account-heart
+
+          - type: custom:button-card
+            entity: input_boolean.module_sos
+            name: "M04 — Bouton SOS"
+            label: "Appel d'urgence immédiat vers les aidants"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#f59e0b' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          - type: custom:button-card
+            entity: input_boolean.module_capteur_lit
+            name: "M05 — Capteur Lit"
+            label: "Détection lever/coucher, alertes si pas levé à l'heure habituelle"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#f59e0b' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          - type: custom:button-card
+            entity: input_boolean.module_cam_ia
+            name: "M06 — Caméra IA (Vision)"
+            label: "Analyse intelligente — détection chute, posture anormale"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#f59e0b' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          - type: custom:button-card
+            entity: input_boolean.module_douche
+            name: "M12 — Douche"
+            label: "Surveillance fréquence et durée des douches"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#f59e0b' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          - type: custom:button-card
+            entity: input_boolean.module_medoc
+            name: "M13 — Médicaments"
+            label: "Rappels prise médicaments, affiché sur le kiosk"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#f59e0b' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          - type: custom:button-card
+            entity: input_boolean.module_porte_ext
+            name: "M15 — Porte Extérieure"
+            label: "Alerte sortie + live caméra à l'ouverture"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#f59e0b' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          - type: custom:button-card
+            entity: input_boolean.module_lumiere_nuit
+            name: "M16 — Veilleuse Nuit"
+            label: "Lumière automatique si déplacement nocturne détecté"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#f59e0b' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+  - path: confort
+    title: "🎵 Confort & Loisirs"
+    icon: mdi:music-note
+    type: panel
+    cards:
+      - type: vertical-stack
+        cards:
+
+          # ═══════════════════════════════════════════
+          # CONFORT & LOISIRS
+          # ═══════════════════════════════════════════
+          - type: custom:mushroom-title-card
+            title: "🎵 Confort & Loisirs"
+            subtitle: "Écran d'accueil, photos famille, musique, visio, télévision (avec réglages des sessions), rappels repas"
+            card_mod:
+              style: |
+                ha-card { background: none !important; box-shadow: none !important; margin-top: 8px; }
+                .title { font-size: 0.82em !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 2px !important; color: #8b5cf6 !important; }
+                .subtitle { font-size: 0.75em !important; color: var(--secondary-text-color) !important; }
+
+          - type: custom:button-card
+            entity: input_boolean.module_kiosk_ecran
+            name: "M07 — Kiosk Écran"
+            label: "Écran dédié en mode borne d'affichage"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          - type: custom:button-card
+            entity: input_boolean.module_kiosk_foto
+            name: "M08 — Photos Famille"
+            label: "Diaporama photos envoyées par email"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          - type: custom:button-card
+            entity: input_boolean.module_kiosk_zic
+            name: "M09 — Musique"
+            label: "Lecture musique de la bibliothèque personnelle"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          - type: custom:button-card
+            entity: input_boolean.module_visio
+            name: "M10 — Visioconférence"
+            label: "Appel vidéo famille en un clic (Jitsi)"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          - type: custom:button-card
+            entity: input_boolean.module_television
+            name: "M11 — Télévision"
+            label: "Créneaux TV (France 2/Arte/France 5/YouTube) + retour photos auto"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          # ─── M11 bis : réglages des 3 sessions TV (heures + chaîne + on/off) ───
+          - type: custom:mushroom-title-card
+            title: "📺 M11 — Réglages des 3 sessions TV"
+            subtitle: "Décoche une session si tu n'en as pas besoin — heures 100% libres"
+            card_mod:
+              style: |
+                ha-card { background: none !important; box-shadow: none !important; margin-top: -4px; }
+                .title { font-size: 0.78em !important; font-weight: 600 !important; color: #8b5cf6 !important; }
+                .subtitle { font-size: 0.7em !important; color: var(--secondary-text-color) !important; }
+
+          # ─── SESSION 1 ───
+          - type: horizontal-stack
+            cards:
+              - type: custom:button-card
+                entity: input_boolean.m11_session1_actif
+                name: "Session 1"
+                icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+                tap_action:
+                  action: toggle
+                styles:
+                  card:
+                    - border-radius: "12px"
+                    - height: "56px"
+                    - padding: "6px 8px"
+                  icon:
+                    - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.25)'; ]]]"
+                    - width: "28px"
+                  name:
+                    - font-size: "0.65em"
+                    - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.4)'; ]]]"
+
+              - type: custom:mushroom-select-card
+                entity: input_select.m11_session1_chaine
+                name: "Chaîne"
+
+              - type: custom:mushroom-template-card
+                primary: ""
+                secondary: "OK"
+                icon: mdi:play-circle
+                icon_color: green
+                tap_action:
+                  action: call-service
+                  service: script.m11_lancer_session
+                  data:
+                    num: 1
+                card_mod:
+                  style: |
+                    ha-card { border-radius: 12px; height: 56px; }
+
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: input_datetime.m11_session1_debut
+                name: "Début"
+              - entity: input_datetime.m11_session1_fin
+                name: "Fin"
+              - entity: input_text.m11_session1_youtube_url
+                name: "URL YouTube"
+
+          # ─── SESSION 2 ───
+          - type: horizontal-stack
+            cards:
+              - type: custom:button-card
+                entity: input_boolean.m11_session2_actif
+                name: "Session 2"
+                icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+                tap_action:
+                  action: toggle
+                styles:
+                  card:
+                    - border-radius: "12px"
+                    - height: "56px"
+                    - padding: "6px 8px"
+                  icon:
+                    - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.25)'; ]]]"
+                    - width: "28px"
+                  name:
+                    - font-size: "0.65em"
+                    - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.4)'; ]]]"
+
+              - type: custom:mushroom-select-card
+                entity: input_select.m11_session2_chaine
+                name: "Chaîne"
+
+              - type: custom:mushroom-template-card
+                primary: ""
+                secondary: "OK"
+                icon: mdi:play-circle
+                icon_color: green
+                tap_action:
+                  action: call-service
+                  service: script.m11_lancer_session
+                  data:
+                    num: 2
+                card_mod:
+                  style: |
+                    ha-card { border-radius: 12px; height: 56px; }
+
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: input_datetime.m11_session2_debut
+                name: "Début"
+              - entity: input_datetime.m11_session2_fin
+                name: "Fin"
+              - entity: input_text.m11_session2_youtube_url
+                name: "URL YouTube"
+
+          # ─── SESSION 3 ───
+          - type: horizontal-stack
+            cards:
+              - type: custom:button-card
+                entity: input_boolean.m11_session3_actif
+                name: "Session 3"
+                icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+                tap_action:
+                  action: toggle
+                styles:
+                  card:
+                    - border-radius: "12px"
+                    - height: "56px"
+                    - padding: "6px 8px"
+                  icon:
+                    - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.25)'; ]]]"
+                    - width: "28px"
+                  name:
+                    - font-size: "0.65em"
+                    - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.4)'; ]]]"
+
+              - type: custom:mushroom-select-card
+                entity: input_select.m11_session3_chaine
+                name: "Chaîne"
+
+              - type: custom:mushroom-template-card
+                primary: ""
+                secondary: "OK"
+                icon: mdi:play-circle
+                icon_color: green
+                tap_action:
+                  action: call-service
+                  service: script.m11_lancer_session
+                  data:
+                    num: 3
+                card_mod:
+                  style: |
+                    ha-card { border-radius: 12px; height: 56px; }
+
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: input_datetime.m11_session3_debut
+                name: "Début"
+              - entity: input_datetime.m11_session3_fin
+                name: "Fin"
+              - entity: input_text.m11_session3_youtube_url
+                name: "URL YouTube"
+
+          - type: entities
+            title: "Réglages avancés TV (communs aux 3 sessions)"
+            show_header_toggle: false
+            entities:
+              - entity: input_text.m11_browser_id_tv
+                name: "Browser ID TV (sécurité — voir Docs)"
+              - entity: input_text.m11_url_france2
+                name: "URL directe France 2"
+              - entity: input_text.m11_url_arte
+                name: "URL directe Arte"
+              - entity: input_text.m11_url_france5
+                name: "URL directe France 5"
+              - entity: input_number.m11_marge_recherche_min
+                name: "Marge recherche EPG (min)"
+              - entity: input_number.m11_marge_fin_min
+                name: "Marge fin de programme (min)"
+
+          - type: custom:button-card
+            entity: input_boolean.module_repas
+            name: "M14 — Repas"
+            label: "Rappels repas + suivi prise alimentaire"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+  - path: environnement
+    title: "🌡️ Environnement"
+    icon: mdi:thermometer
+    type: panel
+    cards:
+      - type: vertical-stack
+        cards:
+
+          # ═══════════════════════════════════════════
+          # ENVIRONNEMENT
+          # ═══════════════════════════════════════════
+          - type: custom:mushroom-title-card
+            title: "🌡️ Environnement"
+            subtitle: "Chauffage (juste remontée d'info) et surveillance des fenêtres ouvertes"
+            card_mod:
+              style: |
+                ha-card { background: none !important; box-shadow: none !important; margin-top: 8px; }
+                .title { font-size: 0.82em !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 2px !important; color: #06b6d4 !important; }
+                .subtitle { font-size: 0.75em !important; color: var(--secondary-text-color) !important; }
+
+          - type: custom:button-card
+            entity: input_boolean.module_chauffage
+            name: "M17 — Chauffage (stand-by)"
+            label: "Remontée d'info température uniquement"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#06b6d4' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          - type: custom:button-card
+            entity: input_boolean.module_fenetre
+            name: "M18 — Fenêtres"
+            label: "Surveillance ouverture pour économies de chauffage"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#06b6d4' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+  - path: famille
+    title: "👨‍👩‍👧 Lien Famille"
+    icon: mdi:account-heart
+    type: panel
+    cards:
+      - type: vertical-stack
+        cards:
+
+          # ═══════════════════════════════════════════
+          # LIEN FAMILLE
+          # ═══════════════════════════════════════════
+          - type: custom:mushroom-title-card
+            title: "👨‍👩‍👧 Lien Famille"
+            subtitle: "Interface dédiée aux aidants sur leur téléphone + notifications automatiques vers la famille"
+            card_mod:
+              style: |
+                ha-card { background: none !important; box-shadow: none !important; margin-top: 8px; }
+                .title { font-size: 0.82em !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 2px !important; color: #ec4899 !important; }
+                .subtitle { font-size: 0.75em !important; color: var(--secondary-text-color) !important; }
+
+          - type: custom:button-card
+            entity: input_boolean.module_dashboard_fam
+            name: "M19 — Dashboard Famille"
+            label: "Interface dédiée aux aidants sur téléphone"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#ec4899' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+          - type: custom:button-card
+            entity: input_boolean.module_msg_famille
+            name: "M20 — Messages Famille"
+            label: "Notifications automatiques vers la famille"
+            show_icon: true
+            show_name: true
+            show_label: true
+            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
+            tap_action:
+              action: toggle
+            styles:
+              card:
+                - background: "rgba(var(--rgb-primary-text-color),0.03)"
+                - border-radius: "14px"
+                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
+                - box-shadow: none
+                - display: grid
+                - grid-template-columns: "1fr auto"
+                - grid-template-areas: "'n i' 'l i'"
+                - padding: "12px 16px"
+                - text-align: left
+              icon:
+                - grid-area: i
+                - color: "[[[ return entity.state === 'on' ? '#ec4899' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
+                - width: "38px"
+              name:
+                - grid-area: n
+                - justify-self: start
+                - font-size: "0.95em"
+              label:
+                - grid-area: l
+                - justify-self: start
+                - font-size: "0.72em"
+                - color: "#6b7280"
+
+  - path: outils
+    title: "🔧 Outils"
+    icon: mdi:tools
+    type: panel
+    cards:
+      - type: vertical-stack
+        cards:
+
+          # ═══════════════════════════════════════════
+          # OUTILS DÉVELOPPEUR
+          # ═══════════════════════════════════════════
+          - type: custom:mushroom-title-card
+            title: "🔧 Outils"
+            subtitle: "Raccourcis techniques réservés à la maintenance (pas utile au quotidien)"
+            card_mod:
+              style: |
+                ha-card { background: none !important; box-shadow: none !important; margin-top: 8px; }
+                .title { font-size: 0.82em !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 2px !important; color: #6b7280 !important; }
+                .subtitle { font-size: 0.75em !important; color: var(--secondary-text-color) !important; }
+
+          - type: grid
+            columns: 2
+            square: true
+            cards:
+              - type: custom:button-card
+                icon: mdi:code-tags
+                name: Templates
+                tap_action:
+                  action: navigate
+                  navigation_path: /developer-tools/template
+                styles:
+                  card:
+                    - background: "rgba(var(--rgb-primary-text-color),0.04)"
+                    - border-radius: "14px"
+                    - border: "1px solid rgba(var(--rgb-primary-text-color),0.08)"
+                    - box-shadow: none
+                  icon:
+                    - color: "#6b7280"
+                    - width: "26px"
+                  name:
+                    - font-size: "0.78em"
+                    - color: "#6b7280"
+
+              - type: custom:button-card
+                icon: mdi:state-machine
+                name: États
+                tap_action:
+                  action: navigate
+                  navigation_path: /developer-tools/state
+                styles:
+                  card:
+                    - background: "rgba(var(--rgb-primary-text-color),0.04)"
+                    - border-radius: "14px"
+                    - border: "1px solid rgba(var(--rgb-primary-text-color),0.08)"
+                    - box-shadow: none
+                  icon:
+                    - color: "#6b7280"
+                    - width: "26px"
+                  name:
+                    - font-size: "0.78em"
+                    - color: "#6b7280"
+
+              - type: custom:button-card
+                icon: mdi:text-box-search-outline
+                name: Logs
+                tap_action:
+                  action: navigate
+                  navigation_path: /config/logs
+                styles:
+                  card:
+                    - background: "rgba(var(--rgb-primary-text-color),0.04)"
+                    - border-radius: "14px"
+                    - border: "1px solid rgba(var(--rgb-primary-text-color),0.08)"
+                    - box-shadow: none
+                  icon:
+                    - color: "#6b7280"
+                    - width: "26px"
+                  name:
+                    - font-size: "0.78em"
+                    - color: "#6b7280"
+
+              - type: custom:button-card
+                icon: mdi:puzzle-outline
+                name: HACS
+                tap_action:
+                  action: navigate
+                  navigation_path: /hacs
+                styles:
+                  card:
+                    - background: "rgba(var(--rgb-primary-text-color),0.04)"
+                    - border-radius: "14px"
+                    - border: "1px solid rgba(var(--rgb-primary-text-color),0.08)"
+                    - box-shadow: none
+                  icon:
+                    - color: "#6b7280"
+                    - width: "26px"
+                  name:
+                    - font-size: "0.78em"
+                    - color: "#6b7280"
+

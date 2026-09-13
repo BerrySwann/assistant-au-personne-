@@ -1,0 +1,165 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M02 — DÉTECTION INACTIVITÉ (PACKAGE)                        │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Source présence : SONOFF SNZB-06P (radar 5.8GHz cmWave, Zigbee Z2M)
+#   ⚠️ PAS le SNZB-06P24 (24GHz) — doc fabricant indique détection non fiable
+#   d'une personne endormie/immobile sur cette variante. Voir CAHIER_DES_CHARGES.md §5.2
+# Source lit : M05 (binary_sensor.m05_lit_occupe, calculé depuis capteur Aqara)
+#
+# Logique temporelle (CAHIER_DES_CHARGES.md §5.1) :
+#   - Heures actives (8h-12h, 15h-19h) + aucun mouvement 45min → alerte famille
+#   - Sieste (12h-15h) + lit occupé → pas d'alerte
+#   - Sieste + lit inoccupé + 45min sans mouvement → alerte douce
+#   - Nuit (22h-8h) → pas d'alerte (sommeil normal)
+#   - Nuit + lit inoccupé après 23h + aucun mouvement → alerte
+#
+# ⚠️ TODO AVANT DÉPLOIEMENT :
+# - Remplacer input_boolean.sim_snzb06p_presence par le vrai entity_id Z2M
+#   une fois le capteur pairé.
+# - Si plusieurs pièces à surveiller, dupliquer la logique par capteur/pièce
+#   (ce fichier ne couvre qu'une zone pour l'instant — salon).
+# - Test de couverture obligatoire avant validation (CAHIER_DES_CHARGES.md §7) :
+#   traverser toute la pièce pendant 2 min, vérifier détection continue sans zone morte.
+
+input_number:
+  m02_seuil_alerte_min:
+    name: "M02 Seuil Alerte Inactivité (min)"
+    min: 10
+    max: 120
+    step: 5
+    initial: 45
+    unit_of_measurement: min
+    icon: mdi:timer-outline
+
+input_boolean:
+  m02_alerte_active:
+    name: "M02 Alerte Inactivité En Cours"
+    initial: false
+    icon: mdi:alert
+
+  m02_absence_hors_horaires_nuit:
+    name: "M02 Absence Lit Anormale (nuit)"
+    initial: false
+    icon: mdi:bed-alert
+
+template:
+  - sensor:
+      - name: "M02 État Temporel"
+        unique_id: m02_etat_temporel
+        state: >
+          {% set h = now().hour %}
+          {% if 8 <= h < 12 or 15 <= h < 19 %}
+            actif
+          {% elif 12 <= h < 15 %}
+            sieste
+          {% elif h >= 22 or h < 8 %}
+            nuit
+          {% else %}
+            transition
+          {% endif %}
+
+automation:
+  # ┌───────────────────────────────────────────────────┐
+  # │ Vérification périodique — toutes les 5 minutes    │
+  # └───────────────────────────────────────────────────┘
+  - id: m02_verifier_inactivite
+    alias: "M02 - Vérification inactivité périodique"
+    trigger:
+      - platform: time_pattern
+        minutes: "/5"
+    condition:
+      - condition: state
+        entity_id: input_boolean.module_inactivite
+        state: "on"
+    action:
+      - choose:
+          # Cas 1 — heures actives ou sieste avec lit inoccupé : seuil normal
+          - conditions:
+              - condition: or
+                conditions:
+                  - condition: state
+                    entity_id: sensor.m02_etat_temporel
+                    state: "actif"
+                  - condition: and
+                    conditions:
+                      - condition: state
+                        entity_id: sensor.m02_etat_temporel
+                        state: "sieste"
+                      - condition: state
+                        entity_id: binary_sensor.m05_lit_occupe
+                        state: "off"
+            sequence:
+              - if:
+                  - condition: template
+                    value_template: >
+                      {{ (as_timestamp(now()) - as_timestamp(states.input_boolean.sim_snzb06p_presence.last_changed)) / 60
+                         > states('input_number.m02_seuil_alerte_min') | float
+                         and is_state('input_boolean.sim_snzb06p_presence', 'off')
+                         and not is_state('input_boolean.m02_alerte_active', 'on') }}
+                then:
+                  - service: input_boolean.turn_on
+                    target:
+                      entity_id: input_boolean.m02_alerte_active
+                  - service: notify.persistent_notification
+                    data:
+                      title: "⚠️ Inactivité anormale"
+                      message: >
+                        Aucun mouvement détecté depuis plus de
+                        {{ states('input_number.m02_seuil_alerte_min') }} minutes.
+
+          # Cas 2 — sieste avec lit occupé : pas d'alerte (normal)
+          - conditions:
+              - condition: state
+                entity_id: sensor.m02_etat_temporel
+                state: "sieste"
+              - condition: state
+                entity_id: binary_sensor.m05_lit_occupe
+                state: "on"
+            sequence: []
+
+          # Cas 3 — nuit, lit inoccupé après 23h, aucun mouvement
+          - conditions:
+              - condition: state
+                entity_id: sensor.m02_etat_temporel
+                state: "nuit"
+              - condition: time
+                after: "23:00:00"
+              - condition: state
+                entity_id: binary_sensor.m05_lit_occupe
+                state: "off"
+              - condition: state
+                entity_id: input_boolean.sim_snzb06p_presence
+                state: "off"
+            sequence:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.m02_absence_hors_horaires_nuit
+              - service: notify.persistent_notification
+                data:
+                  title: "🌙 Absence nocturne anormale"
+                  message: "Lit inoccupé après 23h et aucune présence détectée."
+    mode: single
+
+  # ┌───────────────────────────────────────────────────┐
+  # │ Reset automatique dès retour de présence           │
+  # └───────────────────────────────────────────────────┘
+  - id: m02_reset_alerte
+    alias: "M02 - Reset alerte au retour de présence"
+    trigger:
+      - platform: state
+        entity_id: input_boolean.sim_snzb06p_presence
+        to: "on"
+    action:
+      - service: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.m02_alerte_active
+            - input_boolean.m02_absence_hors_horaires_nuit
+    mode: single
+
+# annotations_log:
+# - 2026-08-05 : création module complet (template état temporel + automation
+#   vérification 5min + reset auto). Notification en persistent_notification —
+#   à remplacer par notify.mobile_app_<aidant> avant mise en prod. Entity_id
+#   du capteur radar en placeholder, à corriger après pairage réel. Non testé
+#   en conditions réelles — validation obligatoire avant déploiement (§7 CDC).

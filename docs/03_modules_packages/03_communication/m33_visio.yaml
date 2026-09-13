@@ -1,0 +1,23 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M33 — VISIO CONFÉRENCE (PACKAGE)                            │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Affiche une page de visio (iframe) dans le cadre multifonction du kiosk TV.
+# L'URL est configurable (ex : lien Jitsi/Meet de la famille).
+# Le cadre kiosk bascule : TV (M11) / Visio (module_m33_visio ON) / Photos (défaut).
+#
+# ⚠️ input_boolean.module_m33_visio est déjà déclaré dans m00_modules.yaml.
+# Ne PAS le redéclarer ici (conflit de clé entre packages).
+#
+# ── Renommage 2026-08-13 ──
+# Ce fichier s'appelait m20_visio.yaml (erreur de numérotation historique :
+# le vrai M20 est "Messages Famille" dans m00_modules.yaml, et n'a aucun
+# rapport avec la visio). Renommé + entity_id corrigé (m20_visio_url ->
+# m33_visio_url) pour éliminer la confusion. Référence mise à jour dans
+# dashboards/dashboard_kiosk.yaml. Valeur stockée avant renommage : "unknown"
+# (jamais réglée) — aucune perte de donnée réelle.
+
+input_text:
+  m33_visio_url:
+    name: "M33 URL Visio (page affichée à l'écran)"
+    max: 255
+    icon: mdi:link

@@ -1,0 +1,41 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          DASHBOARD KIOSK TV — AFFICHAGE PERSONNE AIDÉE                     │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Devenu un simple hébergeur iframe plein écran vers /local/kiosk.html
+# (même principe que aidant.html/config.html) : la logique d'affichage
+# (horloge/date/temp, calendrier, messages, vidéo/photo/visio, bandeau méta)
+# est désormais en HTML pur dans www/kiosk.html, plus dans du Lovelace YAML.
+#
+# annotations_log:
+# - 2026-08-14 : bascule complète Lovelace → HTML pur (www/kiosk.html).
+#   Raison : besoin d'un vrai <video>/<iframe> pilotable en JS + logique de
+#   bascule Photos/TV/Visio à 3 états, plus simple à écrire/maintenir en JS
+#   qu'en template Jinja2 de custom:button-card. Ancien contenu Lovelace
+#   (4 blocs vertical-stack) conservé en historique dans
+#   docs/DEPENDANCES_GLOBALES.md.
+
+title: "Kiosk TV"
+views:
+  - path: kiosk
+    title: Accueil
+    panel: true
+    theme: default
+    cards:
+      - type: iframe
+        # ⚠️ Le paramètre ?v=N est un cache-bust manuel : la carte iframe
+        # Lovelace ne supporte pas de template Jinja/JS sur `url:`, donc pas
+        # de Date.now() possible ici. À CHAQUE modification de www/kiosk.html,
+        # incrémenter N pour forcer le navigateur du kiosk à retélécharger le
+        # fichier au lieu de servir une version en cache.
+        url: /local/kiosk.html?v=36
+        aspect_ratio: 200%
+        card_mod:
+          style: |
+            ha-card {
+              border: none;
+              border-radius: 0;
+              height: 100vh !important;
+            }
+            iframe {
+              height: 100vh !important;
+            }

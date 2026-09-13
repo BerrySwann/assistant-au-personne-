@@ -1,0 +1,37 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M11 — CAPTEUR LIT (PACKAGE)                                 │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Source : Aqara MCCG11LM (Door/Window Sensor Zigbee Z2M), glissé entre matelas et sommier
+# state "on" = contact fermé = lit occupé (poids de la personne)
+# state "off" = contact ouvert = lit inoccupé
+#
+# ⚠️ MODE SIMULATION ACTIF (2026-08-05) — voir m00_simulation.yaml
+# Utilise input_boolean.sim_lit_occupe à la place du vrai capteur Aqara.
+# TODO AVANT DÉPLOIEMENT RÉEL : remplacer "input_boolean.sim_lit_occupe" par
+# le vrai entity_id Z2M (ex: binary_sensor.aqara_lit_contact) une fois pairé.
+#
+# Correctif 2026-08-05 : le bloc "binary_sensor: - platform: template" est
+# déprécié. La clé top-level "template:" est désormais obligatoire (erreur au
+# démarrage "template under the binary_sensor platform key is not supported").
+
+template:
+  - binary_sensor:
+      - name: "M11 Lit Occupé"
+        unique_id: m11_lit_occupe
+        device_class: occupancy
+        state: "{{ is_state('input_boolean.sim_lit_occupe', 'on') }}"
+
+sensor:
+  - platform: history_stats
+    name: "M11 Lit Durée Occupation"
+    unique_id: m11_lit_duree_occupation
+    entity_id: input_boolean.sim_lit_occupe
+    state: "on"
+    type: time
+    start: "{{ now().replace(hour=0, minute=0, second=0) }}"
+    end: "{{ now() }}"
+
+# annotations_log:
+# - 2026-08-05 : création module, consommé par M02 (inactivité) pour distinguer
+#   sieste normale d'inactivité anormale. Entity_id à corriger après pairage réel.
+# - 2026-08-05 : passage en top-level template: (suppression erreur de démarrage).

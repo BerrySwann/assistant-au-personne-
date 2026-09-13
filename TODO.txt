@@ -1,0 +1,51 @@
+# TODO — Assistant au Personne
+*Mis à jour : 2026-08-18 (fin de session)*
+
+## 👉 Prochaine session (demain) — Radar + Caméra
+- [ ] **Radar (M02 inactivité)** : test en conditions réelles (voir "Pas
+      commencé" plus bas — jamais testé hors simulation).
+- [ ] **Caméra (M06/Secur_M12)** : reprendre où on s'était arrêté — rappel du
+      principe acté : la caméra confirme, elle ne détecte jamais seule (même
+      logique pour le radar : il fait douter, ne confirme rien — voir
+      CAHIER_DES_CHARGES.md §8 pour l'architecture d'escalade complète).
+      Dépend en partie du matériel (Reolink 2, voir plus bas).
+
+## Fait récemment
+- [x] **Plage horaire sur la visio (+ urgence)** : construit le 18/08. Voir
+      `M33_visio.md` section dédiée. ⚠️ **Reste à faire côté utilisateur** :
+      régler les heures une première fois (Configuration → Aidants → 🕐
+      Plage horaire des appels visio) — sans ça, la plage vaut 00:00–00:00
+      et tout appel non urgent est bloqué. Redémarrage HA requis en amont
+      (nouvelles entités) et pas encore fait à la fin de cette session.
+
+## Bloqué / en attente utilisateur
+- [ ] **TEST user_id non-admin** (débloque le système de droits de Claude) : fenêtre privée → http://10.32.154.241:8123 avec un compte non-admin → Outils dev → États → person.eric → user_id visible ?
+- [ ] **Backup HA** (Supervisor API) : fournir un token valide
+
+## En cours / à valider
+- [ ] **Droits d'accès** : l'interface admin est construite (Claude), l'application dans aidant.html (masquer 🔧/⚙️ selon utilisateur) n'est PAS codée — dépend du test user_id
+- [ ] **Recharger aidant.html** (Ctrl+Shift+R) → vérifier valeurs remontées (fix chip)
+- [ ] **Tester dashboard v2** (`lovelace-aidant-v2`) : visio, envoi (auteur réel), file 2 messages, reset
+- [ ] **Décider** : garder aidant.html ou basculer sur le dashboard v2
+
+## Pas commencé (liste Claude)
+- [ ] Retirer 🔧/⚙️ du header aidant.html avant prod (attend le système de droits)
+- [ ] Retirer section mmWave de appairage.html
+- [ ] Test M02 (inactivité) avec le dashboard simulation
+- [ ] Alertes température (trop chaud/froid)
+- [ ] Délai anti-fausse-alarme douche SDB
+- [ ] **M17 Veilleuse Nuit** : coder l'automation (PIR → allume veilleuse si déplacement nocturne détecté). Config : plage horaire nuit, durée allumage, pièce(s) ciblée(s)
+- [ ] Nabu Casa (accès distant + push)
+- [ ] Caméra Reolink 2 (dépend du matériel physique)
+
+## En attente d'arbitrage (cahier des charges §8)
+- [ ] Capteurs frigo/placards + pinces Shelly : Core ou option ?
+- [ ] Coupure plaque de cuisson : matériel + risque électrique
+- [ ] Portée générique vs sur-mesure
+
+## Idées / plus tard
+- [ ] **DeepSeek Harness (dsh)** : agent harness open-source DeepSeek (lancé 13/08/2026, 106k ⭐) — developer preview, à surveiller dans quelques semaines pour les agents 100% DeepSeek (repo deepseek-ai/deepseek-harness)
+- [ ] Dashboard v2 : notifications SOS / app Companion aidants
+- [ ] Wallpanel kiosk TV : screensaver photos (j-a-n/lovelace-wallpanel)
+- [ ] Intégration visio_jitsi : archivée (garder ou supprimer ?)
+

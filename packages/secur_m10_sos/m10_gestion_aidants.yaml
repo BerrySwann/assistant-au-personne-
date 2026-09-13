@@ -1,0 +1,114 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │     MODULE M10-GESTION — CASES À COCHER AIDANTS PROXIMITÉ (PACKAGE)         │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Créé le 2026-08-05. Remplace l'idée des 2 groupes natifs "Aides" (trop caché
+# dans l'UI HA, cf. retour utilisateur). À la place : une case à cocher par
+# aidant, décochée par défaut, qui décide qui reçoit le SOS.
+#
+# ⚠️ Les 7 person.x ci-dessous (aidant_1_admin_ok ... aidant_7_hs) sont des
+# comptes FICTIFS confirmés par l'utilisateur le 2026-08-05 — à remplacer par
+# les vrais comptes/entity_id une fois les vrais aidants inscrits dans HA
+# (Paramètres > Personnes). Le mapping ci-dessous devra être corrigé à ce
+# moment-là (nom + entity_id person.x).
+#
+# Fonctionnement :
+# - Coché = cet aidant fait partie des "aidants de proximité" → reçoit le SOS.
+# - Décoché (valeur par défaut) = ne reçoit pas le SOS, seulement les alertes
+#   modérées/infos (tous les aidants les reçoivent, cochés ou non).
+# - Modifiable à tout moment depuis le dashboard Configuration, sans YAML,
+#   sans redémarrage (juste "Recharger la configuration YAML" si l'entité
+#   elle-même vient d'être ajoutée/modifiée ici).
+
+input_boolean:
+  m10_proximite_aidant_1:
+    name: "Proximité — Aidant 1 admin ok"
+    icon: mdi:account-heart
+
+  m10_proximite_aidant_2:
+    name: "Proximité — Aidant 2 ok"
+    icon: mdi:account-heart
+
+  m10_proximite_aidant_3:
+    name: "Proximité — Aidant 3 ok"
+    icon: mdi:account-heart
+
+  m10_proximite_aidant_4:
+    name: "Proximité — Aidant 4 hs"
+    icon: mdi:account-heart
+
+  m10_proximite_aidant_5:
+    name: "Proximité — Aidant 5 hs"
+    icon: mdi:account-heart
+
+  m10_proximite_aidant_6:
+    name: "Proximité — Aidant 6 ok"
+    icon: mdi:account-heart
+
+  m10_proximite_aidant_7:
+    name: "Proximité — Aidant 7 hs"
+    icon: mdi:account-heart
+
+input_text:
+  # ── Droits d'accès aidants (interface Aidant) ──────────────────────────────
+  # JSON compact { "<object_id_person>": <bitmask>, ... } — max input_text = 255c
+  # object_id_person = partie après "person." (ex: person.aidant_1_admin_ok -> "aidant_1_admin_ok")
+  #
+  # 2026-08-15 (suite, remplacement des PIN) : bitmask étendu de 2 à 6 droits.
+  # Les 2 PIN (m10_pin_pages_dediees, m10_pin_config, ajoutés puis retirés le
+  # même jour) sont retirés — jugés ingérables par l'utilisateur ("si un
+  # aidant donne son pin à un autre aidant il aura accès"). Remplacés par ce
+  # système de droits, appliqué automatiquement selon l'identité RÉELLE de la
+  # personne connectée (voir www/config.html + les 3 pages dédiées : client
+  # WebSocket auth/current_user, qui résout le token → utilisateur HA →
+  # person.* correspondante via attributes.user_id → droits ici).
+  #
+  # bitmask :
+  #   1  = config     (🔧) — accès à config.html lui-même
+  #   2  = messages   (⚙️) — réglages de messages (M03)
+  #   4  = calendrier (📅) — accès à calendrier.html
+  #   8  = video      (📺) — accès à video.html
+  #   16 = photos     (📷) — accès à photos.html
+  #   32 = alertes     (🚨) — reçoit les alertes modérées/infos (PAS le SOS,
+  #        qui reste géré séparément par input_boolean.m10_proximite_aidant_*
+  #        ci-dessous — décision explicite de l'utilisateur, systèmes non liés)
+  # 0 = aucun droit, cases combinables (ex: 5 = config + calendrier)
+  #
+  # person.eric (admin/installateur) a TOUJOURS tous les droits, détecté via
+  # `is_owner`/`is_admin` dans la réponse WebSocket — jamais lu depuis ce
+  # JSON, jamais modifiable ici (même logique qu'avant pour config/messages,
+  # étendue à tous les nouveaux droits).
+  # Écrit/lu uniquement par config.html (onglet Sécurité > Droits d'accès).
+  m10_droits_aidants:
+    name: "M10 Droits Accès Aidants (JSON)"
+    max: 255
+    initial: "{}"
+    icon: mdi:shield-account
+
+# annotations_log:
+# - 2026-08-05 : création. Une case à cocher par aidant fictif (7), décochée
+#   par défaut, pour décider dynamiquement qui reçoit le SOS (aidants de
+#   proximité). Consommé par packages/m10_groupe_aidants.yaml.
+# - 2026-08-05 (correctif) : suppression de `initial: false` sur les 7
+#   entités. Piège HA : `initial:` force la valeur à CHAQUE redémarrage, pas
+#   seulement à la création — ça écrasait les cases cochées par l'utilisateur
+#   après chaque reboot. Sans `initial:`, HA restaure le dernier état connu.
+# - 2026-08-15 : ajout m10_pin_pages_dediees — PIN partagé qui protège les 3
+#   nouvelles pages dédiées (calendrier.html, video.html, photos.html),
+#   ouvertes depuis de nouveaux boutons dans aidant.html. Configurable
+#   uniquement depuis config.html (onglet Sécurité), jamais depuis les pages
+#   protégées elles-mêmes.
+# - 2026-08-15 (même jour, suite, audit sécurité) : ajout m10_pin_config —
+#   2e PIN, distinct, protégeant config.html lui-même (aucune vérification
+#   de rôle n'existait avant : un aidant connaissant l'URL directe pouvait
+#   ouvrir les réglages, changer le PIN, les droits d'accès, etc.). Bootstrap
+#   par Outils de développement (pas par config.html — casse-tête circulaire,
+#   voir commentaire ci-dessus).
+# - 2026-08-15 (même jour, suite, DÉFINITIF) : les 2 PIN retirés (jugés
+#   ingérables par l'utilisateur — un PIN partagé donne accès à quiconque le
+#   connaît, pas de vraie distinction par personne). Remplacés par le
+#   bitmask m10_droits_aidants étendu de 2 à 6 droits (config/messages/
+#   calendrier/video/photos/alertes), appliqué selon l'identité réelle de
+#   connexion (client WebSocket auth/current_user, voir www/config.html et
+#   les 3 pages dédiées). Nécessite un vrai compte HA par aidant (username +
+#   mot de passe, Paramètres → Personnes → Autoriser la connexion) — sur
+#   l'instance live, seuls 2 aidants sur 7 en ont un pour l'instant.

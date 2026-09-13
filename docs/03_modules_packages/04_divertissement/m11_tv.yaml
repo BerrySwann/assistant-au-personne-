@@ -1,0 +1,456 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M11 — TÉLÉVISION : 3 SESSIONS CONFIGURABLES (PACKAGE)      │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Rôle : bascule Photos (M08) ↔ TV sur l'unique écran (TV salon, mini-PC/RPi4
+#        en HDMI, navigateur enregistré dans Browser Mod), selon jusqu'à
+#        3 "sessions TV" indépendantes, chacune avec son propre interrupteur
+#        on/off, ses horaires, et son choix de chaîne (France 2/Arte/France 5)
+#        ou YouTube. Pilotage par redirection du navigateur
+#        (browser_mod.javascript), PAS par casting Chromecast (abandonné le
+#        2026-07-04, voir hardware.md).
+#
+# Révision 2026-07-04 (v2) : généralisation de l'ancien système à 2 créneaux
+# fixes (créneau1 EPG + créneau2 YouTube fixe) vers 3 sessions identiques et
+# configurables individuellement (demande utilisateur : "calendrier" avec
+# jusqu'à 3 sessions, chacune activable/désactivable).
+#
+# Pour chaque session N (1 à 3) :
+#   - input_boolean.m11_sessionN_actif      → active/désactive CETTE session sans effacer sa config
+#   - input_datetime.m11_sessionN_debut/fin → heures cibles (fallback si pas d'EPG, ou horaire fixe si YouTube)
+#   - input_select.m11_sessionN_chaine      → France 2 / Arte / France 5 / YouTube
+#   - input_text.m11_sessionN_youtube_url   → URL vidéo YouTube (si chaîne = YouTube)
+#
+# ⚠️ POINTS NON CONFIRMÉS / À SURVEILLER :
+#   1. SÉCURITÉ BROWSER_ID — CRITIQUE : input_text.m11_browser_id_tv DOIT être
+#      rempli avec le Browser ID exact du mini-PC/TV avant d'activer
+#      module_television — sinon un appel non ciblé toucherait TOUS les
+#      navigateurs Browser Mod enregistrés (dont les téléphones famille).
+#   2. EPG : confirmé le 2026-07-04 avec XMLTV EPG (HACS) + source xmltvfr.fr
+#      (https://xmltvfr.fr/xmltv/xmltv_tnt.xml.gz). Attributs réels : `start`/`end`.
+#      Ne s'applique qu'aux sessions réglées sur France 2/Arte/France 5 — les
+#      sessions YouTube utilisent toujours l'horaire fixe (durée vidéo connue).
+#   3. Navigation via browser_mod.javascript (window.location.href) : mécanisme
+#      JS standard plausible, non testé en conditions réelles.
+#   4. URLs "direct" France 2/Arte/France 5 : correctes au 2026-07-04, peuvent
+#      changer sans préavis (structure de site web).
+#
+# annotations_log:
+# - Création module M11 (2026-07-04).
+# - v1 : 2 créneaux fixes (créneau1 EPG+chaîne, créneau2 YouTube fixe).
+# - v2 (2026-07-04, même jour) : généralisé à 3 sessions identiques et
+#   indépendamment activables, avec dérivation automatique de l'entité EPG
+#   depuis la chaîne choisie (fin de la config manuelle fragile input_text
+#   m11_epg_entity_creneau1 qui pouvait désynchroniser du input_select).
+# - v3 (2026-07-05) : tentative camera.m11_tv_flux (platform generic YAML,
+#   stream_source = URL HLS directe Arte) pour remplacer la redirection
+#   navigateur par un flux caméra affiché nativement dans le dashboard
+#   (intégration WebRTC Camera/AlexxIT + go2rtc déjà installées côté HA).
+#   ÉCHEC : HA rejette la plateforme "generic" en YAML depuis plusieurs
+#   versions ("does not support platform setup", confirmé dans /config/logs
+#   le 2026-07-05 17:52). Retiré du package — à configurer via l'UI HA
+#   (Paramètres > Appareils et services > Ajouter une intégration > Generic
+#   Camera) à la place. Toujours hardcodé sur Arte pour l'instant, pas encore
+#   généralisé aux 3 sessions/3 chaînes.
+#   script.m11_lancer_session + browser_mod.javascript (redirection navigateur)
+#   deviennent obsolètes avec l'approche caméra — la bascule se fait
+#   uniquement par les cartes conditionnelles du dashboard sur
+#   sensor.m11_etat_global, sans action HA nécessaire. Pas encore
+#   nettoyés/retirés (à trancher).
+# - v4 (2026-07-07) : APPROCHE CAMÉRA ABANDONNÉE DÉFINITIVEMENT, retour à
+#   100% sur script.m11_lancer_session + browser_mod.javascript (redirection
+#   navigateur), qui redevient donc le mécanisme actif — plus du tout
+#   obsolète. Deux bugs corrigés :
+#   1. input_text.m11_browser_id_tv contenait l'entry_id de l'INTÉGRATION
+#      Browser Mod (01KWPA620GM5RQTG2ZR4V3FAJE), pas un Browser ID de
+#      navigateur individuel — confusion entre les deux (voir
+#      .storage/core.config_entries vs Paramètres Browser Mod > Browser ID).
+#      Corrigé avec le vrai Browser ID du PC de test, enregistré via
+#      /browser-mod (toggle "Register" ON) : browser_mod_e7c11348_360592ea.
+#   2. France 2/Arte/France 5 exigent désormais un compte France TV gratuit
+#      pour le direct (politique du diffuseur depuis 2023-2024, pas un bug
+#      HA). Compte créé (erodi@free.fr) et connecté sur le profil Brave
+#      persistant du PC de test — session conservée, pas de reconnexion à
+#      chaque lecture. Testé et confirmé fonctionnel de bout en bout le
+#      2026-07-07 (redirection + lecture vidéo réelle, sans mur de connexion).
+#   ⚠️ Reste à faire : refaire cette même procédure de Register Browser ID +
+#   connexion France TV sur le vrai appareil kiosque final (mini-PC/RPi4),
+#   PAS seulement sur ce PC de test — chaque navigateur a son propre Browser
+#   ID. dashboard_kiosk.yaml (Z:) référence toujours camera.m11_tv_flux
+#   (carte webrtc-camera cassée, "Camera not found") — à revenir à une
+#   version sans dépendance caméra, non fait à ce stade.
+# - v5 (2026-08-05) : suppression de tous les `initial:` sur ce fichier.
+#   Piège HA : `initial:` réinitialise la valeur à CHAQUE redémarrage (pas
+#   juste à la création) — ça écrasait les réglages TV (chaînes, horaires,
+#   Browser ID, URLs) choisis sur le dashboard Configuration après chaque
+#   reboot. Sans `initial:`, HA restaure le dernier état connu.
+
+input_text:
+  m11_browser_id_tv:
+    name: "M11 Browser ID — Navigateur TV (SÉCURITÉ, vide = désactivé)"
+    max: 100
+    icon: mdi:cellphone-link
+
+  m11_url_france2:
+    name: "M11 URL Direct — France 2"
+    max: 255
+    icon: mdi:link
+
+  m11_url_arte:
+    name: "M11 URL Direct — Arte"
+    max: 255
+    icon: mdi:link
+
+  m11_url_france5:
+    name: "M11 URL Direct — France 5"
+    max: 255
+    icon: mdi:link
+
+  m11_session1_youtube_url:
+    name: "M11 Session 1 — URL YouTube (si chaîne = YouTube)"
+    max: 255
+    icon: mdi:youtube
+
+  m11_session2_youtube_url:
+    name: "M11 Session 2 — URL YouTube (si chaîne = YouTube)"
+    max: 255
+    icon: mdi:youtube
+
+  m11_session3_youtube_url:
+    name: "M11 Session 3 — URL YouTube (si chaîne = YouTube)"
+    max: 255
+    icon: mdi:youtube
+
+  m11_session_affichee:
+    name: "M11 État interne — Session actuellement affichée"
+    max: 20
+    icon: mdi:flag
+
+input_select:
+  m11_session1_chaine:
+    name: "M11 Session 1 — Chaîne"
+    options: ["France 2", "Arte", "France 5", "YouTube"]
+    icon: mdi:television-classic
+
+  m11_session2_chaine:
+    name: "M11 Session 2 — Chaîne"
+    options: ["France 2", "Arte", "France 5", "YouTube"]
+    icon: mdi:television-classic
+
+  m11_session3_chaine:
+    name: "M11 Session 3 — Chaîne"
+    options: ["France 2", "Arte", "France 5", "YouTube"]
+    icon: mdi:television-classic
+
+input_boolean:
+  m11_session1_actif:
+    name: "M11 Session 1 — Active"
+    icon: mdi:television-play
+  m11_session2_actif:
+    name: "M11 Session 2 — Active"
+    icon: mdi:television-play
+  m11_session3_actif:
+    name: "M11 Session 3 — Active"
+    icon: mdi:television-play
+
+input_datetime:
+  m11_session1_debut:
+    name: "M11 Session 1 — Heure cible début"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-start
+  m11_session1_fin:
+    name: "M11 Session 1 — Heure cible fin"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-end
+
+  m11_session2_debut:
+    name: "M11 Session 2 — Heure cible début"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-start
+  m11_session2_fin:
+    name: "M11 Session 2 — Heure cible fin"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-end
+
+  m11_session3_debut:
+    name: "M11 Session 3 — Heure cible début"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-start
+  m11_session3_fin:
+    name: "M11 Session 3 — Heure cible fin"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-end
+
+input_number:
+  m11_marge_recherche_min:
+    name: "M11 Marge Recherche EPG (min autour de l'heure cible)"
+    min: 0
+    max: 60
+    step: 5
+    unit_of_measurement: "min"
+    icon: mdi:timer-sand
+
+  m11_marge_fin_min:
+    name: "M11 Marge Après Fin Programme (min)"
+    min: 0
+    max: 30
+    step: 1
+    unit_of_measurement: "min"
+    icon: mdi:timer-sand
+
+# ⚠️ camera.m11_tv_flux : PAS configurable en YAML (platform generic rejetée
+# par HA — "does not support platform setup"). Configuré via l'UI à la place
+# (Paramètres > Appareils et services > Ajouter une intégration > Generic
+# Camera). Voir annotations_log plus bas.
+
+template:
+  - sensor:
+      # ─────────────────────────────────────────────
+      # FENÊTRES HORAIRES (une par session, EPG-aware)
+      # ─────────────────────────────────────────────
+      - name: "M11 Session 1 Fenêtre"
+        unique_id: m11_session1_fenetre
+        icon: mdi:clock-outline
+        state: "ok"
+        attributes:
+          debut_reel: >
+            {% set chaine = states('input_select.m11_session1_chaine') %}
+            {% set cible = states('input_datetime.m11_session1_debut') %}
+            {% if chaine == 'YouTube' %}{{ cible }}{% else %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set marge = states('input_number.m11_marge_recherche_min') | float(30) %}
+              {% set start_attr = state_attr(epg_entity, 'start') if epg_entity else None %}
+              {% set cible_min = (cible.split(':')[0] | int) * 60 + (cible.split(':')[1] | int) %}
+              {% if start_attr is not none %}
+                {% set start_t = start_attr | as_datetime | as_local %}
+                {% set start_min = start_t.hour * 60 + start_t.minute %}
+                {{ start_t.strftime('%H:%M:%S') if (start_min - cible_min) | abs <= marge else cible }}
+              {% else %}{{ cible }}{% endif %}
+            {% endif %}
+          fin_reelle: >
+            {% set chaine = states('input_select.m11_session1_chaine') %}
+            {% set cible_debut = states('input_datetime.m11_session1_debut') %}
+            {% set cible_fin = states('input_datetime.m11_session1_fin') %}
+            {% if chaine == 'YouTube' %}{{ cible_fin }}{% else %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set marge = states('input_number.m11_marge_recherche_min') | float(30) %}
+              {% set marge_fin = states('input_number.m11_marge_fin_min') | float(5) %}
+              {% set start_attr = state_attr(epg_entity, 'start') if epg_entity else None %}
+              {% set stop_attr = state_attr(epg_entity, 'end') if epg_entity else None %}
+              {% set cible_debut_min = (cible_debut.split(':')[0] | int) * 60 + (cible_debut.split(':')[1] | int) %}
+              {% if start_attr is not none and stop_attr is not none %}
+                {% set start_t = start_attr | as_datetime | as_local %}
+                {% set start_min = start_t.hour * 60 + start_t.minute %}
+                {% if (start_min - cible_debut_min) | abs <= marge %}
+                  {% set stop_t = (stop_attr | as_datetime | as_local) + timedelta(minutes=marge_fin) %}
+                  {{ stop_t.strftime('%H:%M:%S') }}
+                {% else %}{{ cible_fin }}{% endif %}
+              {% else %}{{ cible_fin }}{% endif %}
+            {% endif %}
+
+      - name: "M11 Session 2 Fenêtre"
+        unique_id: m11_session2_fenetre
+        icon: mdi:clock-outline
+        state: "ok"
+        attributes:
+          debut_reel: >
+            {% set chaine = states('input_select.m11_session2_chaine') %}
+            {% set cible = states('input_datetime.m11_session2_debut') %}
+            {% if chaine == 'YouTube' %}{{ cible }}{% else %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set marge = states('input_number.m11_marge_recherche_min') | float(30) %}
+              {% set start_attr = state_attr(epg_entity, 'start') if epg_entity else None %}
+              {% set cible_min = (cible.split(':')[0] | int) * 60 + (cible.split(':')[1] | int) %}
+              {% if start_attr is not none %}
+                {% set start_t = start_attr | as_datetime | as_local %}
+                {% set start_min = start_t.hour * 60 + start_t.minute %}
+                {{ start_t.strftime('%H:%M:%S') if (start_min - cible_min) | abs <= marge else cible }}
+              {% else %}{{ cible }}{% endif %}
+            {% endif %}
+          fin_reelle: >
+            {% set chaine = states('input_select.m11_session2_chaine') %}
+            {% set cible_debut = states('input_datetime.m11_session2_debut') %}
+            {% set cible_fin = states('input_datetime.m11_session2_fin') %}
+            {% if chaine == 'YouTube' %}{{ cible_fin }}{% else %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set marge = states('input_number.m11_marge_recherche_min') | float(30) %}
+              {% set marge_fin = states('input_number.m11_marge_fin_min') | float(5) %}
+              {% set start_attr = state_attr(epg_entity, 'start') if epg_entity else None %}
+              {% set stop_attr = state_attr(epg_entity, 'end') if epg_entity else None %}
+              {% set cible_debut_min = (cible_debut.split(':')[0] | int) * 60 + (cible_debut.split(':')[1] | int) %}
+              {% if start_attr is not none and stop_attr is not none %}
+                {% set start_t = start_attr | as_datetime | as_local %}
+                {% set start_min = start_t.hour * 60 + start_t.minute %}
+                {% if (start_min - cible_debut_min) | abs <= marge %}
+                  {% set stop_t = (stop_attr | as_datetime | as_local) + timedelta(minutes=marge_fin) %}
+                  {{ stop_t.strftime('%H:%M:%S') }}
+                {% else %}{{ cible_fin }}{% endif %}
+              {% else %}{{ cible_fin }}{% endif %}
+            {% endif %}
+
+      - name: "M11 Session 3 Fenêtre"
+        unique_id: m11_session3_fenetre
+        icon: mdi:clock-outline
+        state: "ok"
+        attributes:
+          debut_reel: >
+            {% set chaine = states('input_select.m11_session3_chaine') %}
+            {% set cible = states('input_datetime.m11_session3_debut') %}
+            {% if chaine == 'YouTube' %}{{ cible }}{% else %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set marge = states('input_number.m11_marge_recherche_min') | float(30) %}
+              {% set start_attr = state_attr(epg_entity, 'start') if epg_entity else None %}
+              {% set cible_min = (cible.split(':')[0] | int) * 60 + (cible.split(':')[1] | int) %}
+              {% if start_attr is not none %}
+                {% set start_t = start_attr | as_datetime | as_local %}
+                {% set start_min = start_t.hour * 60 + start_t.minute %}
+                {{ start_t.strftime('%H:%M:%S') if (start_min - cible_min) | abs <= marge else cible }}
+              {% else %}{{ cible }}{% endif %}
+            {% endif %}
+          fin_reelle: >
+            {% set chaine = states('input_select.m11_session3_chaine') %}
+            {% set cible_debut = states('input_datetime.m11_session3_debut') %}
+            {% set cible_fin = states('input_datetime.m11_session3_fin') %}
+            {% if chaine == 'YouTube' %}{{ cible_fin }}{% else %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set marge = states('input_number.m11_marge_recherche_min') | float(30) %}
+              {% set marge_fin = states('input_number.m11_marge_fin_min') | float(5) %}
+              {% set start_attr = state_attr(epg_entity, 'start') if epg_entity else None %}
+              {% set stop_attr = state_attr(epg_entity, 'end') if epg_entity else None %}
+              {% set cible_debut_min = (cible_debut.split(':')[0] | int) * 60 + (cible_debut.split(':')[1] | int) %}
+              {% if start_attr is not none and stop_attr is not none %}
+                {% set start_t = start_attr | as_datetime | as_local %}
+                {% set start_min = start_t.hour * 60 + start_t.minute %}
+                {% if (start_min - cible_debut_min) | abs <= marge %}
+                  {% set stop_t = (stop_attr | as_datetime | as_local) + timedelta(minutes=marge_fin) %}
+                  {{ stop_t.strftime('%H:%M:%S') }}
+                {% else %}{{ cible_fin }}{% endif %}
+              {% else %}{{ cible_fin }}{% endif %}
+            {% endif %}
+
+      # ─────────────────────────────────────────────
+      # ÉTAT GLOBAL — quelle session (si aucune) est active MAINTENANT
+      # ─────────────────────────────────────────────
+      - name: "M11 État Global"
+        unique_id: m11_etat_global
+        icon: mdi:television-play
+        state: >
+          {% if not is_state('input_boolean.module_television', 'on') %}
+            desactive
+          {% else %}
+            {% set now_t = now().strftime('%H:%M:00') %}
+            {% set d1 = state_attr('sensor.m11_session_1_fenetre','debut_reel') %}
+            {% set f1 = state_attr('sensor.m11_session_1_fenetre','fin_reelle') %}
+            {% set d2 = state_attr('sensor.m11_session_2_fenetre','debut_reel') %}
+            {% set f2 = state_attr('sensor.m11_session_2_fenetre','fin_reelle') %}
+            {% set d3 = state_attr('sensor.m11_session_3_fenetre','debut_reel') %}
+            {% set f3 = state_attr('sensor.m11_session_3_fenetre','fin_reelle') %}
+            {% set s1_ok = is_state('input_boolean.m11_session1_actif', 'on') and d1 is not none and f1 is not none and d1 <= now_t < f1 %}
+            {% set s2_ok = is_state('input_boolean.m11_session2_actif', 'on') and d2 is not none and f2 is not none and d2 <= now_t < f2 %}
+            {% set s3_ok = is_state('input_boolean.m11_session3_actif', 'on') and d3 is not none and f3 is not none and d3 <= now_t < f3 %}
+            {% if s1_ok %}session1
+            {% elif s2_ok %}session2
+            {% elif s3_ok %}session3
+            {% else %}photos{% endif %}
+          {% endif %}
+        attributes:
+          texte_affichage: >
+            {% set etat = states('sensor.m11_etat_global') %}
+            {% if etat == 'desactive' %}TV désactivée
+            {% elif etat in ['session1','session2','session3'] %}
+              {% set n = etat[-1] %}
+              {% set chaine = states('input_select.m11_session' ~ n ~ '_chaine') %}
+              {% set epg_entity = {'France 2': 'sensor.france2_fr_program_current', 'Arte': 'sensor.arte_fr_program_current', 'France 5': 'sensor.france5_fr_program_current'}.get(chaine) %}
+              {% set titre = state_attr(epg_entity, 'title') if epg_entity else None %}
+              📺 {{ chaine }}{% if chaine == 'YouTube' %} — Session {{ n }}{% elif titre %} — {{ titre }}{% endif %}
+            {% else %}📷 Photos famille{% endif %}
+
+script:
+  m11_lancer_session:
+    alias: "M11 — Lancer la chaîne/vidéo d'une session"
+    fields:
+      num:
+        description: "Numéro de session (1, 2 ou 3)"
+        example: 1
+    sequence:
+      - condition: template
+        value_template: "{{ states('input_text.m11_browser_id_tv') | trim != '' }}"
+      - variables:
+          chaine: "{{ states('input_select.m11_session' ~ num ~ '_chaine') }}"
+          url: >
+            {% if chaine == 'France 2' %}{{ states('input_text.m11_url_france2') }}
+            {% elif chaine == 'Arte' %}{{ states('input_text.m11_url_arte') }}
+            {% elif chaine == 'France 5' %}{{ states('input_text.m11_url_france5') }}
+            {% elif chaine == 'YouTube' %}{{ states('input_text.m11_session' ~ num ~ '_youtube_url') }}
+            {% else %}{% endif %}
+      - condition: template
+        value_template: "{{ url | trim != '' }}"
+      - service: browser_mod.javascript
+        data:
+          browser_id: "{{ states('input_text.m11_browser_id_tv') }}"
+          code: "window.location.href = '{{ url }}';"
+
+automation:
+  - id: m11_verifier_sessions
+    alias: "M11 — Vérifier les sessions TV (toutes les minutes)"
+    mode: single
+    trigger:
+      - platform: time_pattern
+        minutes: "/1"
+    condition:
+      - condition: state
+        entity_id: input_boolean.module_television
+        state: "on"
+    action:
+      - variables:
+          etat: "{{ states('sensor.m11_etat_global') }}"
+          affichee: "{{ states('input_text.m11_session_affichee') }}"
+      - condition: template
+        value_template: "{{ etat != affichee }}"
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.m11_session_affichee
+        data:
+          value: "{{ etat }}"
+      - choose:
+          - conditions: "{{ etat == 'session1' }}"
+            sequence:
+              - service: script.m11_lancer_session
+                data:
+                  num: 1
+          - conditions: "{{ etat == 'session2' }}"
+            sequence:
+              - service: script.m11_lancer_session
+                data:
+                  num: 2
+          - conditions: "{{ etat == 'session3' }}"
+            sequence:
+              - service: script.m11_lancer_session
+                data:
+                  num: 3
+        default:
+          - service: script.turn_on
+            target:
+              entity_id: script.m08_lancer_diaporama
+
+  - id: m11_reset_desactivation
+    alias: "M11 — Retour photos si module TV désactivé"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: input_boolean.module_television
+        to: "off"
+    action:
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.m11_session_affichee
+        data:
+          value: "aucune"
+      - service: script.turn_on
+        target:
+          entity_id: script.m08_lancer_diaporama

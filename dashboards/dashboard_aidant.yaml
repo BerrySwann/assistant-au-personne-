@@ -1,0 +1,24 @@
+title: "Interface Aidant"
+views:
+  - path: aidant
+    title: Aidant
+    icon: mdi:account-heart
+    type: panel
+    cards:
+      # 2026-08-16 (correctif) : l'URL était écrite EN DUR
+      # (http://10.32.154.241:8123/local/launch.html). Deux conséquences dès
+      # qu'on accède à HA autrement que par cette IP en HTTP :
+      #   - contenu mixte : une page HTTPS ne peut pas embarquer une iframe
+      #     HTTP, le navigateur bloque (erreur "n'autorise pas la connexion") ;
+      #   - l'IP locale n'est pas joignable depuis l'extérieur (Tailscale,
+      #     Nabu Casa...).
+      # Repéré en migrant vers Tailscale : le dashboard Aidant restait vide.
+      # Corrigé en URL RELATIVE : la page suit automatiquement l'origine
+      # réellement utilisée (IP locale, nom .ts.net, Nabu Casa...), sans rien
+      # à modifier ici. Ne JAMAIS remettre d'adresse absolue.
+      - type: custom:html-template-card
+        ignore_line_breaks: true
+        content: >
+          <iframe src="/local/launch.html"
+            style="width:100%;height:100vh;border:none;display:block;">
+          </iframe>

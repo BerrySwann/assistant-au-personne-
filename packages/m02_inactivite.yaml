@@ -1,0 +1,498 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │     MODULE M02 — DÉTECTION INACTIVITÉ ADAPTATIVE v2 (PACKAGE)               │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+#
+# ## SOURCES D'ACTIVITÉ (changer l'entity_id quand le vrai capteur est pairé)
+#
+#   mmWave Salon   → binary_sensor.presence_salon_occupancy  ✅ RÉEL (2026-08-23)
+#   mmWave Chambre → input_boolean.sim_presence_chambre
+#                    └→ remplacer par : binary_sensor.presence_chambre_presence
+#   PIR Cuisine    → input_boolean.sim_pir_cuisine
+#                    └→ remplacer par : binary_sensor.pir_cuisine_occupancy
+#   PIR Couloir    → input_boolean.sim_pir_couloir
+#                    └→ remplacer par : binary_sensor.pir_couloir_occupancy
+#   PIR SDB        → input_boolean.sim_pir_sdb
+#                    └→ remplacer par : binary_sensor.pir_sdb_occupancy
+#   Contacts       → binary_sensor.contact_porte_entree_contact, etc.
+#                    (n'importe quel changement d'état = activité)
+#
+# ## APPRENTISSAGE
+#   5 tranches horaires (matin/sieste/aprem/soir/nuit)
+#   À chaque fin de tranche → MAJ du seuil par moyenne exponentielle (EMA)
+#   Seuil = max_gap_observé × facteur_apprentissage (sécurité)
+#   Alerte = seuil × facteur_alerte
+#   Phase silencieuse les 7 premiers jours (apprentissage pur, pas d'alerte)
+#
+# ## DÉPENDANCES
+#   m00_simulation.yaml → sim_presence_salon, sim_presence_chambre, sim_pir_*
+#   m11_capteur_lit.yaml → binary_sensor.m05_lit_occupe
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HELPERS
+# ─────────────────────────────────────────────────────────────────────────────
+
+input_datetime:
+  m02_derniere_activite:
+    name: "M02 Dernière Activité"
+    has_date: true
+    has_time: true
+    icon: mdi:motion-sensor
+
+input_number:
+  # Seuils appris par tranche (minutes) — mis à jour par l'apprentissage
+  m02_seuil_matin:
+    name: "M02 Seuil Matin (8h-12h)"
+    min: 20
+    max: 240
+    step: 1
+    initial: 90
+    unit_of_measurement: min
+    icon: mdi:weather-sunset-up
+
+  m02_seuil_sieste:
+    name: "M02 Seuil Sieste (12h-14h)"
+    min: 20
+    max: 300
+    step: 1
+    initial: 120
+    unit_of_measurement: min
+    icon: mdi:sleep
+
+  m02_seuil_aprem:
+    name: "M02 Seuil Après-midi (14h-18h)"
+    min: 20
+    max: 240
+    step: 1
+    initial: 90
+    unit_of_measurement: min
+    icon: mdi:weather-sunny
+
+  m02_seuil_soir:
+    name: "M02 Seuil Soirée (18h-22h)"
+    min: 30
+    max: 360
+    step: 1
+    initial: 180
+    unit_of_measurement: min
+    icon: mdi:weather-sunset-down
+
+  m02_seuil_nuit:
+    name: "M02 Seuil Nuit (22h-8h)"
+    min: 120
+    max: 600
+    step: 1
+    initial: 480
+    unit_of_measurement: min
+    icon: mdi:weather-night
+
+  # Observation max du slot en cours (remis à 0 à chaque transition de tranche)
+  m02_obs_gap:
+    name: "M02 Gap Max Observé Slot en cours"
+    min: 0
+    max: 600
+    step: 0.1
+    initial: 0
+    unit_of_measurement: min
+    icon: mdi:timer-sand
+
+  # Paramètres apprentissage
+  m02_facteur_alerte:
+    name: "M02 Facteur Alerte (× seuil)"
+    min: 1.0
+    max: 3.0
+    step: 0.1
+    initial: 1.5
+    icon: mdi:alert-decagram
+
+  m02_facteur_apprentissage:
+    name: "M02 Facteur Apprentissage (sécurité gap)"
+    min: 1.0
+    max: 2.0
+    step: 0.1
+    initial: 1.3
+    icon: mdi:school
+
+  m02_ema_alpha:
+    name: "M02 Alpha EMA (vitesse apprentissage)"
+    min: 0.1
+    max: 0.9
+    step: 0.05
+    initial: 0.3
+    icon: mdi:trending-up
+
+  m02_jours_apprentissage:
+    name: "M02 Jours d'apprentissage"
+    min: 0
+    max: 999
+    step: 1
+    initial: 0
+    icon: mdi:calendar-check
+
+input_boolean:
+  m02_alerte_active:
+    name: "M02 Alerte Inactivité En Cours"
+    initial: false
+    icon: mdi:alert
+
+  m02_absence_nuit_anormale:
+    name: "M02 Absence Nocturne Anormale"
+    initial: false
+    icon: mdi:bed-alert
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TEMPLATE SENSORS
+# ─────────────────────────────────────────────────────────────────────────────
+
+template:
+  - binary_sensor:
+      # Activité détectée en ce moment (combine toutes les sources)
+      - name: "M02 Activité Détectée"
+        unique_id: m02_activite_detectee
+        device_class: motion
+        state: >
+          {{ is_state('binary_sensor.presence_salon_occupancy', 'on')
+          or is_state('input_boolean.sim_presence_chambre',          'on')
+          or is_state('input_boolean.sim_pir_cuisine',               'on')
+          or is_state('input_boolean.sim_pir_couloir',               'on')
+          or is_state('input_boolean.sim_pir_sdb',                   'on') }}
+
+  - sensor:
+      # Tranche horaire courante
+      - name: "M02 Tranche Horaire"
+        unique_id: m02_tranche_horaire
+        state: >
+          {% set h = now().hour %}
+          {% if 8  <= h < 12 %} matin
+          {% elif 12 <= h < 14 %} sieste
+          {% elif 14 <= h < 18 %} aprem
+          {% elif 18 <= h < 22 %} soir
+          {% else %} nuit
+          {% endif %}
+
+      # Seuil appris pour la tranche en cours
+      - name: "M02 Seuil Tranche Actuelle"
+        unique_id: m02_seuil_tranche_actuelle
+        unit_of_measurement: min
+        state: >
+          {% set t = states('sensor.m02_tranche_horaire') %}
+          {% if t == 'matin'  %} {{ states('input_number.m02_seuil_matin')  | float }}
+          {% elif t == 'sieste'%} {{ states('input_number.m02_seuil_sieste') | float }}
+          {% elif t == 'aprem' %} {{ states('input_number.m02_seuil_aprem')  | float }}
+          {% elif t == 'soir'  %} {{ states('input_number.m02_seuil_soir')   | float }}
+          {% else %}               {{ states('input_number.m02_seuil_nuit')   | float }}
+          {% endif %}
+
+      # Inactivité courante en minutes depuis derniere_activite
+      - name: "M02 Inactivité Minutes"
+        unique_id: m02_inactivite_minutes
+        unit_of_measurement: min
+        state: >
+          {% set last_ts = as_timestamp(states('input_datetime.m02_derniere_activite'), 0) %}
+          {% if last_ts == 0 %} 0
+          {% else %} {{ ((now().timestamp() - last_ts) / 60) | round(1) }}
+          {% endif %}
+
+      # Seuil d'alerte effectif (seuil × facteur)
+      - name: "M02 Seuil Alerte Effectif"
+        unique_id: m02_seuil_alerte_effectif
+        unit_of_measurement: min
+        state: >
+          {{ (states('sensor.m02_seuil_tranche_actuelle') | float
+              * states('input_number.m02_facteur_alerte') | float) | round(0) }}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AUTOMATIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+automation:
+
+  # ┌─────────────────────────────────────────────────────┐
+  # │ 1. Toute activité → reset derniere_activite          │
+  # └─────────────────────────────────────────────────────┘
+  - id: m02_reset_activite
+    alias: "M02 - Activité détectée → reset horodatage"
+    trigger:
+      # mmWave + PIR (simulés)
+      - platform: state
+        entity_id:
+          - binary_sensor.presence_salon_occupancy
+          - input_boolean.sim_presence_chambre
+          - input_boolean.sim_pir_cuisine
+          - input_boolean.sim_pir_couloir
+          - input_boolean.sim_pir_sdb
+        to: "on"
+      # Contacts (ouverture OU fermeture = activité)
+      - platform: state
+        entity_id:
+          - binary_sensor.contact_porte_entree_contact
+          - binary_sensor.contact_porte_2_contact
+          - binary_sensor.contact_porte_frigo_contact
+          - binary_sensor.contact_porte_congel_contact
+          - binary_sensor.contact_fenetre_salon_contact
+          - binary_sensor.contact_fenetre_salon_2_contact
+          - binary_sensor.contact_fenetre_chambre_contact
+          - binary_sensor.contact_fenetre_chambre_2_contact
+          - binary_sensor.contact_fenetre_bureau_contact
+          - binary_sensor.contact_fenetre_cuisine_contact
+          - binary_sensor.contact_fenetre_sdb_contact
+    condition:
+      - condition: state
+        entity_id: input_boolean.module_m02_inactivite
+        state: "on"
+    action:
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.m02_derniere_activite
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      # Reset alerte si présence revenue
+      - service: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.m02_alerte_active
+            - input_boolean.m02_absence_nuit_anormale
+    mode: single
+
+  # ┌─────────────────────────────────────────────────────┐
+  # │ 2. Toutes les 5 min — check + mise à jour obs_gap   │
+  # └─────────────────────────────────────────────────────┘
+  - id: m02_check_inactivite
+    alias: "M02 - Check inactivité toutes les 5 min"
+    trigger:
+      - platform: time_pattern
+        minutes: "/5"
+    condition:
+      - condition: state
+        entity_id: input_boolean.module_m02_inactivite
+        state: "on"
+    action:
+      - variables:
+          gap: "{{ states('sensor.m02_inactivite_minutes') | float(0) }}"
+          seuil_alerte: "{{ states('sensor.m02_seuil_alerte_effectif') | float(999) }}"
+          tranche: "{{ states('sensor.m02_tranche_horaire') }}"
+          jours: "{{ states('input_number.m02_jours_apprentissage') | int(0) }}"
+          obs_actuel: "{{ states('input_number.m02_obs_gap') | float(0) }}"
+
+      # Mettre à jour obs_gap si le gap actuel est plus grand
+      - if:
+          - condition: template
+            value_template: "{{ gap > obs_actuel and gap > 10 }}"
+        then:
+          - service: input_number.set_value
+            target:
+              entity_id: input_number.m02_obs_gap
+            data:
+              value: "{{ gap | round(1) }}"
+
+      # Alerte inactivité (hors nuit normale et hors apprentissage)
+      - choose:
+          # Nuit + lit occupé → sommeil normal, rien à faire
+          - conditions:
+              - condition: template
+                value_template: "{{ tranche == 'nuit' and is_state('binary_sensor.m05_lit_occupe','on') }}"
+            sequence: []
+
+          # Nuit + lit inoccupé après 23h → alerte nocturne
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ tranche == 'nuit'
+                     and now().hour >= 23
+                     and is_state('binary_sensor.m05_lit_occupe','off')
+                     and gap > states('input_number.m02_seuil_nuit') | float
+                     and not is_state('input_boolean.m02_absence_nuit_anormale','on') }}
+            sequence:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.m02_absence_nuit_anormale
+              - service: notify.persistent_notification
+                data:
+                  title: "🌙 Absence nocturne anormale"
+                  message: "Lit inoccupé après 23h, aucune activité depuis {{ gap | round(0) }} min."
+
+          # Sieste + lit occupé → repos normal
+          - conditions:
+              - condition: template
+                value_template: "{{ tranche == 'sieste' and is_state('binary_sensor.m05_lit_occupe','on') }}"
+            sequence: []
+
+          # Cas général — alerte si gap > seuil ET apprentissage terminé
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ gap > seuil_alerte
+                     and jours >= 7
+                     and not is_state('input_boolean.m02_alerte_active','on') }}
+            sequence:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.m02_alerte_active
+              - service: notify.persistent_notification
+                data:
+                  title: "⚠️ Inactivité anormale"
+                  message: >
+                    Aucune activité depuis {{ gap | round(0) }} min
+                    (seuil {{ tranche }} : {{ seuil_alerte | round(0) }} min).
+    mode: single
+
+  # ┌─────────────────────────────────────────────────────┐
+  # │ 3. Transitions de tranche → MAJ seuil par EMA       │
+  # └─────────────────────────────────────────────────────┘
+  - id: m02_fin_slot_matin
+    alias: "M02 - Fin matin → apprentissage seuil"
+    trigger:
+      - platform: time
+        at: "12:00:00"
+    condition:
+      - condition: state
+        entity_id: input_boolean.module_m02_inactivite
+        state: "on"
+      - condition: template
+        value_template: "{{ states('input_number.m02_obs_gap') | float > 10 }}"
+    action:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.m02_seuil_matin
+        data:
+          value: >
+            {% set alpha = states('input_number.m02_ema_alpha') | float(0.3) %}
+            {% set old = states('input_number.m02_seuil_matin') | float %}
+            {% set obs = states('input_number.m02_obs_gap') | float %}
+            {% set fac = states('input_number.m02_facteur_apprentissage') | float(1.3) %}
+            {{ [[(( 1 - alpha) * old + alpha * (obs * fac)) | round(0) | int, 20] | max, 240] | min }}
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.m02_obs_gap
+        data:
+          value: 0
+    mode: single
+
+  - id: m02_fin_slot_sieste
+    alias: "M02 - Fin sieste → apprentissage seuil"
+    trigger:
+      - platform: time
+        at: "14:00:00"
+    condition:
+      - condition: state
+        entity_id: input_boolean.module_m02_inactivite
+        state: "on"
+      - condition: template
+        value_template: "{{ states('input_number.m02_obs_gap') | float > 10 }}"
+    action:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.m02_seuil_sieste
+        data:
+          value: >
+            {% set alpha = states('input_number.m02_ema_alpha') | float(0.3) %}
+            {% set old = states('input_number.m02_seuil_sieste') | float %}
+            {% set obs = states('input_number.m02_obs_gap') | float %}
+            {% set fac = states('input_number.m02_facteur_apprentissage') | float(1.3) %}
+            {{ [[(( 1 - alpha) * old + alpha * (obs * fac)) | round(0) | int, 20] | max, 300] | min }}
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.m02_obs_gap
+        data:
+          value: 0
+    mode: single
+
+  - id: m02_fin_slot_aprem
+    alias: "M02 - Fin après-midi → apprentissage seuil"
+    trigger:
+      - platform: time
+        at: "18:00:00"
+    condition:
+      - condition: state
+        entity_id: input_boolean.module_m02_inactivite
+        state: "on"
+      - condition: template
+        value_template: "{{ states('input_number.m02_obs_gap') | float > 10 }}"
+    action:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.m02_seuil_aprem
+        data:
+          value: >
+            {% set alpha = states('input_number.m02_ema_alpha') | float(0.3) %}
+            {% set old = states('input_number.m02_seuil_aprem') | float %}
+            {% set obs = states('input_number.m02_obs_gap') | float %}
+            {% set fac = states('input_number.m02_facteur_apprentissage') | float(1.3) %}
+            {{ [[(( 1 - alpha) * old + alpha * (obs * fac)) | round(0) | int, 20] | max, 240] | min }}
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.m02_obs_gap
+        data:
+          value: 0
+    mode: single
+
+  - id: m02_fin_slot_soir
+    alias: "M02 - Fin soirée → apprentissage seuil"
+    trigger:
+      - platform: time
+        at: "22:00:00"
+    condition:
+      - condition: state
+        entity_id: input_boolean.module_m02_inactivite
+        state: "on"
+      - condition: template
+        value_template: "{{ states('input_number.m02_obs_gap') | float > 10 }}"
+    action:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.m02_seuil_soir
+        data:
+          value: >
+            {% set alpha = states('input_number.m02_ema_alpha') | float(0.3) %}
+            {% set old = states('input_number.m02_seuil_soir') | float %}
+            {% set obs = states('input_number.m02_obs_gap') | float %}
+            {% set fac = states('input_number.m02_facteur_apprentissage') | float(1.3) %}
+            {{ [[(( 1 - alpha) * old + alpha * (obs * fac)) | round(0) | int, 30] | max, 360] | min }}
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.m02_obs_gap
+        data:
+          value: 0
+    mode: single
+
+  - id: m02_fin_slot_nuit
+    alias: "M02 - Fin nuit → apprentissage seuil"
+    trigger:
+      - platform: time
+        at: "08:00:00"
+    condition:
+      - condition: state
+        entity_id: input_boolean.module_m02_inactivite
+        state: "on"
+      - condition: template
+        value_template: "{{ states('input_number.m02_obs_gap') | float > 60 }}"
+    action:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.m02_seuil_nuit
+        data:
+          value: >
+            {% set alpha = states('input_number.m02_ema_alpha') | float(0.3) %}
+            {% set old = states('input_number.m02_seuil_nuit') | float %}
+            {% set obs = states('input_number.m02_obs_gap') | float %}
+            {% set fac = states('input_number.m02_facteur_apprentissage') | float(1.3) %}
+            {{ [[(( 1 - alpha) * old + alpha * (obs * fac)) | round(0) | int, 120] | max, 600] | min }}
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.m02_obs_gap
+        data:
+          value: 0
+      # Incrémenter le compteur de jours d'apprentissage
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.m02_jours_apprentissage
+        data:
+          value: "{{ states('input_number.m02_jours_apprentissage') | int + 1 }}"
+    mode: single
+
+# annotations_log:
+# - 2026-08-12 : réécriture complète v2. Multi-capteurs (mmWave x2 + PIR x3 +
+#   contacts x11). Apprentissage adaptatif par EMA sur 5 tranches horaires.
+#   Phase silencieuse 7 jours. Simulateurs → m00_simulation.yaml.
+#   Notifications en persistent_notification — à remplacer par
+#   notify.mobile_app_<aidant> avant mise en prod.
+#   ⚠️ binary_sensor.m05_lit_occupe requis (M05 doit être actif).

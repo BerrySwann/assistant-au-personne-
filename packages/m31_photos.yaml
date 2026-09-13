@@ -1,0 +1,197 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M31 — PHOTOS FAMILLE (PACKAGE)                             │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Rôle : écran "photos" par défaut sur la TV salon (mini-PC/RPi4 en HDMI,
+#        navigateur enregistré dans Browser Mod). Actif hors créneaux TV (M11).
+#
+# ⚠️ Révision 2026-07-04 : le Chromecast a été abandonné (voir hardware.md).
+#    "Retour photos" = redirection du navigateur TV vers le dashboard
+#    dashboard_kiosk.yaml via browser_mod.navigate — mécanisme confirmé par
+#    la doc officielle Browser Mod.
+#
+# 📷 IMAGE RÉELLE — SOLUTION ACTUELLE (2026-07-04, simple et fiable) :
+#    Le bloc 4 du kiosk (dashboard_kiosk.yaml) affiche désormais une VRAIE
+#    photo en fond de carte quand sensor.confo_m34_etat_global = 'photos' :
+#      /config/www/photos_famille/photo_actuelle.jpg
+#    → servi statiquement par HA sous /local/photos_famille/photo_actuelle.jpg
+#    Ce fichier est à déposer/remplacer MANUELLEMENT par la famille via le
+#    partage Samba (\\10.32.154.241\config\www\photos_famille\), en gardant
+#    toujours ce nom exact. Aucune automation ne gère ce fichier.
+#
+# 🖼️ RÉVISION 2026-08-15 — VRAIE ROTATION MULTI-PHOTOS :
+#    Le doute technique ci-dessous (utilitaires shell dans le conteneur Core)
+#    est levé : shell_command + python3 est déjà utilisé avec succès ailleurs
+#    dans le projet (M34 liens YouTube, M03 RDV récurrents). Même pattern
+#    repris ici : shell_command.m31_photos_liste exécute
+#    shell_scripts/m31_photos_liste.py, qui liste les fichiers image du
+#    dossier www/photos_famille/ (le MÊME dossier que l'ancienne photo unique
+#    photo_actuelle.jpg — toujours alimenté manuellement par la famille via
+#    Samba, aucun changement de leur côté). kiosk.html interroge ce
+#    shell_command et fait tourner les photos trouvées, au rythme
+#    d'input_number.m31_photos_intervalle_s (désormais RÉELLEMENT consommé).
+#    ⚠️ input_text.m31_photos_dossier reste RÉSERVÉ/INUTILISÉ : le dossier
+#    scanné est en dur dans le script Python (/config/www/photos_famille),
+#    pas piloté par cette entité (qui contient une URI media_source, pas un
+#    chemin filesystem exploitable tel quel). À trancher si un jour on veut
+#    rendre le dossier configurable.
+#    ⚠️ Non vérifié en direct cette session (pas de token HA actif) : le
+#    shell_command doit être rechargé côté HA (redémarrage recommandé, le
+#    rechargement à chaud des shell_command n'est pas garanti) avant test.
+#
+# 📤 RÉVISION 2026-08-15 (même jour) — UPLOAD SIMPLE DEPUIS config.html :
+#    Le dépôt manuel via Samba restait trop technique pour la famille. Ajout
+#    d'un bouton "Choisir des photos…" dans config.html (onglet Confort),
+#    sélecteur de fichiers classique (comme joindre un fichier à un mail).
+#    Envoie vers l'endpoint interne de HA POST /api/media_source/local_source
+#    /upload (le même que l'écran Média natif de HA, Paramètres > Système >
+#    Stockage — endpoint stable, utilisé depuis des années par le frontend HA
+#    lui-même, mais NON documenté dans la REST API publique).
+#    Les photos uploadées atterrissent dans /media/photos_famille/ (dossier
+#    "média local" de HA — /media est un point de montage DISTINCT de
+#    /config, protégé par l'authentification HA contrairement à /config/www).
+#    shell_scripts/m31_photos_liste.py scanne désormais LES DEUX dossiers
+#    (/config/www/photos_famille ET /media/photos_famille) et préfixe chaque
+#    ligne par sa source ("www|" ou "media|"). kiosk.html affiche les photos
+#    "www" en <img src> direct (non protégé) et les photos "media" via un
+#    fetch() authentifié + Object URL (protégé par HA).
+#    ⚠️ Suppression d'une photo déjà uploadée : le seul mécanisme HA NATIF
+#    (media_source/local_source/remove) est en WebSocket uniquement, pas en
+#    REST. Voir révision suivante — contourné, PAS laissé en l'état.
+#    ⚠️ Non vérifié en direct cette session (pas de token HA actif) : ni
+#    l'upload, ni l'affichage authentifié côté kiosk.
+#
+# 🗑️ RÉVISION 2026-08-15 (même jour, suite) — SUPPRESSION DEPUIS photos.html :
+#    Page dédiée (bouton dans aidant.html, protégée par PIN partagé —
+#    input_text.m10_pin_pages_dediees, voir m10_gestion_aidants.yaml) qui
+#    affiche la galerie complète et permet de supprimer une photo. Plutôt que
+#    d'implémenter un client WebSocket (le service natif est WS-only, voir
+#    ci-dessus), contournement par le même pattern shell_command + python déjà
+#    utilisé pour la liste : shell_command.m31_photos_supprimer exécute
+#    shell_scripts/m31_photos_supprimer.py, qui supprime directement le
+#    fichier sur disque (www/ ou media/ selon la source). Nom de fichier
+#    validé côté script (os.path.basename, rejet si chemin/`..`).
+#    ⚠️ Non vérifié en direct cette session (pas de token HA actif).
+#
+# 🚫➡️✅ RÉVISION 2026-08-15 (même jour, suite, DÉFINITIF) — UPLOAD SANS DROITS
+#    ADMIN : la route officielle POST /api/media_source/local_source/upload
+#    contient dans le code source HA (local_source.py) :
+#        if not request["hass_user"].is_admin: raise Unauthorized()
+#    → réservée aux comptes ADMINISTRATEUR, confirmé en direct (un compte non-
+#    admin recevait 401 UNIQUEMENT sur cet endpoint, jamais sur la galerie/
+#    suppression qui passent par shell_command, pas admin-only). Rendre chaque
+#    compte "aidant" admin pour pouvoir envoyer une photo est disproportionné
+#    (accès complet à toute la config HA). Contournement : shell_command.
+#    m31_photos_televerser_{debut,chunk,fin} + shell_scripts/
+#    m31_photos_televerser.py, qui écrit le fichier directement sur disque
+#    (même logique que m31_photos_supprimer.py). En 3 étapes/plusieurs appels
+#    car shell_command exécute une vraie ligne de commande (limite ARG_MAX,
+#    ~2 Mo sur Linux) : une photo de téléphone encodée en base64 dépasserait
+#    facilement cette limite en un seul appel. photos.html découpe le fichier
+#    en morceaux de 50 000 caractères et les envoie un par un (seuil réel
+#    mesuré en direct entre 100 000 = OK et 150 000 = HTTP 500 ; 50 000 pris
+#    avec marge de sécurité).
+#
+# ⚠️ CE QUI N'EST TOUJOURS PAS FAIT :
+#    - Pas de réception automatique par email des photos.
+#
+# annotations_log:
+# - Création module M31 (2026-07-04).
+# - Révision 2026-07-04 (même jour) : suppression PhotoFrameCast/Chromecast,
+#   remplacé par browser_mod.navigate vers le dashboard kiosk.
+# - Révision 2026-07-04 (soir) : ajout d'une vraie image statique
+#   (photo_actuelle.jpg, remplacement manuel Samba) dans le bloc 4 du kiosk.
+# - Révision 2026-08-15 : vraie rotation multi-photos (shell_command +
+#   kiosk.html), input_number.m31_photos_intervalle_s désormais utilisé.
+# - Révision 2026-08-15 (même jour, suite) : bouton d'upload dans config.html
+#   (POST /api/media_source/local_source/upload) ; m31_photos_liste.py scanne
+#   www/ ET media/ ; kiosk.html affiche les deux sources (auth différente).
+# - Révision 2026-08-15 (même jour, correctif) : commentaire shell_command
+#   corrigé — le paramètre REST correct est `?return_response` SANS
+#   `=true` (confirmé en direct + doc officielle HA, voir kiosk.html).
+# - Révision 2026-08-15 (même jour, suite) : shell_command.m31_photos_supprimer
+#   + shell_scripts/m31_photos_supprimer.py — suppression réelle depuis la
+#   nouvelle page photos.html (PIN requis).
+# - Révision 2026-08-15 (même jour, suite, DÉFINITIF) : 401 upload = route
+#   HA officielle réservée aux comptes admin (confirmé dans local_source.py).
+#   Contournement shell_command.m31_photos_televerser_{debut,chunk,fin} +
+#   shell_scripts/m31_photos_televerser.py (écriture directe sur disque, par
+#   morceaux pour éviter la limite ARG_MAX) — permet l'upload à n'importe
+#   quel compte non-admin protégé par le PIN partagé.
+
+# NOTE : input_boolean.module_m31_kiosk_foto est déjà déclaré dans m00_modules.yaml.
+# Ne PAS le redéclarer ici (conflit unique_id si dupliqué entre packages).
+
+input_text:
+  m31_photos_dossier:
+    name: "M31 Dossier Photos (chemin local media_source)"
+    max: 255
+    initial: "media-source://media_source/local/famille"
+    icon: mdi:folder-image
+    # ⚠️ Toujours RÉSERVÉ/INUTILISÉ (voir encadré 2026-08-15 plus haut) :
+    # le dossier réellement scanné par le diaporama est en dur dans
+    # shell_scripts/m31_photos_liste.py, pas piloté par ce champ.
+
+input_number:
+  m31_photos_intervalle_s:
+    name: "M31 Intervalle Diaporama (secondes)"
+    min: 5
+    max: 300
+    step: 5
+    initial: 20
+    unit_of_measurement: "s"
+    icon: mdi:timer-outline
+    # ✅ Utilisé depuis le 2026-08-15 : kiosk.html lit cette valeur pour
+    # cadencer la rotation entre les photos du diaporama.
+
+shell_command:
+  m31_photos_liste: "python3 /config/shell_scripts/m31_photos_liste.py"
+  # Appelé par kiosk.html et photos.html (POST /api/services/shell_command/
+  # m31_photos_liste?return_response — SANS "=true", voir correctif du
+  # 2026-08-15) — même pattern que shell_command.m03_rdv_recurrents et
+  # shell_command.m34_liens_youtube. Retourne la liste des photos
+  # (source|nom_fichier par ligne) des dossiers www/photos_famille/ et
+  # /media/photos_famille/.
+
+  m31_photos_supprimer: >-
+    python3 /config/shell_scripts/m31_photos_supprimer.py "{{ source | default('') }}" "{{ nom | default('') }}"
+  # Appelé uniquement par photos.html (page dédiée, PIN requis). data:
+  # { source: "www"|"media", nom: "<nom_fichier>" }. Validation du nom
+  # côté script (voir shell_scripts/m31_photos_supprimer.py). Retourne
+  # OK / NOTFOUND / ERROR: <message> en stdout.
+
+  m31_photos_televerser_debut: >-
+    python3 /config/shell_scripts/m31_photos_televerser.py "debut" "{{ nom | default('') }}"
+  m31_photos_televerser_chunk: >-
+    python3 /config/shell_scripts/m31_photos_televerser.py "chunk" "{{ nom | default('') }}" "{{ chunk | default('') }}"
+  m31_photos_televerser_fin: >-
+    python3 /config/shell_scripts/m31_photos_televerser.py "fin" "{{ nom | default('') }}"
+  # Contournement de la restriction admin-only de l'upload média HA natif
+  # (voir encadré DÉFINITIF plus haut). Appelés uniquement par photos.html
+  # (page dédiée, PIN requis), dans cet ordre : debut (crée le fichier
+  # temporaire) → chunk (répété, ajoute chaque morceau de base64) → fin
+  # (décode le tout, écrit l'image finale dans /media/photos_famille/,
+  # nettoie le temporaire). data: { nom: "<nom_fichier>" } pour debut/fin,
+  # { nom, chunk: "<morceau_base64>" } pour chunk. Validation du nom côté
+  # script (os.path.basename, rejet si chemin/`..`) — voir
+  # shell_scripts/m31_photos_televerser.py. Retourne OK / ERROR: <message>.
+
+script:
+  m31_lancer_diaporama:
+    alias: "M31 — Retour à l'écran photos (dashboard kiosk) — VIDÉ 2026-08-18"
+    # ⚠️ 2026-08-18 : coquille vide, ne fait plus rien. Faisait avant un
+    # browser_mod.navigate (gardé par input_text.m34_browser_id_tv) pour
+    # forcer le navigateur TV à revenir sur le dashboard kiosk — mécanisme
+    # hérité de l'ancienne architecture de redirection navigateur, abandonnée
+    # le 14/08 au profit de kiosk.html en HTML pur : celui-ci gère déjà ce
+    # retour tout seul par sondage d'état (refreshMain()), sans jamais avoir
+    # besoin d'être "navigué" nulle part — le navigateur TV reste en
+    # permanence sur /lovelace-kiosk/kiosk. `input_text.m34_browser_id_tv` a
+    # été supprimé (plus utile), voir M34_television.md.
+    #
+    # Gardé en coquille vide (plutôt que supprimé entièrement) car encore
+    # APPELÉ par 2 automations de m34_television.yaml
+    # (m34_verifier_sessions, m34_reset_desactivation) — les supprimer
+    # dépasserait la demande initiale (nettoyage du seul Browser ID). Ces
+    # 2 appels sont donc désormais des no-op ; à évaluer s'ils valent la
+    # peine d'être retirés à leur tour dans un prochain passage.
+    sequence: []

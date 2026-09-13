@@ -1,0 +1,94 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M00-SIM — CAPTEURS FICTIFS (PROTOTYPAGE SANS MATÉRIEL)      │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# But : simuler les capteurs Zigbee pas encore achetés/pairés (SNZB-06P, WOOX
+# SOS, Aqara lit) pour tester la logique des automations M02/M04/M05 sans
+# matériel physique. Chaque helper se manipule à la main dans
+# Developer Tools > États, ou via une carte dashboard simple (voir en bas).
+#
+# ⚠️ À FAIRE LE JOUR OÙ LE VRAI MATÉRIEL ARRIVE :
+# - Remplacer les entity_id "input_boolean.sim_*" par les vrais entity_id Z2M
+#   dans m02_inactivite.yaml, m10_sos.yaml, m11_capteur_lit.yaml.
+# - Supprimer ce fichier (ou le laisser inactif, il ne gêne rien s'il n'est
+#   plus référencé nulle part).
+
+input_boolean:
+  sim_snzb06p_presence:
+    name: "SIMU — Présence Salon (radar)"
+    initial: true
+    icon: mdi:radar
+
+  sim_sos_bouton:
+    name: "SIMU — Bouton SOS pressé"
+    initial: false
+    icon: mdi:alarm-light-outline
+
+  sim_lit_occupe:
+    name: "SIMU — Lit Occupé"
+    initial: false
+    icon: mdi:bed-outline
+
+  # ── M02 v2 — Sources activité ──────────────────────────────────────────────
+  sim_presence_salon:
+    name: "SIMU — mmWave Salon (présence)"
+    initial: true
+    icon: mdi:radar
+
+  sim_presence_chambre:
+    name: "SIMU — mmWave Chambre (présence)"
+    initial: false
+    icon: mdi:radar
+
+  sim_pir_cuisine:
+    name: "SIMU — PIR Cuisine (mouvement)"
+    initial: false
+    icon: mdi:motion-sensor
+
+  sim_pir_couloir:
+    name: "SIMU — PIR Couloir (mouvement)"
+    initial: false
+    icon: mdi:motion-sensor
+
+  sim_pir_sdb:
+    name: "SIMU — PIR SDB (mouvement)"
+    initial: false
+    icon: mdi:motion-sensor
+
+# ┌─────────────────────────────────────────────────────────┐
+# │ Reset automatique du bouton SOS simulé après 2 secondes │
+# │ (imite un vrai bouton Zigbee qui n'a pas d'état "on"    │
+# │ permanent — c'est une impulsion, pas un interrupteur)   │
+# └─────────────────────────────────────────────────────────┘
+automation:
+  - id: sim_sos_impulsion
+    alias: "SIMU - Reset auto bouton SOS après appui"
+    trigger:
+      - platform: state
+        entity_id: input_boolean.sim_sos_bouton
+        to: "on"
+    action:
+      - delay: "00:00:02"
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.sim_sos_bouton
+    mode: single
+
+# ─────────────────────────────────────────────────────────────
+# Carte dashboard optionnelle à coller dans dashboard_modules.yaml
+# pour piloter les faux capteurs sans passer par Developer Tools :
+#
+# type: entities
+# title: "🧪 Simulation capteurs (proto sans matériel)"
+# entities:
+#   - entity: input_boolean.sim_snzb06p_presence
+#     name: "Présence salon"
+#   - entity: input_boolean.sim_sos_bouton
+#     name: "Appui bouton SOS"
+#   - entity: input_boolean.sim_lit_occupe
+#     name: "Lit occupé"
+# ─────────────────────────────────────────────────────────────
+
+# annotations_log:
+# - 2026-08-05 : création module de simulation. Permet de tester M02/M04/M05
+#   sans matériel Zigbee physique. m02/m04/m05 modifiés en parallèle pour
+#   pointer vers ces entités fictives à la place des placeholders Z2M.

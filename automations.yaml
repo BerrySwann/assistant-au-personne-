@@ -1,0 +1,14 @@
+- id: '1787844206517'
+  alias: M02 — Log Présence Salon
+  description: Log chaque changement d'état du capteur présence salon
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.presence_salon_occupancy
+    to:
+    - 'on'
+    - 'off'
+  conditions: []
+  actions:
+  - action: shell_command.m02_log_presence_salon
+  mode: queued
+  max: 10

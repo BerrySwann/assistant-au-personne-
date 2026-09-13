@@ -1,0 +1,54 @@
+title: "🧪 Tests Simulation"
+views:
+  - title: "Simulation"
+    path: test-simulation
+    icon: mdi:test-tube
+    cards:
+      - type: markdown
+        content: >
+          ### Page de test — capteurs fictifs (proto sans matériel)
+          Bascule les interrupteurs ci-dessous pour simuler les capteurs
+          réels et vérifier que les automations M02/M04/M05 réagissent
+          correctement. Voir `TEST_PROTOCOL.md` pour le détail de chaque
+          scénario à exécuter et le résultat attendu.
+
+      - type: entities
+        title: "🎛️ Faux capteurs (à manipuler)"
+        entities:
+          - entity: input_boolean.sim_snzb06p_presence
+            name: "Présence salon (radar)"
+            icon: mdi:radar
+          - entity: input_boolean.sim_sos_bouton
+            name: "Appui bouton SOS (impulsion 2s)"
+            icon: mdi:alarm-light-outline
+          - entity: input_boolean.sim_lit_occupe
+            name: "Lit occupé"
+            icon: mdi:bed-outline
+
+      - type: entities
+        title: "⚙️ Réglages (pour accélérer les tests)"
+        entities:
+          - entity: input_number.m02_seuil_alerte_min
+            name: "Seuil alerte inactivité (min)"
+
+      - type: entities
+        title: "🚨 Résultats attendus (à observer)"
+        entities:
+          - entity: input_boolean.m02_alerte_active
+            name: "M02 — Alerte inactivité déclenchée"
+          - entity: input_boolean.m02_absence_hors_horaires_nuit
+            name: "M02 — Absence nocturne anormale"
+          - entity: input_boolean.m04_sos_declenche
+            name: "M04 — SOS déclenché"
+          - entity: sensor.m02_etat_temporel
+            name: "M02 — État temporel courant (actif/sieste/nuit)"
+
+      - type: entities
+        title: "🔄 Modules actifs (à vérifier avant test)"
+        entities:
+          - entity: input_boolean.module_inactivite
+            name: "M02 activé ?"
+          - entity: input_boolean.module_sos
+            name: "M04 activé ?"
+          - entity: input_boolean.module_capteur_lit
+            name: "M05 activé ?"

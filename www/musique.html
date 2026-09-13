@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Musique</title>
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --border: rgba(255,255,255,0.07);
+    --text: #f1f5f9; --text2: #94a3b8; --text3: #475569;
+    --green: #22c55e; --red: #ef4444; --amber: #f59e0b; --blue: #2563eb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+
+  /* ── GATE (vérification session) ─────────────────────── */
+  #access-gate { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+  .pin-box { text-align: center; max-width: 320px; }
+  .pin-icon { font-size: 42px; margin-bottom: 10px; }
+  .pin-title { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .pin-sub { font-size: 12px; color: var(--text3); margin-bottom: 18px; }
+  .pin-back { display: block; margin-top: 18px; color: var(--text3); font-size: 12px; text-decoration: underline; cursor: pointer; }
+  .spin { display: inline-block; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── HEADER ──────────────────────────────────────────── */
+  .dedie-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; max-width: 480px; width: 100%; margin: 0 auto; position: sticky; top: 0; z-index: 5; }
+  .dedie-back { background: rgba(255,255,255,0.06); border: none; border-radius: 8px; color: var(--text2); font-size: 18px; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .dedie-title { font-size: 15px; font-weight: 600; }
+
+  /* ── CONTENU ─────────────────────────────────────────── */
+  .content { padding: 12px; max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 40px; }
+  .section-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; padding: 6px 0 0; color: #DCDCDC; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; }
+  .ctrl-sub { color: rgb(180, 180, 180); font-size: 12px; line-height: 1.5; }
+
+  /* ── CRÉNEAUX TV (lecture seule) ─────────────────────── */
+  .tv-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .tv-item:last-child { border-bottom: none; }
+  .tv-nom { font-weight: 500; }
+  .tv-heures { font-size: 12px; color: rgb(180, 180, 180); font-variant-numeric: tabular-nums; }
+  .tv-item.tv-on .tv-nom { color: var(--amber); }
+  .tv-item.tv-off { opacity: 0.45; }
+  .tv-etat { font-size: 10px; padding: 2px 7px; border-radius: 6px; }
+  .tv-item.tv-on .tv-etat { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .tv-item.tv-off .tv-etat { background: rgba(255,255,255,0.05); color: var(--text3); }
+  .tv-vide { font-size: 12px; color: rgb(180,180,180); font-style: italic; }
+
+  /* ── CRÉNEAUX MUSIQUE ────────────────────────────────── */
+  .creneau-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 8px; overflow: hidden; }
+  .creneau-card.conflit { border-color: var(--red); }
+  .creneau-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
+  .creneau-num { font-size: 13px; font-weight: 500; flex: 1; }
+  .creneau-heures { display: flex; align-items: center; gap: 8px; padding: 0 14px 12px; }
+  .creneau-heures input[type="time"] { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; padding: 6px 10px; outline: none; font-family: inherit; }
+  .creneau-sep { color: rgb(180,180,180); font-size: 12px; }
+  .conflit-badge { font-size: 10px; color: var(--red); background: rgba(239,68,68,0.12); padding: 2px 7px; border-radius: 6px; display: none; }
+  .creneau-card.conflit .conflit-badge { display: inline-block; }
+
+  /* ── TOGGLE ──────────────────────────────────────────── */
+  .toggle { position: relative; width: 40px; height: 22px; flex-shrink: 0; cursor: pointer; }
+  .toggle input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .toggle-track { position: absolute; inset: 0; border-radius: 22px; background: var(--text3); transition: background 0.2s; pointer-events: none; }
+  .toggle-track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left 0.2s; }
+  .toggle input:checked + .toggle-track { background: var(--green); }
+  .toggle input:checked + .toggle-track::after { left: 21px; }
+
+  /* ── CHAMPS / BOUTONS ────────────────────────────────── */
+  .field-label { font-size: 10px; color: rgb(180, 180, 180); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+  .field-input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; padding: 9px 10px; outline: none; font-family: inherit; }
+  .field-input:focus { border-color: var(--blue); }
+  /* 2026-09-13 : icônes natives des champs date/heure (calendrier + horloge) —
+     noires par défaut sur fond sombre, inversées en gris clair ~180 (comme aidant/config). */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.71);
+    cursor: pointer;
+  }
+  /* Flèches du champ numéro (suppression) */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    filter: invert(0.71);
+  }
+  .btn-bleu { width: 100%; background: #2563eb; border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; padding: 12px; cursor: pointer; margin-top: 8px; }
+  .btn-bleu:active { filter: brightness(0.9); }
+  .btn-rouge { width: 100%; background: var(--red); border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; padding: 12px; cursor: pointer; margin-top: 8px; }
+  .btn-rouge:active { filter: brightness(0.9); }
+  .btn-gris { width: 100%; background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 13px; padding: 11px; cursor: pointer; }
+
+  /* ── LISTE (suppression) ─────────────────────────────── */
+  .lien-item { display: flex; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px; align-items: baseline; }
+  .lien-item:last-child { border-bottom: none; }
+  .lien-num { color: var(--amber); font-weight: 600; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .lien-url { color: rgb(180,180,180); word-break: break-all; }
+
+  /* ── TOAST ───────────────────────────────────────────── */
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; font-size: 13px; opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 100; max-width: 90vw; text-align: center; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="access-gate">
+  <div class="pin-box">
+    <div class="pin-icon">🎵</div>
+    <div class="pin-title">Musique</div>
+    <div class="pin-sub" id="gate-sub"><span class="spin">⏳</span> Vérification de la session…</div>
+    <span class="pin-back" onclick="retour()">← Retour</span>
+  </div>
+</div>
+
+<div id="page-content" style="display:none;">
+
+  <div class="dedie-header" id="header-principal">
+    <button class="dedie-back" onclick="retour()" title="Retour">←</button>
+    <div class="dedie-title">🎵 Musique</div>
+  </div>
+
+  <div class="content" id="vue-creneaux">
+
+    <!-- CRÉNEAUX TV (lecture seule) -->
+    <div class="section-label">📺 Créneaux TV (prioritaires)</div>
+    <div class="card" id="tv-list"><div class="tv-vide">Chargement…</div></div>
+
+    <!-- LES 4 CRÉNEAUX MUSIQUE -->
+    <div class="section-label">🎵 Créneaux musique</div>
+    <div id="creneaux"></div>
+
+    <!-- AJOUTER -->
+    <div class="section-label">➕ Ajouter une musique</div>
+    <div class="card">
+      <div class="field-label">Lien YouTube</div>
+      <input type="url" class="field-input" id="lien-url" placeholder="https://youtube.com/watch?v=...">
+      <button class="btn-bleu" onclick="ajouterLien()">Ajouter à la liste</button>
+    </div>
+
+    <!-- SUPPRIMER -->
+    <div class="section-label">🗑️ Supprimer une musique</div>
+    <div class="card">
+      <div class="ctrl-sub" style="margin-bottom:8px;">Ouvre la liste des liens (numérotés 01 à 99) pour supprimer une ligne par son numéro.</div>
+      <button class="btn-gris" onclick="ouvrirListe()">Voir la liste et supprimer</button>
+    </div>
+
+  </div>
+
+  <!-- VUE LISTE / SUPPRESSION -->
+  <div class="content" id="vue-liste" style="display:none;">
+    <div class="section-label">Liste des musiques (01-99)</div>
+    <div class="card" id="liste-liens"><div class="tv-vide">Chargement…</div></div>
+
+    <div class="section-label">Supprimer une ligne</div>
+    <div class="card">
+      <div class="field-label">Numéro de la ligne à supprimer</div>
+      <input type="number" class="field-input" id="num-suppr" min="1" max="99" placeholder="ex : 3">
+      <button class="btn-rouge" onclick="supprimerLien()">Supprimer cette ligne</button>
+    </div>
+
+    <button class="btn-gris" onclick="fermerListe()">← Retour aux créneaux</button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+const BASE = window.location.origin;
+
+function haSessionToken() {
+  try {
+    const raw = localStorage.getItem('hassTokens');
+    if (!raw) return '';
+    const t = JSON.parse(raw);
+    if (!t || !t.access_token) return '';
+    if (t.expires && Date.now() > t.expires) return '';
+    return t.access_token;
+  } catch (e) { return ''; }
+}
+function currentToken() { return haSessionToken() || localStorage.getItem('ha_token') || ''; }
+
+async function apiGet(path) {
+  const r = await fetch(BASE + path, { headers: { 'Authorization': 'Bearer ' + currentToken() } });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+async function apiPost(path, data) {
+  const r = await fetch(BASE + path, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + currentToken(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(data || {})
+  });
+  return r;
+}
+async function stateOf(entity) {
+  try { return await apiGet('/api/states/' + entity); } catch (e) { return null; }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+function retour() {
+  if (window.parent && window.parent.closeMusique) window.parent.closeMusique();
+  else window.location.href = '/local/aidant.html?v=' + Date.now();
+}
+async function fermerListe() { await chargerListe(); afficherVue('creneaux'); }
+function afficherVue(v) {
+  document.getElementById('vue-creneaux').style.display = v === 'creneaux' ? '' : 'none';
+  document.getElementById('vue-liste').style.display = v === 'liste' ? '' : 'none';
+  window.scrollTo(0, 0);
+}
+async function ouvrirListe() { await chargerListe(); afficherVue('liste'); }
+
+/* ─── HELPERS TEMPS ───────────────────────────────────── */
+function hhmm(state) {
+  if (!state || typeof state !== 'string') return null;
+  const m = state.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+function fmt(min) {
+  if (min === null) return '—';
+  return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0');
+}
+function chevauche(d1, f1, d2, f2) {
+  if (d1 === null || f1 === null || d2 === null || f2 === null) return false;
+  if (f1 <= d1 || f2 <= d2) return false;   // fenêtre vide/invalide
+  return d1 < f2 && d2 < f1;
+}
+
+/* ─── ÉTAT LOCAL ──────────────────────────────────────── */
+let TV = [];        // [{n, actif, deb, fin, chaine}]
+let CRENEAUX = [];  // [{n, actif, deb, fin}]
+
+async function chargerTV() {
+  TV = [];
+  for (let n = 1; n <= 4; n++) {
+    const [a, d, f, c] = await Promise.all([
+      stateOf(`input_boolean.m34_session${n}_actif`),
+      stateOf(`input_datetime.m34_session${n}_debut`),
+      stateOf(`input_datetime.m34_session${n}_fin`),
+      stateOf(`input_select.m34_session${n}_chaine`),
+    ]);
+    TV.push({
+      n,
+      actif: !!(a && a.state === 'on'),
+      deb: d ? hhmm(d.state) : null,
+      fin: f ? hhmm(f.state) : null,
+      chaine: c && c.state !== 'unknown' ? c.state : null,
+    });
+  }
+  afficherTV();
+}
+
+function afficherTV() {
+  const el = document.getElementById('tv-list');
+  const actives = TV.filter(t => t.actif && t.deb !== null && t.fin !== null && t.fin > t.deb);
+  if (!TV.some(t => t.deb !== null)) { el.innerHTML = '<div class="tv-vide">Aucun créneau TV configuré.</div>'; return; }
+  el.innerHTML = TV.map(t => `
+    <div class="tv-item ${t.actif ? 'tv-on' : 'tv-off'}">
+      <span class="tv-nom">Session ${t.n}</span>
+      <span class="tv-heures">${fmt(t.deb)} → ${fmt(t.fin)}</span>
+      <span class="tv-etat">${t.actif ? 'réservé' : 'libre'}</span>
+    </div>`).join('');
+}
+
+async function chargerCreneaux() {
+  CRENEAUX = [];
+  for (let n = 1; n <= 4; n++) {
+    const [a, d, f] = await Promise.all([
+      stateOf(`input_boolean.m32_creneau${n}_actif`),
+      stateOf(`input_datetime.m32_creneau${n}_debut`),
+      stateOf(`input_datetime.m32_creneau${n}_fin`),
+    ]);
+    CRENEAUX.push({
+      n,
+      actif: !!(a && a.state === 'on'),
+      deb: d ? hhmm(d.state) : null,
+      fin: f ? hhmm(f.state) : null,
+    });
+  }
+  afficherCreneaux();
+}
+
+function conflitDe(c) {
+  if (c.deb === null || c.fin === null) return null;
+  for (const t of TV) {
+    if (!t.actif) continue;                    // RÈGLE : seuls les créneaux TV ACTIVÉS comptent
+    if (chevauche(c.deb, c.fin, t.deb, t.fin)) return t;
+  }
+  return null;
+}
+
+function afficherCreneaux() {
+  const cont = document.getElementById('creneaux');
+  cont.innerHTML = '';
+  CRENEAUX.forEach(c => {
+    const conflit = conflitDe(c);
+    const div = document.createElement('div');
+    div.className = 'creneau-card' + (conflit ? ' conflit' : '');
+    div.innerHTML = `
+      <div class="creneau-head">
+        <label class="toggle">
+          <input type="checkbox" ${c.actif ? 'checked' : ''} data-n="${c.n}" onchange="toggleCreneau(${c.n}, this.checked)">
+          <div class="toggle-track"></div>
+        </label>
+        <span class="creneau-num">Créneau ${c.n}</span>
+        <span class="conflit-badge">⚠️ TV session ${conflit ? conflit.n : ''}</span>
+      </div>
+      <div class="creneau-heures">
+        <input type="time" value="${c.deb !== null ? fmt(c.deb) : ''}" onchange="setHeure(${c.n}, 'debut', this.value)">
+        <span class="creneau-sep">→</span>
+        <input type="time" value="${c.fin !== null ? fmt(c.fin) : ''}" onchange="setHeure(${c.n}, 'fin', this.value)">
+      </div>`;
+    cont.appendChild(div);
+  });
+}
+
+/* ─── ACTIONS CRÉNEAUX ────────────────────────────────── */
+async function toggleCreneau(n, checked) {
+  const c = CRENEAUX.find(x => x.n === n);
+  if (checked) {
+    const conflit = conflitDe(c);
+    if (conflit) {
+      showToast(`⛔ Impossible : chevauche la session TV ${conflit.n} (${fmt(conflit.deb)} → ${fmt(conflit.fin)})`);
+      await chargerCreneaux();   // remet le toggle à son état réel
+      return;
+    }
+  }
+  await apiPost('/api/services/input_boolean/' + (checked ? 'turn_on' : 'turn_off'), {
+    entity_id: `input_boolean.m32_creneau${n}_actif`
+  });
+  c.actif = checked;
+  showToast(checked ? `🎵 Créneau ${n} activé` : `Créneau ${n} désactivé`);
+}
+
+async function setHeure(n, quelle, valeur) {
+  if (!valeur) return;
+  const entity = `input_datetime.m32_creneau${n}_${quelle === 'debut' ? 'debut' : 'fin'}`;
+  await apiPost('/api/services/input_datetime/set_datetime', { entity_id: entity, time: valeur + ':00' });
+  const c = CRENEAUX.find(x => x.n === n);
+  if (c) c[quelle === 'debut' ? 'deb' : 'fin'] = hhmm(valeur + ':00');
+  // Si le créneau est actif et vient de tomber en conflit → on le coupe (règle TV prioritaire)
+  const conflit = conflitDe(c);
+  if (conflit && c.actif) {
+    await apiPost('/api/services/input_boolean/turn_off', { entity_id: `input_boolean.m32_creneau${n}_actif` });
+    c.actif = false;
+    showToast(`⛔ Créneau ${n} désactivé : chevauche la session TV ${conflit.n}`);
+  } else {
+    showToast(`Créneau ${n} : ${fmt(c.deb)} → ${fmt(c.fin)}`);
+  }
+  afficherCreneaux();
+}
+
+/* ─── LIENS (ajout / suppression) ─────────────────────── */
+async function lireListe() {
+  const r = await apiPost('/api/services/shell_command/m32_musique_liens?return_response', { action: 'list' });
+  const j = await r.json();
+  const resp = (j && j.service_response && j.service_response['shell_command.m32_musique_liens'])
+    || (j && j.service_response) || null;
+  const out = (resp && typeof resp.stdout === 'string') ? resp.stdout : '';
+  return out.split('\n').map(s => s.trim()).filter(Boolean).filter(l => /^\d+\|/.test(l));
+}
+
+async function ajouterLien() {
+  const input = document.getElementById('lien-url');
+  const url = (input.value || '').trim();
+  if (!url) { showToast('⚠️ Colle un lien YouTube'); return; }
+  const r = await apiPost('/api/services/shell_command/m32_musique_liens?return_response', { action: 'add', arg2: url });
+  const j = await r.json();
+  const resp = (j && j.service_response && j.service_response['shell_command.m32_musique_liens'])
+    || (j && j.service_response) || null;
+  const out = (resp && typeof resp.stdout === 'string') ? resp.stdout.trim() : '';
+  if (out.startsWith('OK')) { input.value = ''; showToast('✅ ' + out); }
+  else showToast('⚠️ ' + (out || 'erreur'));
+}
+
+async function chargerListe() {
+  const el = document.getElementById('liste-liens');
+  try {
+    const lignes = await lireListe();
+    if (!lignes.length) { el.innerHTML = '<div class="tv-vide">Aucun lien pour le moment.</div>'; return; }
+    el.innerHTML = lignes.map(l => {
+      const i = l.indexOf('|');
+      return `<div class="lien-item"><span class="lien-num">${l.slice(0, i)}</span><span class="lien-url">${l.slice(i + 1)}</span></div>`;
+    }).join('');
+  } catch (e) {
+    el.innerHTML = '<div class="tv-vide">Erreur de chargement.</div>';
+  }
+}
+
+async function supprimerLien() {
+  const num = (document.getElementById('num-suppr').value || '').trim();
+  if (!num) { showToast('⚠️ Entre le numéro de la ligne'); return; }
+  const r = await apiPost('/api/services/shell_command/m32_musique_liens?return_response', { action: 'delete', arg2: String(num) });
+  const j = await r.json();
+  const resp = (j && j.service_response && j.service_response['shell_command.m32_musique_liens'])
+    || (j && j.service_response) || null;
+  const out = (resp && typeof resp.stdout === 'string') ? resp.stdout.trim() : '';
+  if (out.startsWith('OK')) { document.getElementById('num-suppr').value = ''; showToast('✅ ' + out); await chargerListe(); }
+  else showToast('⚠️ ' + (out || 'erreur'));
+}
+
+/* ─── INIT ────────────────────────────────────────────── */
+(async () => {
+  if (!currentToken()) {
+    document.getElementById('gate-sub').textContent = 'Session Home Assistant requise — ouvre cette page depuis l\'interface aidant.';
+    return;
+  }
+  try {
+    await apiGet('/api/');
+  } catch (e) {
+    document.getElementById('gate-sub').textContent = 'Connexion à Home Assistant impossible.';
+    return;
+  }
+  document.getElementById('access-gate').style.display = 'none';
+  document.getElementById('page-content').style.display = 'block';
+  await chargerTV();
+  await chargerCreneaux();
+})();
+</script>
+</body>
+</html>

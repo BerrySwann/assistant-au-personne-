@@ -1,0 +1,113 @@
+title: "Tests Simulation"
+views:
+  - title: "Simulation"
+    path: test-simulation
+    icon: mdi:test-tube
+    cards:
+      - type: markdown
+        content: >
+          ### Page de test — capteurs fictifs (proto sans matériel)
+          Bascule les interrupteurs ci-dessous pour simuler les capteurs
+          réels et vérifier que les automations M02/M04/M05 réagissent
+          correctement. Voir `TEST_PROTOCOL.md` pour le détail de chaque
+          scénario à exécuter et le résultat attendu.
+
+      - type: entities
+        title: "🎛️ Faux capteurs (à manipuler)"
+        entities:
+          # ── mmWave (présence stationnaire) ──
+          - entity: input_boolean.sim_presence_salon
+            name: "mmWave Salon (présence)"
+            icon: mdi:radar
+          - entity: input_boolean.sim_presence_chambre
+            name: "mmWave Chambre (présence)"
+            icon: mdi:radar
+          # ── PIR (mouvement) ──
+          - entity: input_boolean.sim_pir_cuisine
+            name: "PIR Cuisine (mouvement)"
+            icon: mdi:motion-sensor
+          - entity: input_boolean.sim_pir_couloir
+            name: "PIR Couloir (mouvement)"
+            icon: mdi:motion-sensor
+          - entity: input_boolean.sim_pir_sdb
+            name: "PIR SDB (mouvement)"
+            icon: mdi:motion-sensor
+          # ── Autres ──
+          - entity: input_boolean.sim_sos_bouton
+            name: "Bouton SOS (impulsion 2s)"
+            icon: mdi:alarm-light-outline
+          - entity: input_boolean.sim_lit_occupe
+            name: "Lit occupé"
+            icon: mdi:bed-outline
+
+      - type: entities
+        title: "⚙️ Réglages M02 (accélérer les tests)"
+        entities:
+          - entity: input_number.m02_seuil_matin
+            name: "Seuil matin (min)"
+          - entity: input_number.m02_seuil_sieste
+            name: "Seuil sieste (min)"
+          - entity: input_number.m02_seuil_aprem
+            name: "Seuil après-midi (min)"
+          - entity: input_number.m02_seuil_soir
+            name: "Seuil soirée (min)"
+          - entity: input_number.m02_seuil_nuit
+            name: "Seuil nuit (min)"
+          - entity: input_number.m02_facteur_alerte
+            name: "Facteur alerte (× seuil)"
+          - entity: input_number.m02_jours_apprentissage
+            name: "Jours apprentissage (0-6 = silencieux)"
+
+      - type: entities
+        title: "📊 État en temps réel"
+        entities:
+          - entity: binary_sensor.m02_activite_detectee
+            name: "M02 — Activité détectée maintenant"
+          - entity: sensor.m02_tranche_horaire
+            name: "M02 — Tranche horaire courante"
+          - entity: sensor.m02_inactivite_minutes
+            name: "M02 — Inactivité en cours (min)"
+          - entity: sensor.m02_seuil_tranche_actuelle
+            name: "M02 — Seuil tranche (appris)"
+          - entity: sensor.m02_seuil_alerte_effectif
+            name: "M02 — Seuil alerte effectif (min)"
+          - entity: input_number.m02_obs_gap
+            name: "M02 — Gap max observé slot"
+          - entity: input_datetime.m02_derniere_activite
+            name: "M02 — Dernière activité"
+
+      - type: entities
+        title: "🚨 Résultats attendus (à observer)"
+        entities:
+          - entity: input_boolean.m02_alerte_active
+            name: "M02 — Alerte inactivité déclenchée"
+          - entity: input_boolean.m02_absence_nuit_anormale
+            name: "M02 — Absence nocturne anormale"
+          - entity: input_boolean.m10_sos_declenche
+            name: "M04 — SOS déclenché"
+
+      - type: entities
+        title: "🔄 Modules actifs (à vérifier avant test)"
+        entities:
+          - entity: input_boolean.module_m02_inactivite
+            name: "M02 activé ?"
+          - entity: input_boolean.module_m10_sos
+            name: "M04 activé ?"
+          - entity: input_boolean.module_m11_capteur_lit
+            name: "M05 activé ?"
+
+      - type: entities
+        title: "🌡️ Température & Porte (M01/M15)"
+        entities:
+          - entity: input_number.sim_temp_salon
+            name: "Température salon (°C)"
+            icon: mdi:thermometer
+          - entity: input_number.sim_temp_chambre
+            name: "Température chambre (°C)"
+            icon: mdi:thermometer
+          - entity: input_number.sim_hygro_salon
+            name: "Hygrométrie salon (%)"
+            icon: mdi:water-percent
+          - entity: input_boolean.sim_porte_ext_contact
+            name: "Porte extérieure (ON = fermée)"
+            icon: mdi:door-closed

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assistant Appairage Z2M</title>
+<style>
+:root {
+  --bg: #0f172a; --surface: #1e293b; --border: rgba(255,255,255,0.07);
+  --text: #f1f5f9; --text2: #94a3b8; --text3: #475569;
+  --blue: #2563eb; --green: #22c55e; --red: #ef4444;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 16px; }
+.back-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--text2); font-size: 12px; text-decoration: none;
+  margin-bottom: 12px; cursor: pointer; background: none; border: none; padding: 0;
+}
+.back-btn:hover { color: var(--text); }
+h1 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.sub { color: var(--text3); font-size: 11px; margin-bottom: 16px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+.section-title { color: var(--text3); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 10px; }
+.row {
+  background: rgba(255,255,255,0.03); border-radius: 8px;
+  padding: 7px 8px; margin-bottom: 5px;
+  display: flex; align-items: center; gap: 7px;
+  transition: opacity 0.2s;
+}
+.row:last-child { margin-bottom: 0; }
+.name { flex: 1; font-size: 13px; font-family: monospace; color: var(--text); }
+.btn-copy {
+  background: var(--blue); border: none; border-radius: 6px;
+  color: white; font-size: 10px; padding: 4px 8px; cursor: pointer; flex-shrink: 0;
+}
+.btn-copy:active { filter: brightness(0.85); }
+.btn-copy.copied { background: var(--green); }
+.row.used .btn-copy { background: var(--text3); pointer-events: none; }
+.toggle { position: relative; width: 32px; height: 18px; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute; inset: 0; border-radius: 18px;
+  background: var(--text3); cursor: pointer; transition: background 0.2s;
+}
+.slider:before {
+  content: ''; position: absolute; width: 12px; height: 12px;
+  border-radius: 50%; background: white; left: 3px; top: 3px;
+  transition: transform 0.2s;
+}
+input:checked + .slider { background: var(--green); }
+input:checked + .slider:before { transform: translateX(14px); }
+.reset { margin-top: 12px; color: var(--text3); font-size: 11px; cursor: pointer; text-decoration: underline; }
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(60px);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px 18px; font-size: 12px; transition: transform 0.2s; z-index: 99;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<button class="back-btn" onclick="history.back()">← Configuration</button>
+<h1>🔗 Assistant Appairage Z2M</h1>
+<div class="sub">Toggle ON = disponible à appairer. Toggle OFF (grisé) = déjà utilisé. Copier → coller dans Z2M pour nommer l'appareil.</div>
+
+<div class="grid" id="list"></div>
+<div class="reset" onclick="resetAll()">↺ Tout remettre à disponible</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BASE_HA = window.location.origin;
+
+// Mapping device-id → input_boolean HA à synchroniser quand togglé "utilisé"
+const HA_BOOLEANS = {
+  'presence_salon':   'input_boolean.m02_presence_salon_actif',
+  'presence_chambre': 'input_boolean.m02_presence_chambre_actif',
+  'pir_cuisine':      'input_boolean.m02_pir_cuisine_actif',
+  'pir_couloir':      'input_boolean.m02_pir_couloir_actif',
+  'pir_sdb':          'input_boolean.m02_pir_sdb_actif',
+};
+
+async function syncHA(boolEntity, turnOn) {
+  const token = localStorage.getItem('ha_token') || '';
+  if (!token) return;
+  const svc = turnOn ? 'turn_on' : 'turn_off';
+  try {
+    await fetch(`${BASE_HA}/api/services/input_boolean/${svc}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entity_id: boolEntity })
+    });
+  } catch(e) { console.warn('HA sync:', e); }
+}
+
+const DEVICES = [
+  { cat: '🚪 Contacts Porte', items: [
+    { name: 'Porte Entrée',         id: 'contact_porte_entree' },
+    { name: 'Porte 2',              id: 'contact_porte_2' },
+    { name: 'Porte Frigo',          id: 'contact_porte_frigo' },
+    { name: 'Porte Congel',         id: 'contact_porte_congel' },
+  ]},
+  { cat: '🪟 Contacts Fenêtre', items: [
+    { name: 'Fenêtre Salon',        id: 'contact_fenetre_salon' },
+    { name: 'Fenêtre Salon 2',      id: 'contact_fenetre_salon_2' },
+    { name: 'Fenêtre Chambre',      id: 'contact_fenetre_chambre' },
+    { name: 'Fenêtre Chambre 2',    id: 'contact_fenetre_chambre_2' },
+    { name: 'Fenêtre Bureau',       id: 'contact_fenetre_bureau' },
+    { name: 'Fenêtre Cuisine',      id: 'contact_fenetre_cuisine' },
+    { name: 'Fenêtre SDB',          id: 'contact_fenetre_sdb' },
+  ]},
+  { cat: '🌡️ Température / Humidité', items: [
+    { name: 'TH Salon',             id: 'th_salon' },
+    { name: 'TH Chambre',           id: 'th_chambre' },
+    { name: 'TH Chambre 2',         id: 'th_chambre_2' },
+    { name: 'TH Bureau',            id: 'th_bureau' },
+    { name: 'TH Cuisine',           id: 'th_cuisine' },
+    { name: 'TH SDB',               id: 'th_sdb' },
+    { name: 'TH Cellier',           id: 'th_cellier' },
+    { name: 'TH Cave',              id: 'th_cave' },
+  ]},
+  { cat: '💧 Fuite / Inondation', items: [
+    { name: 'Fuite Cuisine',        id: 'fuite_cuisine' },
+    { name: 'Fuite SDB',            id: 'fuite_sdb' },
+    { name: 'Fuite Cumulus',        id: 'fuite_cumulus' },
+    { name: 'Fuite Lave Linge',     id: 'fuite_lave_linge' },
+    { name: 'Fuite Lave Vaisselle', id: 'fuite_lave_vaisselle' },
+  ]},
+  { cat: '📡 Présence mmWave', items: [
+    { name: 'Présence Salon',       id: 'presence_salon' },
+    { name: 'Présence Chambre',     id: 'presence_chambre' },
+  ]},
+  { cat: '🚶 Mouvement PIR', items: [
+    { name: 'PIR Cuisine',          id: 'pir_cuisine' },
+    { name: 'PIR Couloir',          id: 'pir_couloir' },
+    { name: 'PIR SDB',              id: 'pir_sdb' },
+  ]},
+  { cat: '🆘 SOS / Urgence', items: [
+    { name: 'Bouton SOS',           id: 'bouton_sos' },
+    { name: 'Capteur Lit',          id: 'capteur_lit' },
+  ]},
+];
+
+const KEY = 'z2m_used';
+
+function loadUsed() {
+  if (!localStorage.getItem(KEY)) {
+    // Premier chargement : tous les appareils sont "utilisé" (off) par défaut
+    const allIds = DEVICES.flatMap(cat => cat.items.map(item => item.id));
+    saveUsed(allIds);
+    return allIds;
+  }
+  try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; }
+}
+function saveUsed(used) {
+  localStorage.setItem(KEY, JSON.stringify(used));
+}
+
+function render() {
+  const used = loadUsed();
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+
+  DEVICES.forEach(cat => {
+    const sec = document.createElement('div');
+    sec.className = 'section';
+    sec.innerHTML = `<div class="section-title">${cat.cat} <span style="color:var(--text3);font-weight:normal;">(${cat.items.length})</span></div>`;
+
+    cat.items.forEach(item => {
+      const isUsed = used.includes(item.id);
+      const row = document.createElement('div');
+      row.className = 'row' + (isUsed ? ' used' : '');
+      row.innerHTML = `
+        <label class="toggle">
+          <input type="checkbox" ${isUsed ? '' : 'checked'} onchange="toggle('${item.id}', this)">
+          <span class="slider"></span>
+        </label>
+        <div style="flex:1;min-width:0;">
+          <div class="name">${item.name}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:monospace;">${item.id}</div>
+        </div>
+        <button class="btn-copy" onclick="copyName('${item.name}', '${item.id}', this)">📋 Copier</button>
+      `;
+      sec.appendChild(row);
+    });
+
+    list.appendChild(sec);
+  });
+}
+
+function toggle(id, cb) {
+  const used = loadUsed();
+  const isNowUsed = !cb.checked; // unchecked = "utilisé par le projet"
+  if (isNowUsed) {
+    if (!used.includes(id)) used.push(id);
+  } else {
+    const i = used.indexOf(id);
+    if (i > -1) used.splice(i, 1);
+  }
+  saveUsed(used);
+  // Sync input_boolean HA si mappé
+  if (HA_BOOLEANS[id]) syncHA(HA_BOOLEANS[id], isNowUsed);
+  render();
+}
+
+function copyName(name, id, btn) {
+  navigator.clipboard.writeText(name).then(() => {
+    btn.textContent = '✅';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '📋 Copier'; btn.classList.remove('copied'); }, 1500);
+    showToast(`"${name}" copié → deviendra ${id}`);
+  });
+}
+
+function resetAll() {
+  if (!confirm('Tout remettre à disponible ?')) return;
+  localStorage.removeItem(KEY);
+  render();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+render();
+
+/* ─── TEST LIVE : CAPTEUR PRÉSENCE ─── */
+async function fetchPresence() {
+  const token = localStorage.getItem('ha_token') || '';
+  const badge = document.getElementById('presence-badge');
+  const sub   = document.getElementById('presence-sub');
+  if (!badge) return;
+  try {
+    const r = await fetch(`${BASE_HA}/api/states/binary_sensor.presence_salon_occupancy`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    if (d.state === 'on') {
+      badge.textContent = '🟢 PRÉSENT';
+      badge.style.color = '#4caf50';
+    } else if (d.state === 'off') {
+      badge.textContent = '⚫ ABSENT';
+      badge.style.color = '#888';
+    } else {
+      badge.textContent = '🔴 ' + (d.state || 'INCONNU').toUpperCase();
+      badge.style.color = '#f44336';
+    }
+    const upd = d.last_changed ? new Date(d.last_changed).toLocaleTimeString('fr-FR') : '—';
+    sub.textContent = 'Dernière détection : ' + upd;
+  } catch(e) {
+    badge.textContent = '⚠️ ERREUR API';
+    badge.style.color = '#ff9800';
+    sub.textContent = 'Erreur : ' + String(e) + ' | origin: ' + BASE_HA;
+    const status = document.getElementById('token-status');
+    if (status) status.textContent = '❌ Échec API — vérifier token';
+    status.style.color = '#f44336';
+  }
+}
+
+function saveToken() {
+  const t = document.getElementById('token-input').value.trim();
+  if (!t) return;
+  localStorage.setItem('ha_token', t);
+  document.getElementById('token-block').style.display = 'none';
+  fetchPresence();
+}
+
+function checkTokenBlock() {
+  const t = localStorage.getItem('ha_token') || '';
+  const inp = document.getElementById('token-input');
+  const status = document.getElementById('token-status');
+  if (inp && t) inp.placeholder = '(token stocké — coller pour remplacer)';
+  if (status) status.textContent = t ? '✅ Token en mémoire' : '⚠️ Aucun token stocké';
+}
+
+checkTokenBlock();
+fetchPresence();
+setInterval(fetchPresence, 3000);
+</script>
+
+<!-- ═══ BLOC TEST PRÉSENCE SALON ═══ -->
+<div style="margin:24px 16px 32px;background:#1e1e2e;border:1px solid #333;border-radius:16px;padding:20px 24px;">
+  <div style="font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
+    🧪 Test live — Présence Salon
+  </div>
+  <div id="presence-badge" style="font-size:28px;font-weight:700;color:#888;transition:color .3s;">
+    ⏳ Chargement…
+  </div>
+  <div id="presence-sub" style="font-size:11px;color:#555;margin-top:6px;font-family:monospace;">
+    binary_sensor.presence_salon_occupancy
+  </div>
+  <!-- Token HA -->
+  <div id="token-block" style="margin-top:14px;">
+    <div style="font-size:11px;color:#888;margin-bottom:4px;">🔑 Token HA (Long-Lived Access Token)</div>
+    <div style="display:flex;gap:8px;">
+      <input id="token-input" type="password" placeholder="eyJ..." 
+             style="flex:1;background:#111;border:1px solid #444;border-radius:8px;padding:6px 10px;color:#eee;font-size:12px;font-family:monospace;">
+      <button onclick="saveToken()" 
+              style="background:#4a90d9;color:#fff;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px;">
+        Sauver
+      </button>
+    </div>
+    <div id="token-status" style="font-size:10px;color:#666;margin-top:4px;"></div>
+  </div>
+</div>
+
+</body>
+</html>
+
+
+
+
+
+

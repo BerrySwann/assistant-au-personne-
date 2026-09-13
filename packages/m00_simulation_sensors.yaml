@@ -1,0 +1,71 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M00-SIM (M01/M15) — SIMULATION TEMP & PORTE                 │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Simulation des capteurs SNZB-02D (température/hygrométrie) et SNZB-04P
+# (contact porte) tant que le matériel réel n'est pas pairé. Permet à M01, M15
+# et l'interface Aidant d'afficher des valeurs simulées.
+#
+# ⚠️ À SUPPRIMER AU PAIRAGE DES VRAIS CAPTEURS : ces template sensors portent
+# les entity_id des futurs capteurs réels et les masqueraient s'ils étaient
+# pairés en même temps.
+#
+# ⚠️ Noms volontairement sans tiret ("SNZB02D") : le tiret deviendrait "_"
+# dans l'entity_id (snzb_02d_* au lieu de snzb02d_*). Pas de unique_id : les
+# entity_id sont dérivés du nom (les anciennes entrées snzb_02d_* du registry
+# ont été désactivées).
+
+input_number:
+  sim_temp_salon:
+    name: "SIMU — Température Salon"
+    initial: 21
+    min: 5
+    max: 35
+    step: 0.5
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+
+  sim_temp_chambre:
+    name: "SIMU — Température Chambre"
+    initial: 19
+    min: 5
+    max: 35
+    step: 0.5
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+
+  sim_hygro_salon:
+    name: "SIMU — Hygrométrie Salon"
+    initial: 50
+    min: 10
+    max: 90
+    step: 1
+    unit_of_measurement: "%"
+    icon: mdi:water-percent
+
+input_boolean:
+  sim_porte_ext_contact:
+    name: "SIMU — Porte extérieure (ON = fermée, OFF = ouverte)"
+    initial: true
+    icon: mdi:door-closed
+
+template:
+  - sensor:
+      - name: "SNZB02D Salon Temperature"
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state: "{{ states('input_number.sim_temp_salon') }}"
+
+      - name: "SNZB02D Salon Humidity"
+        device_class: humidity
+        unit_of_measurement: "%"
+        state: "{{ states('input_number.sim_hygro_salon') }}"
+
+      - name: "SNZB02D Chambre Temperature"
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state: "{{ states('input_number.sim_temp_chambre') }}"
+
+  - binary_sensor:
+      - name: "SNZB04P Porte Ext Contact"
+        device_class: opening
+        state: "{{ is_state('input_boolean.sim_porte_ext_contact', 'on') }}"

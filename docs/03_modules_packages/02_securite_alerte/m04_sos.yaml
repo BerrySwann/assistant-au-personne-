@@ -1,0 +1,57 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M04 — BOUTON SOS (PACKAGE)                                  │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Source : WOOX R7052 (bouton Zigbee Z2M, reconnu comme TS0215A)
+# ⚠️ Nécessite Z2M à jour (versions anciennes peuvent ne pas reconnaître le modèle)
+#
+# ⚠️ MODE SIMULATION ACTIF (2026-08-05) — voir m00_simulation.yaml
+# Utilise input_boolean.sim_sos_bouton (impulsion 2s) à la place du vrai
+# bouton Zigbee.
+# TODO AVANT DÉPLOIEMENT RÉEL :
+# - Remplacer le trigger ci-dessous par ce qu'expose réellement Z2M une fois
+#   le bouton pairé (en général sensor.xxx_action avec valeurs single/double/hold).
+# - Vérifier le nom du device dans Z2M (Paramètres > Appareils > "woox").
+
+input_boolean:
+  m04_sos_declenche:
+    name: "M04 SOS Déclenché"
+    initial: false
+    icon: mdi:alarm-light
+
+automation:
+  - id: m04_sos_appui
+    alias: "M04 - SOS bouton appuyé"
+    trigger:
+      - platform: state
+        entity_id: input_boolean.sim_sos_bouton
+        to: "on"
+    condition:
+      - condition: state
+        entity_id: input_boolean.module_sos
+        state: "on"
+    action:
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.m04_sos_declenche
+      - service: script.m04_envoyer_alerte_sos
+      # Garde aussi une trace visible dans HA en plus du push téléphone
+      - service: notify.persistent_notification
+        data:
+          title: "🚨 SOS déclenché"
+          message: "Bouton d'urgence pressé. Vérifier la personne immédiatement."
+    mode: single
+
+  - id: m04_sos_reset
+    alias: "M04 - SOS reset manuel"
+    trigger:
+      - platform: state
+        entity_id: input_boolean.m04_sos_declenche
+        to: "off"
+    action:
+      - service: persistent_notification.dismiss_all
+    mode: single
+
+# annotations_log:
+# - 2026-08-05 : création module. Notification actuellement en persistent_notification
+#   (visible dans HA) — à remplacer par notify.mobile_app_<aidant> réel avant mise
+#   en prod, sinon l'alerte SOS ne sort jamais du serveur HA.

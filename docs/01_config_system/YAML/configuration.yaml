@@ -1,0 +1,56 @@
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Thèmes
+frontend:
+  themes: !include_dir_merge_named themes
+
+# ═══════════════════════════════════════════════
+# PACKAGES MODULES AIDANT
+# ═══════════════════════════════════════════════
+homeassistant:
+  packages: !include_dir_named packages
+
+# ═══════════════════════════════════════════════
+# LOVELACE DASHBOARDS
+# ═══════════════════════════════════════════════
+lovelace:
+  mode: storage
+  resources:
+    - url: /hacsfiles/mushroom/mushroom.js
+      type: module
+    - url: /hacsfiles/button-card/button-card.js
+      type: module
+    - url: /hacsfiles/lovelace-card-mod/card-mod.js
+      type: module
+  dashboards:
+    lovelace-kiosk:
+      mode: yaml
+      title: "Kiosk TV"
+      icon: mdi:television
+      show_in_sidebar: true
+      filename: dashboards/dashboard_kiosk.yaml
+    lovelace-aidant:
+      mode: yaml
+      title: "Interface Aidant"
+      icon: mdi:account-heart
+      show_in_sidebar: true
+      filename: dashboards/dashboard_aidant.yaml
+    lovelace-modules:
+      mode: yaml
+      title: "Configuration"
+      icon: mdi:cog-outline
+      show_in_sidebar: true
+      filename: dashboards/dashboard_modules.yaml
+    lovelace-test-simulation:
+      mode: yaml
+      title: "🧪 Tests Simulation"
+      icon: mdi:test-tube
+      show_in_sidebar: true
+      filename: dashboards/dashboard_test_simulation.yaml
+
+# Gestion des aidants et notifications SOS : voir packages/m04_groupe_aidants.yaml
+# (gestion dynamique par dashboard, pas de notify group statique ici).
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml

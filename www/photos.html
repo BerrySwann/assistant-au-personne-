@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f172a">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Photos</title>
+<!--
+  ╭──────────────────────────────────────────────────────────────────────────╮
+  │     PAGE DÉDIÉE — GALERIE PHOTOS + UPLOAD + SUPPRESSION (créée 2026-08-15)│
+  ╰──────────────────────────────────────────────────────────────────────────╯
+  Rôle : page ouverte via un bouton dans aidant.html. Contrairement à
+  calendrier.html/video.html, PAS d'iframe ici : il n'existait aucune
+  galerie visuelle à réutiliser (kiosk.html fait tourner les photos en
+  plein écran) — construction neuve.
+  2026-08-15 (suite, remplacement des PIN) : l'ancien gate PIN partagé
+  (input_text.m10_pin_pages_dediees) est retiré — jugé ingérable par
+  l'utilisateur. Remplacé par un gate basé sur l'identité réelle de
+  connexion (WebSocket auth/current_user -> person.* -> droit 📷 photos,
+  bit 16, dans input_text.m10_droits_aidants). Voir m10_gestion_aidants.yaml
+  et www/config.html (même logique) pour le détail complet.
+  Liste : shell_command.m31_photos_liste (existant, corrigé le 2026-08-15
+  — ?return_response SANS "=true"). Suppression : shell_command.
+  m31_photos_supprimer (contourne la limitation WebSocket-only du service
+  natif HA, voir m31_photos.yaml) — corrigé le 15/08 (bouton corbeille sans
+  effet à cause d'un onclick mal échappé, voir annotations_log du package).
+  Upload : déplacé depuis config.html (même jour, suite) à la demande de
+  l'utilisateur, pour tout regrouper au même endroit (upload + galerie +
+  suppression). PUIS revu le même jour (DÉFINITIF) : la route officielle
+  HA (POST /api/media_source/local_source/upload) est réservée aux comptes
+  ADMINISTRATEUR (voir local_source.py), donc inutilisable pour un compte
+  "aidant" PIN-gated mais non-admin. Remplacée par shell_command.
+  m31_photos_televerser_{debut,chunk,fin} (écriture directe sur disque, par
+  morceaux base64 pour éviter la limite ARG_MAX du shell) — voir
+  m31_photos.yaml.
+  ✅ Suppression confirmée en direct par l'utilisateur (2026-08-15,
+  "ca fonctionne"). Upload (nouvelle méthode shell_command) : à tester en
+  direct par l'utilisateur.
+-->
+<style>
+:root {
+  --bg: #0f172a; --surface: #1e293b; --border: rgba(255,255,255,0.07);
+  --text: #f1f5f9; --text2: #94a3b8; --text3: #475569;
+  --purple: #8b5cf6; --red: #ef4444; --green: #22c55e;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+
+/* ── ACCESS GATE (2026-08-15, remplace l'ancien gate PIN) ── */
+#access-gate { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+.pin-box { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 28px 24px; width: 100%; max-width: 320px; text-align: center; }
+.pin-icon { font-size: 40px; margin-bottom: 10px; }
+.pin-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.pin-sub { font-size: 12px; color: var(--text3); margin-bottom: 18px; }
+.pin-back { display: block; margin-top: 18px; color: var(--text3); font-size: 12px; text-decoration: underline; cursor: pointer; }
+
+/* ── PAGE ── */
+#page-content { display: none; min-height: 100vh; }
+.dedie-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 5;  max-width: 720px; width: 100%; margin: 0 auto; }
+.dedie-back { background: rgba(255,255,255,0.06); border: none; border-radius: 8px; color: var(--text2); font-size: 18px; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.dedie-title { font-size: 15px; font-weight: 600; flex: 1; }
+.dedie-refresh { background: rgba(255,255,255,0.06); border: none; border-radius: 8px; color: var(--text2); font-size: 16px; width: 36px; height: 36px; cursor: pointer; }
+
+.gallery-wrap { padding: 14px; max-width: 720px; margin: 0 auto; }
+.upload-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 16px; }
+.upload-btn { width: 100%; background: #2563eb; border: none; border-radius: 10px; color: white; font-size: 15px; font-weight: 600; padding: 14px; cursor: pointer; }
+.upload-btn:active { filter: brightness(0.85); }
+.upload-status { margin-top: 10px; font-size: 12px; color: rgb(180, 180, 180); }
+.reco-link { color: var(--purple); text-decoration: underline; cursor: pointer; }
+.gallery-empty { text-align: center; color: rgb(180, 180, 180); font-size: 13px; padding: 60px 20px; }
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.photo-card { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--surface); border: 1px solid var(--border); }
+.photo-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-card .photo-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text3); font-size: 11px; }
+.photo-del-btn { position: absolute; top: 6px; right: 6px; background: rgba(15,23,42,0.75); border: none; border-radius: 8px; color: white; font-size: 15px; width: 30px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.photo-del-btn:active { background: var(--red); }
+.photo-src-tag { position: absolute; bottom: 6px; left: 6px; background: rgba(15,23,42,0.75); border-radius: 6px; font-size: 9px; padding: 2px 6px; color: var(--text2); }
+
+/* CONFIRM DIALOG */
+#confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 60; padding: 20px; }
+.confirm-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; width: 100%; max-width: 300px; text-align: center; }
+.confirm-text { font-size: 13px; margin-bottom: 18px; line-height: 1.5; }
+.confirm-actions { display: flex; gap: 10px; }
+.confirm-btn { flex: 1; border: none; border-radius: 10px; padding: 11px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.confirm-btn.cancel { background: rgba(255,255,255,0.08); color: var(--text); }
+.confirm-btn.del { background: var(--red); color: white; }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(60px); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 18px; font-size: 12px; transition: transform 0.2s; z-index: 99; white-space: nowrap; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div id="access-gate">
+  <div class="pin-box">
+    <div class="pin-icon" id="gate-icon">📷</div>
+    <div class="pin-title" id="gate-title">Photos</div>
+    <div class="pin-sub" id="gate-sub">Vérification de tes droits d'accès…</div>
+    <span class="pin-back" onclick="window.parent.closePhotos ? window.parent.closePhotos() : window.location.href='/local/aidant.html?v=' + Date.now()">← Retour</span>
+  </div>
+</div>
+
+<div id="page-content">
+  <div class="dedie-header">
+    <button class="dedie-back" onclick="window.parent.closePhotos ? window.parent.closePhotos() : window.location.href='/local/aidant.html?v=' + Date.now()" title="Retour">←</button>
+    <div class="dedie-title">📷 Photos</div>
+    <button class="dedie-refresh" onclick="loadGallery()" title="Rafraîchir">⟳</button>
+  </div>
+  <div class="gallery-wrap">
+    <!-- 2026-08-15 (déplacé depuis config.html à la demande de l'utilisateur) :
+         upload directement dans le module Photos, au même endroit que la
+         galerie et la suppression. -->
+    <div class="upload-box">
+      <input type="file" id="photos-file-input" accept="image/jpeg,image/png,image/gif" multiple style="display:none" onchange="onPhotosSelected()">
+      <button class="upload-btn" onclick="document.getElementById('photos-file-input').click()">📷 Ajouter des photos…</button>
+      <div id="photos-upload-status" class="upload-status"></div>
+    </div>
+    <div id="gallery-empty" class="gallery-empty" style="display:none;">Aucune photo pour le moment.</div>
+    <div id="gallery-grid" class="gallery-grid"></div>
+  </div>
+</div>
+
+<div id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-text">Supprimer cette photo ?<br>Cette action est définitive.</div>
+    <div class="confirm-actions">
+      <button class="confirm-btn cancel" onclick="closeConfirm()">Annuler</button>
+      <button class="confirm-btn del" onclick="confirmDelete()">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+const BASE = window.location.origin;
+const token = localStorage.getItem('ha_token') || '';
+function haSessionToken() {
+  try {
+    const raw = localStorage.getItem('hassTokens');
+    if (!raw) return '';
+    const t = JSON.parse(raw);
+    if (!t || !t.access_token) return '';
+    if (t.expires && Date.now() > t.expires) return '';
+    return t.access_token;
+  } catch (e) { return ''; }
+}
+// 2026-08-15 (diagnostic, retour "401 même sur PC") : indique quelle source
+// de token est réellement utilisée, pour afficher un diagnostic exploitable
+// sans avoir besoin d'accéder à la console du navigateur.
+function currentTokenSource() { return haSessionToken() ? 'session HA' : (token ? 'token mémorisé' : 'aucun'); }
+function currentToken() { return haSessionToken() || token; }
+
+// 2026-08-15 (correctif, confirmé par le log HA "Login attempt failed...
+// invalid authentication") : le token de session HA (hassTokens, courte
+// durée ~30 min) peut être silencieusement invalide/expiré sans que notre
+// test d'expiration le détecte (le champ "expires" fourni par HA peut ne
+// pas être présent/au format attendu selon le contexte). Résultat : un
+// token de session pourri était utilisé alors qu'un token longue durée
+// valide (ha_token) existait en repli, jamais essayé. fetchAuth() élimine
+// le problème à la racine : en cas de 401, on retente automatiquement une
+// fois avec l'AUTRE source de token, sans avoir à deviner laquelle est bonne.
+async function fetchAuth(url, opts) {
+  opts = opts || {};
+  const baseHeaders = opts.headers || {};
+  async function attempt(tok) {
+    const headers = Object.assign({}, baseHeaders, { Authorization: 'Bearer ' + tok });
+    return fetch(url, Object.assign({}, opts, { headers }));
+  }
+  const first = currentToken();
+  let r = await attempt(first);
+  if (r.status === 401) {
+    const alt = (first === token) ? haSessionToken() : token;
+    if (alt && alt !== first) {
+      r = await attempt(alt);
+    }
+  }
+  return r;
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+/* ── IDENTITÉ RÉELLE — WEBSOCKET auth/current_user (2026-08-15) ───
+   Remplace le gate PIN partagé (retiré — voir commentaire d'en-tête).
+   Même logique que www/config.html : token -> WS auth/current_user ->
+   user HA -> person.* correspondante (via attributes.user_id) -> droit
+   📷 photos (bit 16) dans input_text.m10_droits_aidants. */
+async function apiGet(entity) {
+  const r = await fetchAuth(`${BASE}/api/states/${entity}`);
+  if (!r.ok) return null;
+  return r.json();
+}
+async function apiGetAllStates() {
+  const r = await fetchAuth(`${BASE}/api/states`);
+  if (!r.ok) return [];
+  return r.json();
+}
+async function loadDroits() {
+  const s = await apiGet('input_text.m10_droits_aidants');
+  if (!s || !s.state || s.state === 'unknown') return {};
+  try { return JSON.parse(s.state); } catch (e) { return {}; }
+}
+function wsCurrentUser(tok) {
+  return new Promise((resolve, reject) => {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${proto}//${window.location.host}/api/websocket`);
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) { settled = true; try { ws.close(); } catch(e) {} reject(new Error('timeout')); }
+    }, 8000);
+    ws.onmessage = (ev) => {
+      let msg; try { msg = JSON.parse(ev.data); } catch (e) { return; }
+      if (msg.type === 'auth_required') {
+        ws.send(JSON.stringify({ type: 'auth', access_token: tok }));
+      } else if (msg.type === 'auth_ok') {
+        ws.send(JSON.stringify({ id: 1, type: 'auth/current_user' }));
+      } else if (msg.type === 'auth_invalid') {
+        if (!settled) { settled = true; clearTimeout(timer); ws.close(); reject(new Error('auth_invalid')); }
+      } else if (msg.type === 'result' && msg.id === 1) {
+        if (!settled) {
+          settled = true; clearTimeout(timer); ws.close();
+          if (msg.success) resolve(msg.result); else reject(new Error('ws_error'));
+        }
+      }
+    };
+    ws.onerror = () => { if (!settled) { settled = true; clearTimeout(timer); reject(new Error('ws_connection_error')); } };
+  });
+}
+async function resolveAccess() {
+  const tok = currentToken();
+  if (!tok) return null;
+  let user;
+  try { user = await wsCurrentUser(tok); } catch (e) { return null; }
+  if (user.is_admin || user.is_owner) return { admin: true, name: user.name };
+  const allStates = await apiGetAllStates();
+  const person = allStates.find(s => s.entity_id.startsWith('person.') && s.attributes && s.attributes.user_id === user.id);
+  if (!person) return { admin: false, mask: 0, name: user.name };
+  const droits = await loadDroits();
+  const objectId = person.entity_id.replace('person.', '');
+  return { admin: false, mask: droits[objectId] || 0, name: person.attributes.friendly_name || user.name };
+}
+const DROIT_BIT_PHOTOS = 16;
+
+function unlockPage() {
+  document.getElementById('access-gate').style.display = 'none';
+  document.getElementById('page-content').style.display = 'block';
+  loadGallery();
+}
+
+async function runAccessGate() {
+  const icon = document.getElementById('gate-icon');
+  const title = document.getElementById('gate-title');
+  const sub = document.getElementById('gate-sub');
+
+  const access = await resolveAccess();
+
+  if (access && (access.admin || (access.mask & DROIT_BIT_PHOTOS))) {
+    unlockPage();
+    return;
+  }
+
+  icon.textContent = '⛔';
+  title.textContent = 'Accès refusé';
+  sub.textContent = access
+    ? `Ton compte (${access.name || '?'}) n'a pas le droit 📷 Photos. Demande à l'installateur de le cocher dans Configuration → Sécurité → Droits d'accès.`
+    : "Impossible de t'identifier (pas de compte HA propre lié à ta fiche Personne). Voir Paramètres → Personnes → Autoriser la connexion.";
+}
+
+/* ── UPLOAD (déplacé depuis config.html le 2026-08-15, PUIS revu le même
+   jour, suite, DÉFINITIF) ──
+   L'ancienne méthode (POST /api/media_source/local_source/upload) est la
+   route officielle de HA, mais son code source (local_source.py) contient
+   "if not request['hass_user'].is_admin: raise Unauthorized()" — réservée
+   aux comptes ADMINISTRATEUR. Confirmé en direct : un compte "aidant" non-
+   admin recevait 401 UNIQUEMENT sur cet endpoint, jamais sur la galerie/
+   suppression (shell_command, pas admin-only, même token). Rendre chaque
+   compte admin pour pouvoir envoyer une photo donnerait accès à toute la
+   config HA — disproportionné. Remplacé par un contournement shell_command
+   (même logique que la suppression, m31_photos_supprimer) : le fichier est
+   lu en base64 côté page, découpé en morceaux, et envoyé par appels
+   successifs à shell_command.m31_photos_televerser_{debut,chunk,fin}, qui
+   écrit l'image directement sur disque dans /media/photos_famille/ — sans
+   jamais passer par la route admin-only. Voir m31_photos.yaml et
+   shell_scripts/m31_photos_televerser.py pour le détail. */
+// 2026-08-15 (correctif, retour utilisateur "HTTP 500 sur l'upload") :
+// 300 000 caractères/appel était trop gros — reproduit en direct via curl :
+// 100 000 caractères passe (200), 150 000 échoue (500, "Server got itself
+// in trouble" — la limite réelle de la commande shell côté serveur HA se
+// situe entre les deux). Ramené à 50 000 avec marge de sécurité (2x sous le
+// seuil connu-bon), validé en direct par un envoi complet de test (2 Mo,
+// 56 morceaux, tous réussis).
+const UPLOAD_CHUNK_SIZE = 50000;
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result || '';
+      const idx = result.indexOf(',');
+      resolve(idx === -1 ? result : result.slice(idx + 1));
+    };
+    reader.onerror = () => reject(reader.error || new Error('Lecture du fichier échouée'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function callShellStdout(serviceName, data) {
+  const r = await apiPost(`/api/services/shell_command/${serviceName}?return_response`, data || {});
+  const resp = (r && r.service_response && r.service_response['shell_command.' + serviceName])
+    || (r && r.service_response)
+    || null;
+  return ((resp && typeof resp.stdout === 'string') ? resp.stdout : '').trim();
+}
+
+async function uploadOneFile(file, statusEl) {
+  const nom = file.name;
+  const b64 = await fileToBase64(file);
+
+  let out = await callShellStdout('m31_photos_televerser_debut', { nom });
+  if (!out.startsWith('OK')) throw new Error(out || 'Échec (début)');
+
+  const total = Math.max(1, Math.ceil(b64.length / UPLOAD_CHUNK_SIZE));
+  for (let i = 0, morceau = 1; i < b64.length; i += UPLOAD_CHUNK_SIZE, morceau++) {
+    statusEl.textContent = `Envoi de "${nom}"… (morceau ${morceau}/${total})`;
+    const chunk = b64.slice(i, i + UPLOAD_CHUNK_SIZE);
+    out = await callShellStdout('m31_photos_televerser_chunk', { nom, chunk });
+    if (!out.startsWith('OK')) throw new Error(out || 'Échec (envoi)');
+  }
+
+  out = await callShellStdout('m31_photos_televerser_fin', { nom });
+  if (!out.startsWith('OK')) throw new Error(out || 'Échec (finalisation)');
+}
+
+async function onPhotosSelected() {
+  const input = document.getElementById('photos-file-input');
+  const statusEl = document.getElementById('photos-upload-status');
+  const files = Array.from(input.files || []);
+  if (files.length === 0) return;
+
+  if (!currentToken()) {
+    statusEl.innerHTML = '⚠️ Session non connectée — <span class="reco-link" onclick="window.parent.closePhotos ? window.parent.closePhotos() : location.href=\'/local/aidant.html?v=\'+Date.now()">appuie ici pour revenir à l\'écran Aidant</span>';
+    return;
+  }
+
+  let ok = 0, fail = 0;
+  let lastErrorDetail = '';
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    statusEl.textContent = `Envoi de "${file.name}"… (${i + 1}/${files.length})`;
+    try {
+      await uploadOneFile(file, statusEl);
+      ok++;
+    } catch (e) {
+      fail++;
+      if (!lastErrorDetail) lastErrorDetail = e && e.message ? e.message : String(e);
+    }
+  }
+
+  statusEl.textContent = fail === 0
+    ? `✅ ${ok} photo${ok > 1 ? 's' : ''} envoyée${ok > 1 ? 's' : ''}`
+    : `⚠️ ${ok} envoyée(s), ${fail} échec(s) — ${lastErrorDetail}`;
+  input.value = '';
+  if (ok > 0) {
+    toast('✓ Photo(s) envoyée(s)');
+    loadGallery(); // rafraîchit la galerie pour montrer les nouvelles photos immédiatement
+  }
+}
+
+/* ── GALERIE ── */
+let currentPhotos = []; // [{source, nom}]
+let objectUrls = []; // pour révocation
+let pendingDelete = null; // {source, nom}
+
+async function apiPost(path, body) {
+  const r = await fetchAuth(BASE + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {})
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+async function loadGallery() {
+  const grid = document.getElementById('gallery-grid');
+  const empty = document.getElementById('gallery-empty');
+  try {
+    // FIX confirmé le 2026-08-15 : "?return_response" SANS "=true".
+    const r = await apiPost('/api/services/shell_command/m31_photos_liste?return_response', {});
+    const resp = (r && r.service_response && r.service_response['shell_command.m31_photos_liste'])
+      || (r && r.service_response)
+      || null;
+    const stdout = (resp && typeof resp.stdout === 'string') ? resp.stdout : '';
+    const lignes = stdout.split('\n').map(s => s.trim()).filter(s => s !== '');
+    currentPhotos = lignes.map(l => {
+      const idx = l.indexOf('|');
+      return idx === -1 ? { source: 'www', nom: l } : { source: l.slice(0, idx), nom: l.slice(idx + 1) };
+    });
+  } catch (e) {
+    console.error(e);
+    toast('⚠️ Erreur de chargement');
+    currentPhotos = [];
+  }
+
+  // Révoque les anciennes Object URL avant de reconstruire la grille
+  objectUrls.forEach(u => URL.revokeObjectURL(u));
+  objectUrls = [];
+  grid.innerHTML = '';
+
+  if (currentPhotos.length === 0) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  currentPhotos.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'photo-card';
+    // 2026-08-15 (correctif) : le bouton était auparavant construit avec
+    // onclick="askDelete('${p.source}', ${JSON.stringify(p.nom)})" — bug
+    // réel : JSON.stringify() entoure le nom de GUILLEMETS DOUBLES, qui
+    // cassent l'attribut HTML onclick="..." (lui-même en guillemets
+    // doubles) dès qu'un nom de fichier contenait ce motif — l'attribut
+    // devenait invalide et le clic ne déclenchait plus rien. Corrigé en
+    // passant par data-idx + un seul écouteur délégué sur #gallery-grid
+    // (voir plus bas) : plus aucune interpolation de nom de fichier dans
+    // du HTML, donc plus de risque d'échappement cassé quel que soit le nom.
+    card.innerHTML = `
+      <div class="photo-loading" id="loading-${i}">…</div>
+      <button class="photo-del-btn" data-idx="${i}" title="Supprimer">🗑️</button>
+      <span class="photo-src-tag">${p.source === 'media' ? 'envoyée' : 'samba'}</span>`;
+    grid.appendChild(card);
+    loadThumb(p, card, i);
+  });
+}
+
+// Écouteur unique délégué (posé une fois, survit aux reconstructions de la
+// grille puisqu'il est attaché au conteneur #gallery-grid, pas aux boutons).
+document.getElementById('gallery-grid').addEventListener('click', function (e) {
+  const btn = e.target.closest('.photo-del-btn');
+  if (!btn) return;
+  const idx = parseInt(btn.dataset.idx, 10);
+  const p = currentPhotos[idx];
+  if (p) askDelete(p.source, p.nom);
+});
+
+async function loadThumb(p, card, i) {
+  const loadingEl = document.getElementById('loading-' + i);
+  try {
+    let src;
+    if (p.source === 'media') {
+      const r = await fetchAuth(BASE + '/media/local/photos_famille/' + encodeURIComponent(p.nom));
+      if (!r.ok) throw new Error('media ' + r.status);
+      const blob = await r.blob();
+      src = URL.createObjectURL(blob);
+      objectUrls.push(src);
+    } else {
+      src = '/local/photos_famille/' + encodeURIComponent(p.nom) + '?t=' + Date.now();
+    }
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = p.nom;
+    card.insertBefore(img, card.firstChild);
+    if (loadingEl) loadingEl.remove();
+  } catch (e) {
+    if (loadingEl) loadingEl.textContent = '❌';
+  }
+}
+
+/* ── SUPPRESSION ── */
+function askDelete(source, nom) {
+  pendingDelete = { source, nom };
+  document.getElementById('confirm-overlay').style.display = 'flex';
+}
+function closeConfirm() {
+  pendingDelete = null;
+  document.getElementById('confirm-overlay').style.display = 'none';
+}
+async function confirmDelete() {
+  if (!pendingDelete) return;
+  const { source, nom } = pendingDelete;
+  closeConfirm();
+  try {
+    const r = await apiPost('/api/services/shell_command/m31_photos_supprimer?return_response', { source, nom });
+    const resp = (r && r.service_response && r.service_response['shell_command.m31_photos_supprimer'])
+      || (r && r.service_response)
+      || null;
+    const stdout = ((resp && typeof resp.stdout === 'string') ? resp.stdout : '').trim();
+    if (stdout.startsWith('OK') || stdout.startsWith('NOTFOUND')) {
+      toast('✓ Photo supprimée');
+    } else {
+      toast('⚠️ ' + (stdout || 'Échec de la suppression'));
+    }
+  } catch (e) {
+    console.error(e);
+    toast('⚠️ Erreur réseau');
+  }
+  loadGallery();
+}
+
+runAccessGate();
+</script>
+
+</body>
+</html>

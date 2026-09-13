@@ -1,0 +1,99 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │          MODULE M34 — LIENS YOUTUBE (CHAÎNES & PLAYLISTS)                   │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# Récupère les dernières vidéos des chaînes YouTube officielles (france tv,
+# Arte, France 2) + playlist Destination Francophonie (TV5MONDE) via flux RSS
+# (sans clé API), et les stocke dans www/liens_youtube.txt
+# (lisible via /local/liens_youtube.txt).
+#
+# Chaque session M34 choisit sa chaîne (france tv / Arte / TV5 Monde / YouTube)
+# via input_select.m34_sessionN_chaine — la rotation M34 injecte la plus récente
+# vidéo NON vue de CETTE chaîne. Si la chaîne est épuisée, la plus récente de la
+# chaîne est rejouée. Les vidéos jouées sont marquées "déjà_vu".
+#
+# Format d'une ligne : aaaa-mm-jj|chaine|Titre|https://youtu.be/XXXX|déjà_vu
+# Dernier champ vide = vidéo pas encore vue.
+#
+# ⚠️ Script : shell_scripts/m34_liens_youtube.py (actions update / mark / next
+#    avec arg2 = URL pour mark, label de chaîne pour next ; duration avec
+#    arg2 = video_id, imprime la durée en secondes).
+#
+# 2026-08-14 : le marquage "déjà_vu" ne se fait plus au moment où
+# script.m34_lancer_session tourne (ça marquait des vidéos à peine
+# commencées à chaque changement de chaîne). Il se fait maintenant 5 min
+# avant la fin RÉELLE de la vidéo (durée récupérée via yt-dlp), piloté par
+# input_datetime.m34_sessionN_marquer_vu_a (m34_television.yaml) + l'automation
+# m34_marquer_vu_apres_visionnage ci-dessous.
+#
+# 2026-08-14 : fichier physique shell_scripts/m16_liens_youtube.py renommé en
+# m34_liens_youtube.py — n'avait jamais été renommé lors du renommage général
+# du 13/08, shell_command.m34_liens_youtube pointait vers un fichier
+# inexistant (tous les appels update/mark/next échouaient silencieusement).
+
+input_boolean:
+  module_m34_liens_youtube:
+    name: "M34 Liens YouTube (france tv, Arte, TV5, FR2)"
+    icon: mdi:youtube
+
+shell_command:
+  m34_liens_youtube: "python3 /config/shell_scripts/m34_liens_youtube.py {{ action | default('') }} {{ arg2 | default('') }}"
+
+template:
+  - sensor:
+      - name: "M34 Vidéo En Cours (embed)"
+        unique_id: m34_video_embed
+        icon: mdi:youtube
+        state: >
+          {% set etat = states('sensor.confo_m34_etat_global') %}
+          {% if etat in ['session1', 'session2', 'session3', 'session4'] %}
+            {% set n = etat[-1] %}
+            {% set url = states('input_text.m34_session' ~ n ~ '_youtube_url') %}
+            {% if url and url != 'unknown' %}
+              {% if 'youtu.be/' in url %}{{ 'https://www.youtube-nocookie.com/embed/' ~ url.split('/')[-1].split('?')[0] ~ '?autoplay=1&rel=0&cc_load_policy=0' }}
+              {% elif 'v=' in url %}{{ 'https://www.youtube-nocookie.com/embed/' ~ url.split('v=')[-1].split('&')[0] ~ '?autoplay=1&rel=0&cc_load_policy=0' }}
+              {% endif %}
+            {% endif %}
+          {% endif %}
+
+automation:
+  - id: m34_maj_liens_hebdo
+    alias: "M34 — Mise à jour hebdo des liens YouTube"
+    mode: single
+    trigger:
+      - trigger: time
+        at: "09:00:00"
+    condition:
+      - condition: time
+        weekday:
+          - mon
+    action:
+      - action: shell_command.m34_liens_youtube
+        data:
+          action: update
+
+  - id: m34_marquer_vu_apres_visionnage
+    alias: "M34 — Marquer vidéo vue 5 min avant sa fin réelle"
+    mode: parallel
+    max: 4
+    trigger:
+      - trigger: time
+        at: input_datetime.m34_session1_marquer_vu_a
+      - trigger: time
+        at: input_datetime.m34_session2_marquer_vu_a
+      - trigger: time
+        at: input_datetime.m34_session3_marquer_vu_a
+      - trigger: time
+        at: input_datetime.m34_session4_marquer_vu_a
+    condition:
+      - condition: template
+        value_template: "{{ is_state('input_boolean.module_m34_liens_youtube', 'on') }}"
+    action:
+      - variables:
+          num: "{{ trigger.entity_id.split('.')[1].split('_')[1][-1] }}"
+          url: "{{ states('input_text.m34_session' ~ num ~ '_youtube_url') }}"
+      - condition: template
+        value_template: "{{ url and url not in ['unknown', 'unavailable', ''] }}"
+      - action: shell_command.m34_liens_youtube
+        data:
+          action: mark
+          arg2: "{{ url }}"

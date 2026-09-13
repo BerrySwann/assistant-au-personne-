@@ -1,0 +1,13 @@
+alias: "M02 — Log Présence Salon"
+description: "Écrit dans /config/logs/m02_presence_salon.log à chaque changement d'état"
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.presence_salon_occupancy
+    to:
+      - "on"
+      - "off"
+conditions: []
+actions:
+  - action: shell_command.m02_log_presence_salon
+mode: queued
+max: 10

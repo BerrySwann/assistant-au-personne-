@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<!-- HA envoie "Referrer-Policy: no-referrer" en en-tête HTTP sur tous les
+     fichiers /local/ (réglage de sécurité par défaut, pas configurable en
+     YAML). Ça casse l'iframe YouTube embed (erreur 153 : YouTube exige un
+     Referer). La balise meta ci-dessous prend le dessus sur l'en-tête HTTP
+     pour ce document et ses iframes enfants. -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Kiosk TV</title>
+<style>
+:root {
+  --bg:        #0f172a;
+  --surface:   #1e293b;
+  --border:    rgba(255,255,255,0.08);
+  --text:      #f1f5f9;
+  --text2:     #94a3b8;
+  --blue:      #90c8ff;
+  --green:     #90ffb0;
+  --amber:     #ffd060;
+  --red:       #ff8080;
+  --radius:    18px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 14px;
+  gap: 10px;
+}
+
+/* ── 1. BANDEAU HEURE / DATE ────────────────────────── */
+.banner-top {
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #1e1e2e 0%, #2a2a40 100%);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 10px 28px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  flex-shrink: 0;
+}
+.clock { font-size: 1.8em; font-weight: 700; letter-spacing: 1px; }
+
+/* ── 2. CALENDRIER (liste agenda) ──────────────────── */
+.calendar-box {
+  background: linear-gradient(135deg, #1a2a3a 0%, #1e3050 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(100,160,255,0.2);
+  padding: 12px 28px;
+  display: flex; flex-direction: column; gap: 6px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  flex-shrink: 0;
+}
+.cal-item { font-size: 1.3em; font-weight: 700; color: var(--blue); }
+.cal-empty { font-size: 1.3em; font-weight: 700; color: var(--text2); font-style: italic; }
+
+/* ── 3. MESSAGES (M03) ─────────────────────────────── */
+.msg-box {
+  background: linear-gradient(135deg, #1a2a1a 0%, #1e3020 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(120,255,160,0.2);
+  padding: 16px 28px;
+  font-size: 1.3em; font-weight: 700; color: var(--green);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  display: none;
+  flex-shrink: 0;
+}
+.msg-box.show { display: block; }
+
+/* ── 4. VIDÉO / PHOTO / VISIO (zone principale) ────── */
+.main-box {
+  flex: 1;
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #111;
+  border: 1px solid var(--border);
+  min-height: 0;
+}
+.main-box img.photo-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.main-box iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+.main-box .placeholder {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text2); font-size: 1.3em; font-weight: 300;
+  text-align: center; padding: 24px;
+}
+
+/* ── 5. BANDEAU MÉTA (chaîne/titre ou photo) ───────── */
+.banner-bottom {
+  background: rgba(255,255,255,0.04);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 12px 28px;
+  font-size: 1.15em; font-weight: 300; text-align: center;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+
+/* 2026-08-16 : bandeau RAPPEL MÉDICAMENTS (M13). Overlay plein largeur en
+   haut de l'écran, très visible (grand, contrasté, pastille qui pulse). Se
+   superpose au reste — un rappel de médicament doit passer devant les photos
+   ou la TV. Masqué par défaut, affiché uniquement pendant la fenêtre de
+   rappel calculée côté client (voir refreshMedoc). */
+.medoc-banner {
+  display: none;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  background: linear-gradient(135deg, #b45309, #d97706);
+  color: #fff; text-align: center;
+  padding: 22px 18px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+}
+.medoc-banner.show { display: block; animation: medocPulse 1.6s ease-in-out infinite; }
+.medoc-banner .medoc-pill { font-size: 2.4em; line-height: 1; }
+.medoc-banner .medoc-txt { font-size: 1.8em; font-weight: 600; margin-top: 6px; }
+.medoc-banner .medoc-sub { font-size: 1.05em; font-weight: 300; opacity: 0.92; margin-top: 4px; }
+@keyframes medocPulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.15); } }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- RAPPEL MÉDICAMENTS (overlay, masqué par défaut) -->
+  <div class="medoc-banner" id="medoc-banner">
+    <div class="medoc-pill">💊</div>
+    <div class="medoc-txt" id="medoc-txt">C'est l'heure du médicament</div>
+    <div class="medoc-sub" id="medoc-sub"></div>
+  </div>
+
+  <!-- 1. HORLOGE / DATE -->
+  <div class="banner-top">
+    <div class="clock" id="clock">--:--</div>
+  </div>
+
+  <!-- 2. CALENDRIER — masqué par défaut, affiché uniquement si module_m04_calendrier = on -->
+  <div class="calendar-box" id="calendar-box" style="display:none">
+    <div class="cal-empty">Chargement…</div>
+  </div>
+
+  <!-- 3. MESSAGES -->
+  <div class="msg-box" id="msg-box"></div>
+
+  <!-- 4. VIDÉO / PHOTO / VISIO — masqué par défaut, affiché uniquement si module_m30_kiosk_ecran = on -->
+  <div class="main-box" id="main-box" style="display:none">
+    <div class="placeholder" id="main-placeholder">Chargement…</div>
+  </div>
+
+  <!-- 5. BANDEAU MÉTA -->
+  <div class="banner-bottom" id="banner-bottom">—</div>
+
+</div>
+
+<script>
+'use strict';
+
+// ── CONFIG ────────────────────────────────────────────
+const BASE    = window.location.origin;
+const REFRESH = 20000; // ms — rafraîchissement des données HA
+
+// ── SESSION HA (même mécanisme que aidant.html/config.html) ──
+let token = localStorage.getItem('ha_token') || '';
+function haSessionToken() {
+  try {
+    const raw = localStorage.getItem('hassTokens');
+    if (!raw) return '';
+    const t = JSON.parse(raw);
+    if (!t || !t.access_token) return '';
+    if (t.expires && Date.now() > t.expires) return '';
+    return t.access_token;
+  } catch (e) { return ''; }
+}
+function currentToken() { return haSessionToken() || token; }
+
+// 2026-08-15 (correctif, propagé depuis photos.html) : le token de session
+// HA (hassTokens, ~30 min) peut être invalide/expiré sans que notre test
+// d'expiration le détecte de façon fiable (confirmé par un log HA "Login
+// attempt failed... invalid authentication" pendant le débogage de l'upload
+// photo). fetchAuth() retente automatiquement avec l'AUTRE source de token
+// en cas de 401 — important ici en particulier : le kiosk reste ouvert en
+// continu sur la TV, donc un token de session qui expire après ~30 min sans
+// jamais retomber sur le fallback aurait fini par tout casser (photos,
+// agenda, messages) après un certain temps d'affichage.
+async function fetchAuth(url, opts) {
+  opts = opts || {};
+  const baseHeaders = opts.headers || {};
+  async function attempt(tok) {
+    const headers = Object.assign({}, baseHeaders, { Authorization: 'Bearer ' + tok });
+    return fetch(url, Object.assign({}, opts, { headers }));
+  }
+  const first = currentToken();
+  let r = await attempt(first);
+  if (r.status === 401) {
+    const alt = (first === token) ? haSessionToken() : token;
+    if (alt && alt !== first) r = await attempt(alt);
+  }
+  return r;
+}
+
+async function apiGet(path) {
+  const r = await fetchAuth(BASE + path);
+  if (!r.ok) throw new Error('api ' + path + ' -> ' + r.status);
+  return r.json();
+}
+async function stateOf(entity) {
+  try { return await apiGet('/api/states/' + entity); }
+  catch (e) { console.error(e); return null; }
+}
+async function apiPost(path, body) {
+  const r = await fetchAuth(BASE + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {})
+  });
+  if (!r.ok) throw new Error('api ' + path + ' -> ' + r.status);
+  return r.json();
+}
+
+// ── 1. HORLOGE / DATE (client-side, pas d'appel HA) ──
+function tickClock() {
+  const d = new Date();
+  const h = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const j = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  document.getElementById('clock').textContent = h + '  ·  ' + j;
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+// ── 2. CALENDRIER — le RDV le plus proche (1 ligne) ──
+// (calendar.calendrier_local, via /api/calendars)
+// 2026-08-15 : reprécisé par l'utilisateur — le bandeau n'affiche QU'UNE
+// SEULE ligne : le rendez-vous le plus proche. S'il y a plusieurs RDV au
+// MÊME créneau (même date+heure exacte — double réservation), carrousel
+// lent entre eux (max 3, un toutes les 60s) ; sinon ligne fixe, pas de
+// rotation. Un RDV récurrent revient sur un nouveau créneau chaque jour
+// (voir m03_rdv_recurrents.yaml) donc n'entre quasiment jamais en conflit
+// avec lui-même.
+const CAL_WINDOW_DAYS = 7;
+const CAL_MAX_SAME_SLOT = 3;
+const CAL_SLOT_MS = 60000; // 1 minute par RDV si plusieurs au même créneau
+let calSlotEvents = [];
+let calSlotIndex = 0;
+let calSlotTimer = null;
+
+async function refreshCalendar() {
+  const box = document.getElementById('calendar-box');
+  // M04 — Calendrier : n'afficher le bloc que si module actif
+  const m04 = await stateOf('input_boolean.module_m04_calendrier');
+  if (!m04 || m04.state !== 'on') { box.style.display = 'none'; return; }
+  box.style.display = '';
+  try {
+    const now = new Date();
+    const end = new Date(now.getTime() + CAL_WINDOW_DAYS * 24 * 3600 * 1000);
+    const events = await apiGet(
+      '/api/calendars/calendar.calendrier_local?start=' +
+      encodeURIComponent(now.toISOString()) + '&end=' + encodeURIComponent(end.toISOString())
+    );
+    if (!Array.isArray(events) || events.length === 0) {
+      calSlotEvents = [];
+      stopCalCarousel();
+      box.innerHTML = '<div class="cal-empty">Aucun rendez-vous à venir</div>';
+      return;
+    }
+    events.sort((a, b) =>
+      new Date(a.start.dateTime || a.start.date) - new Date(b.start.dateTime || b.start.date)
+    );
+    // Dédoublonnage récurrents par uid (garde la 1ère occurrence)
+    const seen = new Set();
+    const uniq = events.filter(ev => {
+      if (seen.has(ev.uid)) return false;
+      seen.add(ev.uid);
+      return true;
+    });
+
+    // Créneau le plus proche = celui du 1er événement restant
+    const nearestKey = uniq[0].start.dateTime || uniq[0].start.date;
+    const sameSlot = uniq
+      .filter(ev => (ev.start.dateTime || ev.start.date) === nearestKey)
+      .slice(0, CAL_MAX_SAME_SLOT);
+
+    // ⚠️ Ne pas redémarrer le carrousel s'il tourne déjà sur le même
+    // groupe — refreshCalendar() est rappelée toutes les 20s (REFRESH),
+    // bien plus souvent que le délai d'1 min par RDV : sans ce garde-fou,
+    // le carrousel repartirait à zéro à chaque poll et n'afficherait
+    // jamais un RDV plus d'20s (même logique que lastMainKey plus bas).
+    const sameGroup = sameSlot.length === calSlotEvents.length &&
+      sameSlot.every((ev, i) => ev.uid === calSlotEvents[i].uid);
+    if (sameGroup) return;
+
+    calSlotEvents = sameSlot;
+    calSlotIndex = 0;
+    stopCalCarousel();
+    renderCalSlot();
+    if (calSlotEvents.length > 1) {
+      calSlotTimer = setInterval(() => {
+        calSlotIndex = (calSlotIndex + 1) % calSlotEvents.length;
+        renderCalSlot();
+      }, CAL_SLOT_MS);
+    }
+  } catch (e) {
+    console.error(e);
+    stopCalCarousel();
+    box.innerHTML = '<div class="cal-empty">Agenda indisponible</div>';
+  }
+}
+
+function stopCalCarousel() {
+  if (calSlotTimer) { clearInterval(calSlotTimer); calSlotTimer = null; }
+}
+
+function renderCalSlot() {
+  const box = document.getElementById('calendar-box');
+  const ev = calSlotEvents[calSlotIndex];
+  if (!ev) {
+    box.innerHTML = '<div class="cal-empty">Aucun rendez-vous à venir</div>';
+    return;
+  }
+  const today0 = new Date(); today0.setHours(0, 0, 0, 0);
+  const start = new Date(ev.start.dateTime || ev.start.date);
+  const isAllDay = !ev.start.dateTime;
+  const evDay = new Date(start); evDay.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((evDay - today0) / 86400000);
+  const heure = isAllDay ? '' : ' à ' + start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  let quand;
+  if (diffDays === 0) quand = "aujourd'hui" + heure;
+  else if (diffDays === 1) quand = 'demain' + heure;
+  else quand = start.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) + heure;
+  const titre = ev.summary || 'Rendez-vous';
+  const compteur = calSlotEvents.length > 1 ? ' (' + (calSlotIndex + 1) + '/' + calSlotEvents.length + ')' : '';
+  box.innerHTML = '<div class="cal-item">📅 ' + titre + ' — ' + quand + compteur + '</div>';
+}
+
+// ── 3. MESSAGES (M03 — sensor.m03_texto_formate) ────
+async function refreshMessage() {
+  const box = document.getElementById('msg-box');
+  const s = await stateOf('sensor.m03_texto_formate');
+  if (s && s.state === 'actif' && s.attributes && s.attributes.texte) {
+    box.textContent = s.attributes.texte.trim();
+    box.classList.add('show');
+  } else {
+    box.classList.remove('show');
+  }
+}
+
+// ── 4 & 5. VIDÉO / PHOTO / VISIO + BANDEAU MÉTA ─────
+// Priorité : Visio (M33, si activée + URL renseignée) > TV (M34, sessions actives)
+// > Photos famille (par défaut).
+// ⚠️ On ne touche au DOM (mainBox.innerHTML) QUE si le contenu affiché change
+// réellement (lastMainKey) — sinon, en reconstruisant l'iframe à chaque
+// rafraîchissement (toutes les REFRESH ms), la vidéo YouTube repartait de
+// zéro en boucle (constaté : relance toutes les 20s).
+let lastMainKey = null;
+
+// ── 4bis. DIAPORAMA PHOTOS (M31) ─────────────────────
+// Liste dynamique des dossiers photos via shell_command M31 (même pattern
+// que M03 RDV récurrents : shell_command + return_response, non vérifié en
+// direct cette session — pas de token HA actif). Rotation gérée par un
+// timer dédié (photoTimer) cadencé par input_number.m31_photos_intervalle_s,
+// avec le même garde-fou anti-reset que le calendrier (photoListKey) pour
+// éviter que le poll 20s (REFRESH) ne redémarre le diaporama à chaque fois.
+//
+// 2026-08-15 (révision upload) : deux sources désormais possibles par photo
+// (voir m31_photos_liste.py) :
+//   - "www"   → /config/www/photos_famille/  → /local/... (PAS d'auth requise)
+//   - "media" → /media/photos_famille/       → /media/local/... (AUTH requise,
+//     nouveau bouton "Choisir des photos" dans config.html). On récupère le
+//     fichier via fetch() authentifié + blob, puis on l'affiche comme
+//     Object URL (comme pour n'importe quelle ressource protégée par HA).
+let photoList = []; // [{source:'www'|'media', nom:'...'}, ...]
+let photoIndex = 0;
+let photoTimer = null;
+let photoListKey = '';
+let photoIntervalMs = 20000; // valeur par défaut, écrasée par input_number.m31_photos_intervalle_s
+let photoBlobUrl = null; // Object URL de la dernière photo "media" affichée (à révoquer)
+// 2026-08-15 (diagnostic) : affiche la cause exacte quand la liste est vide,
+// directement sur l'écran du kiosk — évite d'avoir à passer par la console
+// développeur (trop pénible à distance). À retirer une fois le bug résolu.
+let photoDebugInfo = '';
+
+function stopPhotoCarousel() {
+  if (photoTimer) { clearInterval(photoTimer); photoTimer = null; }
+}
+
+async function refreshPhotoInterval() {
+  const s = await stateOf('input_number.m31_photos_intervalle_s');
+  if (s && s.state && !isNaN(parseFloat(s.state))) {
+    photoIntervalMs = parseFloat(s.state) * 1000;
+  }
+}
+
+async function renderPhoto() {
+  const mainBox = document.getElementById('main-box');
+  const bottomBanner = document.getElementById('banner-bottom');
+  if (photoList.length === 0) {
+    mainBox.innerHTML = '<div class="placeholder">📷 Pas de photo déposée' +
+      (photoDebugInfo ? '<br><span style="font-size:0.5em;opacity:0.6;word-break:break-all;">' + photoDebugInfo.replace(/</g, '&lt;') + '</span>' : '') +
+      '</div>';
+    bottomBanner.textContent = '📷 Écran Photos Famille';
+    return;
+  }
+  const p = photoList[photoIndex];
+  try {
+    let src;
+    if (p.source === 'media') {
+      const r = await fetchAuth(BASE + '/media/local/photos_famille/' + encodeURIComponent(p.nom));
+      if (!r.ok) throw new Error('media ' + r.status);
+      const blob = await r.blob();
+      if (photoBlobUrl) URL.revokeObjectURL(photoBlobUrl);
+      photoBlobUrl = URL.createObjectURL(blob);
+      src = photoBlobUrl;
+    } else {
+      src = '/local/photos_famille/' + encodeURIComponent(p.nom) + '?t=' + Date.now();
+    }
+    mainBox.innerHTML = '<img class="photo-bg" src="' + src + '">';
+  } catch (e) {
+    console.error(e);
+    mainBox.innerHTML = '<div class="placeholder">📷 Photo indisponible</div>';
+  }
+  bottomBanner.textContent = photoList.length > 1
+    ? '📷 Écran Photos Famille (' + (photoIndex + 1) + '/' + photoList.length + ')'
+    : '📷 Écran Photos Famille';
+}
+
+async function refreshPhotoList() {
+  try {
+    // 2026-08-15 (fix diagnostic) : "?return_response" SANS "=true" — la doc
+    // officielle HA (developers.home-assistant.io/docs/api/rest) montre le
+    // paramètre nu, sans valeur. Testé ce jour : "?return_response=true"
+    // renvoyait {} (objet vide) au lieu du service_response attendu.
+    const r = await apiPost('/api/services/shell_command/m31_photos_liste?return_response', {});
+    // Tolère plusieurs formes de réponse possibles (non 100% garanties par
+    // la doc pour un service sans entity_id comme shell_command) :
+    const resp = (r && r.service_response && r.service_response['shell_command.m31_photos_liste'])
+      || (r && r.service_response)
+      || null;
+    const stdout = (resp && typeof resp.stdout === 'string') ? resp.stdout : '';
+    const lignes = stdout.split('\n').map(s => s.trim()).filter(s => s !== '');
+    if (lignes.length === 0) {
+      // Diagnostic visible directement sur l'écran (pas besoin de console) :
+      photoDebugInfo = 'Réponse reçue : ' + JSON.stringify(r).slice(0, 250);
+    } else {
+      photoDebugInfo = '';
+    }
+    const key = lignes.join('|');
+    if (key === photoListKey) { if (lignes.length === 0) renderPhoto(); return; } // liste inchangée, ne pas relancer le timer (mais rafraîchir le debug affiché)
+    photoListKey = key;
+    photoList = lignes.map(l => {
+      const idx = l.indexOf('|');
+      return idx === -1 ? { source: 'www', nom: l } : { source: l.slice(0, idx), nom: l.slice(idx + 1) };
+    });
+    photoIndex = 0;
+    stopPhotoCarousel();
+    renderPhoto();
+    if (photoList.length > 1) {
+      photoTimer = setInterval(() => {
+        photoIndex = (photoIndex + 1) % photoList.length;
+        renderPhoto();
+      }, photoIntervalMs);
+    }
+  } catch (e) {
+    console.error(e);
+    photoDebugInfo = 'Erreur appel : ' + (e && e.message ? e.message : String(e));
+    if (photoList.length === 0) renderPhoto(); // affiche au moins le placeholder
+  }
+}
+
+// 2026-09-13 : normalizeVisioUrl() / isTrustedVisioUrl() SUPPRIMÉES avec
+// l'ancien système visio (iframe Meet) — plus référencées.
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VISIO MAISON (WebRTC) — 2026-08-16
+   ═══════════════════════════════════════════════════════════════════════
+   Côté RÉCEPTEUR (personne aidée). Répond automatiquement à l'appel, sans
+   AUCUN geste de sa part — c'est toute la raison d'être de ce mécanisme :
+   Google Meet impose un écran "Rejoindre" et Jitsi une authentification,
+   impossibles à demander à une personne atteinte d'Alzheimer.
+
+   L'image et le son passent DIRECTEMENT d'un appareil à l'autre. Le serveur
+   ne sert qu'à s'échanger les informations de connexion, pendant les
+   quelques secondes d'établissement (voir shell_scripts/m33_visio_signal.py).
+
+   ⚠️ Nécessite HTTPS (assuré par Tailscale) : sans contexte sécurisé, le
+   navigateur refuse l'accès à la caméra, et rien de tout ceci ne fonctionne.
+*/
+const VISIO_ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+// Délai de grâce avant de raccrocher sur un état "disconnected" : assez long
+// pour absorber une coupure Wi-Fi passagère, assez court pour ne pas laisser
+// une image figée devant la personne aidée.
+const VISIO_GRACE_MS = 10000;
+// Si l'appel n'aboutit jamais (aidant qui ferme sa page pendant la
+// négociation, réseau incompatible...), on ne reste pas bloqué sur un écran
+// noir indéfiniment.
+const VISIO_TIMEOUT_MS = 45000;
+// Nombre de cycles (1 s chacun) sans le moindre octet reçu avant de
+// considérer l'appel mort. 6 s : assez pour absorber un gel passager de
+// l'image, assez court pour que la personne aidée ne reste pas devant une
+// photo figée de son correspondant.
+const VISIO_CYCLES_SANS_FLUX = 6;
+let visioPc = null, visioStream = null, visioTimer = null, visioActive = false;
+let visioGraceTimer = null, visioTimeoutTimer = null;
+
+// Raccrochage à l'initiative du kiosk : éteindre l'interrupteur suffit, le
+// cycle de surveillance fera le reste (arrêt propre + retour aux photos).
+async function visioRaccrocherAuto(raison) {
+  console.warn('visio: raccrochage automatique —', raison);
+  try {
+    await apiPost('/api/services/input_boolean/turn_off',
+      { entity_id: 'input_boolean.m33_appel_en_cours' });
+    // Libère aussi le nom de l'aidant, sinon les autres verraient encore
+    // "Appel en cours avec X" et leur bouton resterait grisé pour rien.
+    await apiPost('/api/services/input_text/set_value',
+      { entity_id: 'input_text.m33_appel_par', value: '' });
+    // 2026-08-18 : remet aussi le drapeau urgence à zéro par propreté (sans
+    // effet fonctionnel — aidant.html le réécrit de toute façon à chaque
+    // nouvel appel — mais évite de laisser traîner un "urgent" fantôme).
+    await apiPost('/api/services/input_boolean/turn_off',
+      { entity_id: 'input_boolean.m33_appel_urgent' });
+  } catch (e) { console.error('visio: extinction impossible', e); }
+}
+
+/* 2026-08-18 : garde-fou PLAGE HORAIRE — redondant avec le contrôle déjà fait
+   côté aidant.html (qui refuse d'ALLUMER l'appel hors plage), mais celui-ci
+   protège en plus contre toute autre façon d'allumer
+   input_boolean.m33_appel_en_cours (Outils dev > États, script de test...) :
+   quel que soit ce qui a déclenché l'appel, le kiosk ne répond JAMAIS tout
+   seul hors plage sans le drapeau "urgent". Pas d'`initial:` sur les heures
+   (cf. m33_visio.yaml) -> tant que non réglées, la plage vaut 00:00–00:00
+   (vide) et tout appel non urgent reste refusé — comportement volontaire. */
+async function visioDansPlage() {
+  const [deb, fin] = await Promise.all([
+    stateOf('input_datetime.m33_horaire_debut'),
+    stateOf('input_datetime.m33_horaire_fin'),
+  ]);
+  const debM = hhmmToMin(deb && deb.state);
+  const finM = hhmmToMin(fin && fin.state);
+  if (debM === null || finM === null) return false;
+  const now = new Date();
+  const nowM = now.getHours() * 60 + now.getMinutes();
+  return nowM >= debM && nowM < finM;
+}
+async function visioDoitRepondre() {
+  const urgent = await stateOf('input_boolean.m33_appel_urgent');
+  if (urgent && urgent.state === 'on') return true;
+  return visioDansPlage();
+}
+
+// btoa() ne gère pas l'UTF-8 : on passe explicitement par les octets.
+function b64enc(str) {
+  const octets = new TextEncoder().encode(str);
+  let bin = '';
+  octets.forEach(o => { bin += String.fromCharCode(o); });
+  return btoa(bin);
+}
+function b64dec(b64) {
+  const bin = atob(b64);
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+
+async function visioEnvoyer(destinataire, obj) {
+  try {
+    await apiPost('/api/services/shell_command/m33_visio_signal_envoyer',
+      { destinataire, message: b64enc(JSON.stringify(obj)) });
+  } catch (e) { console.error('visio: envoi signal', e); }
+}
+
+// ⚠️ "?return_response" SANS "=true" (piège confirmé le 15/08, cf. M31).
+async function visioLire(destinataire) {
+  try {
+    const r = await apiPost('/api/services/shell_command/m33_visio_signal_lire?return_response', { destinataire });
+    const resp = (r && r.service_response && r.service_response['shell_command.m33_visio_signal_lire'])
+      || (r && r.service_response) || null;
+    const stdout = (resp && typeof resp.stdout === 'string') ? resp.stdout : '';
+    return stdout.split('\n').map(s => s.trim()).filter(Boolean)
+      .map(l => { try { return JSON.parse(b64dec(l)); } catch (e) { return null; } })
+      .filter(Boolean);
+  } catch (e) { return []; }
+}
+
+async function visioDemarrer(mainBox) {
+  visioActive = true;
+  // object-fit "contain" et non "cover" : sur un grand écran, "cover" rogne
+  // les bords et coupe le visage de l'aidant (retour utilisateur du 16/08).
+  // Voir la personne en entier prime sur le remplissage du cadre.
+  mainBox.innerHTML = '<video id="visio-remote" autoplay playsinline '
+    + 'style="width:100%;height:100%;object-fit:contain;background:#000;"></video>';
+  lastMainKey = 'visio-webrtc';
+
+  // Caméra de la personne aidée. Si l'écran n'en a pas (cas des premiers
+  // essais), on continue quand même : elle verra et entendra l'aidant, qui
+  // ne la verra pas. Mieux que pas d'appel du tout.
+  visioStream = null;
+  try {
+    visioStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  } catch (e) {
+    try { visioStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch (e2) { console.warn('visio: aucun périphérique local', e2); }
+  }
+
+  visioPc = new RTCPeerConnection({ iceServers: VISIO_ICE });
+  if (visioStream) visioStream.getTracks().forEach(t => visioPc.addTrack(t, visioStream));
+  if (!visioStream || visioStream.getVideoTracks().length === 0) {
+    visioPc.addTransceiver('video', { direction: 'recvonly' });
+  }
+  if (!visioStream) visioPc.addTransceiver('audio', { direction: 'recvonly' });
+
+  visioPc.ontrack = (e) => {
+    const v = document.getElementById('visio-remote');
+    if (v && e.streams[0]) v.srcObject = e.streams[0];
+  };
+  visioPc.onicecandidate = (e) => {
+    if (e.candidate) visioEnvoyer('aidant', { kind: 'ice', candidate: e.candidate.toJSON() });
+  };
+
+  // 2026-08-16 : si l'aidant ferme son application sans raccrocher, plus
+  // rien n'est transmis et l'image se FIGE à l'écran de la personne aidée —
+  // qui n'a aucun moyen de comprendre ni de réagir. On raccroche donc
+  // nous-mêmes en détectant la rupture.
+  //   'failed'/'closed'  -> rupture certaine, on coupe tout de suite
+  //   'disconnected'     -> souvent un simple hoquet réseau qui se répare
+  //                         seul en quelques secondes : on laisse un délai
+  //                         de grâce avant de couper, pour ne pas
+  //                         interrompre un appel qui allait reprendre.
+  visioPc.onconnectionstatechange = () => {
+    if (!visioPc) return;
+    const etat = visioPc.connectionState;
+
+    if (etat === 'failed' || etat === 'closed') {
+      visioRaccrocherAuto('connexion perdue (' + etat + ')');
+      return;
+    }
+
+    if (etat === 'disconnected') {
+      if (visioGraceTimer) clearTimeout(visioGraceTimer);
+      visioGraceTimer = setTimeout(() => {
+        if (visioPc && visioPc.connectionState === 'disconnected') {
+          visioRaccrocherAuto('correspondant injoignable');
+        }
+      }, VISIO_GRACE_MS);
+    } else if (visioGraceTimer) {
+      clearTimeout(visioGraceTimer);   // la connexion est repartie
+      visioGraceTimer = null;
+    }
+  };
+
+  // Garde-fou : si la connexion n'est jamais établie, on ne laisse pas la
+  // personne aidée devant un écran noir sans fin.
+  visioTimeoutTimer = setTimeout(() => {
+    if (visioPc && visioPc.connectionState !== 'connected') {
+      visioRaccrocherAuto('appel jamais établi');
+    }
+  }, VISIO_TIMEOUT_MS);
+
+  // Relève de la boîte aux lettres pendant l'établissement de l'appel.
+  // Toutes les secondes : c'est court et ça ne dure que le temps de la
+  // négociation — hors appel, ce sondage n'existe pas.
+  //
+  // 2026-08-16 : ce même cycle sert aussi de DÉTECTEUR DE FLUX MORT. Les
+  // états de connexion WebRTC ('failed'/'disconnected') mettent une
+  // trentaine de secondes à basculer — trop long pour laisser une image
+  // figée devant la personne aidée. On surveille donc directement le nombre
+  // d'octets reçus : s'il n'augmente plus, plus rien n'arrive, quelle que
+  // soit ce qu'en dit l'état de la connexion.
+  let dernierOctets = -1, cyclesSansFlux = 0;
+
+  visioTimer = setInterval(async () => {
+    // ── détection de flux mort ──
+    if (visioPc && visioPc.connectionState === 'connected') {
+      try {
+        const stats = await visioPc.getStats();
+        let octets = 0;
+        stats.forEach(r => {
+          if (r.type === 'inbound-rtp' && typeof r.bytesReceived === 'number') {
+            octets += r.bytesReceived;
+          }
+        });
+        if (octets > 0) {
+          if (octets === dernierOctets) {
+            cyclesSansFlux++;
+            if (cyclesSansFlux >= VISIO_CYCLES_SANS_FLUX) {
+              visioRaccrocherAuto('plus aucune image reçue');
+              return;
+            }
+          } else {
+            cyclesSansFlux = 0;
+          }
+          dernierOctets = octets;
+        }
+      } catch (e) { /* statistiques indisponibles : on n'en tient pas compte */ }
+    }
+
+    const messages = await visioLire('kiosk');
+    for (const m of messages) {
+      try {
+        if (m.kind === 'offer') {
+          await visioPc.setRemoteDescription({ type: 'offer', sdp: m.sdp });
+          const answer = await visioPc.createAnswer();
+          await visioPc.setLocalDescription(answer);
+          await visioEnvoyer('aidant', { kind: 'answer', sdp: answer.sdp });
+        } else if (m.kind === 'ice' && m.candidate) {
+          await visioPc.addIceCandidate(m.candidate).catch(() => {});
+        }
+      } catch (err) { console.error('visio: signal', err); }
+    }
+  }, 1000);
+}
+
+function visioArreter() {
+  visioActive = false;
+  if (visioTimer) { clearInterval(visioTimer); visioTimer = null; }
+  if (visioGraceTimer) { clearTimeout(visioGraceTimer); visioGraceTimer = null; }
+  if (visioTimeoutTimer) { clearTimeout(visioTimeoutTimer); visioTimeoutTimer = null; }
+  if (visioPc) { try { visioPc.close(); } catch (e) {} visioPc = null; }
+  if (visioStream) { visioStream.getTracks().forEach(t => t.stop()); visioStream = null; }
+  lastMainKey = null; // force la reconstruction du cadre au prochain cycle
+}
+
+async function refreshMain() {
+  const mainBox = document.getElementById('main-box');
+  const bottomBanner = document.getElementById('banner-bottom');
+
+  // M08 — Kiosk Écran : masquer toute la zone diffusion si module désactivé
+  const m08 = await stateOf('input_boolean.module_m30_kiosk_ecran');
+  if (!m08 || m08.state !== 'on') { mainBox.style.display = 'none'; return; }
+  mainBox.style.display = '';
+
+  // PRIORITÉ ABSOLUE : un appel en cours passe avant tout le reste.
+  // L'interrupteur est allumé par l'aidant au moment où il appelle, et
+  // éteint quand il raccroche — le kiosk suit, sans intervention.
+  const appel = await stateOf('input_boolean.m33_appel_en_cours');
+  if (appel && appel.state === 'on') {
+    // 2026-08-18 : hors plage horaire et appel non marqué urgent -> on ne
+    // répond PAS automatiquement (voir visioDoitRepondre() ci-dessus). Ne
+    // touche pas au reste de l'affichage : ce n'est qu'un refus de décrocher,
+    // pas une raison de perturber ce qui était déjà à l'écran.
+    if (!visioActive && !(await visioDoitRepondre())) {
+      bottomBanner.textContent = '📞 Appel en attente (hors plage horaire)';
+      return;
+    }
+    stopPhotoCarousel();
+    if (!visioActive) await visioDemarrer(mainBox);
+    bottomBanner.textContent = '📹 Écran Visioconférence — appel en cours';
+    return;
+  }
+  if (visioActive) visioArreter();
+
+  // 2026-09-13 : ANCIEN SYSTÈME VISIO (iframe Google Meet) SUPPRIMÉ — remplacé
+  // par la visio WebRTC maison (voir surveillerAppel / visioDemarrer ci-dessus).
+  // Il s'affichait en permanence dès que M33 était actif + URL renseignée,
+  // ce qui masquait TV / musique / photos. Le module M11 (M33) ne conditionne
+  // plus l'affichage du kiosk : il contrôle seulement le lancement d'appel
+  // côté interface aidant (appel normal vs urgence uniquement).
+
+  const etat = await stateOf('sensor.confo_m34_etat_global');
+  if (!etat) {
+    stopPhotoCarousel();
+    if (lastMainKey !== 'none') {
+      mainBox.innerHTML = '<div class="placeholder">—</div>';
+      lastMainKey = 'none';
+    }
+    bottomBanner.textContent = '—';
+    return;
+  }
+
+  if (etat.state === 'photos' || etat.state === 'desactive') {
+    // M32 — Musique : si un créneau musique est actif maintenant, la musique
+    // passe AVANT les photos (priorité : Appel > TV > Musique > Photos).
+    const creneauMusique = await creneauMusiqueActif();
+    if (creneauMusique) {
+      await demarrerMusique(mainBox, creneauMusique);
+      bottomBanner.textContent = '🎵 Écran Musique';
+      return;
+    }
+    // M09 — Écran Photos Famille : pas de diaporama si le module est désactivé
+    const m09 = await stateOf('input_boolean.module_m31_kiosk_foto');
+    if (!m09 || m09.state !== 'on') {
+      stopPhotoCarousel();
+      if (lastMainKey !== 'photos-off') {
+        mainBox.innerHTML = '<div class="placeholder">—</div>';
+        lastMainKey = 'photos-off';
+      }
+      bottomBanner.textContent = '—';
+      return;
+    }
+    if (lastMainKey !== 'photos') {
+      lastMainKey = 'photos';
+      await refreshPhotoInterval();
+      renderPhoto(); // affiche tout de suite la dernière photo connue (évite un flash vide en revenant de vidéo/visio)
+    }
+    await refreshPhotoList();
+  } else {
+    stopPhotoCarousel();
+    const embed = await stateOf('sensor.confo_m34_video_en_cours_embed');
+    const embedUrl = (embed && embed.state && embed.state.startsWith('http')) ? embed.state : null;
+    const key = 'video:' + (embedUrl || 'chargement');
+    if (key !== lastMainKey) {
+      if (embedUrl) {
+        mainBox.innerHTML = '<iframe src="' + embedUrl + '" allow="autoplay; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+      } else {
+        mainBox.innerHTML = '<div class="placeholder">📺 Chargement de la vidéo…</div>';
+      }
+      lastMainKey = key;
+    }
+    const texte = (etat.attributes && etat.attributes.texte_affichage) ? etat.attributes.texte_affichage.trim() : '📺 Écran Télévision';
+    bottomBanner.textContent = texte;
+  }
+}
+
+// ── MUSIQUE (M32) — 2026-09-13 ─────────────────────────
+// Priorité : Appel > TV > Musique > Photos. La musique joue quand un créneau
+// musique est ACTIF et que l'heure courante est dans sa fenêtre, si le module
+// M10 est activé et aucune session TV n'est en cours (vérifié par refreshMain
+// AVANT ce bloc). Les liens (www/musique_liens.txt) sont enchaînés en boucle
+// via la playlist loop de YouTube (une seule iframe).
+let musiqueIds = null;   // cache : IDs YouTube extraits de la liste
+
+function extraireYoutubeId(url) {
+  let m = String(url).match(/youtu\.be\/([\w-]{6,})/);
+  if (m) return m[1].split('?')[0].split('&')[0];
+  m = String(url).match(/[?&]v=([\w-]{6,})/);
+  if (m) return m[1].split('&')[0];
+  return null;
+}
+
+async function chargerMusiqueListe() {
+  if (musiqueIds) return musiqueIds;
+  try {
+    // apiPost (kiosk) renvoie DEJA le JSON parsé (pas la Response).
+    const j = await apiPost('/api/services/shell_command/m32_musique_liens?return_response', { action: 'list' });
+    const resp = (j && j.service_response && j.service_response['shell_command.m32_musique_liens'])
+      || (j && j.service_response) || null;
+    const out = (resp && typeof resp.stdout === 'string') ? resp.stdout : '';
+    const ids = [];
+    out.split('\n').forEach(l => {
+      const i = l.indexOf('|');
+      if (i === -1) return;
+      const id = extraireYoutubeId(l.slice(i + 1).trim());
+      if (id) ids.push(id);
+    });
+    musiqueIds = ids;
+    return ids;
+  } catch (e) { musiqueIds = []; return []; }
+}
+
+async function creneauMusiqueActif() {
+  const m10 = await stateOf('input_boolean.module_m32_kiosk_zic');
+  if (!m10 || m10.state !== 'on') return null;
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  for (let n = 1; n <= 4; n++) {
+    const actif = await stateOf(`input_boolean.m32_creneau${n}_actif`);
+    if (!actif || actif.state !== 'on') continue;
+    const ds = await stateOf(`input_datetime.m32_creneau${n}_debut`);
+    const fs = await stateOf(`input_datetime.m32_creneau${n}_fin`);
+    const d = hhmmToMin(ds && ds.state);
+    const f = hhmmToMin(fs && fs.state);
+    if (d !== null && f !== null && f > d && nowMin >= d && nowMin < f) return n;
+  }
+  return null;
+}
+
+async function demarrerMusique(mainBox, n) {
+  const ids = await chargerMusiqueListe();
+  const key = 'musique-' + n + '-' + ids.length;
+  if (key === lastMainKey) return;
+  stopPhotoCarousel();
+  lastMainKey = key;
+  if (!ids.length) {
+    mainBox.innerHTML = '<div class="placeholder">🎵 Aucune musique dans la liste</div>';
+    return;
+  }
+  const playlist = ids.join(',');
+  mainBox.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + ids[0] +
+    '?autoplay=1&loop=1&playlist=' + playlist + '&rel=0" allow="autoplay; fullscreen" ' +
+    'referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+}
+
+// ── RAPPEL MÉDICAMENTS (M13) — 2026-08-16 ──────────────
+// Entièrement calculé côté client (pas d'automation) : pour chaque zone
+// active, on affiche le rappel si l'heure courante est dans la fenêtre
+// [heure_zone ; heure_zone + durée]. Le rappel disparaît tout seul à la fin
+// de la fenêtre — c'est une simple notification, rien à acquitter
+// (décision utilisateur 2026-08-16).
+const MEDOC_ZONES = [
+  { key: 'matin',  label: 'du matin' },
+  { key: 'midi',   label: 'du midi' },
+  { key: 'soir',   label: 'du soir' },
+  { key: 'couche', label: 'du coucher' },
+];
+
+// "HH:MM[:SS]" -> minutes depuis minuit, ou null si invalide/non réglé.
+function hhmmToMin(s) {
+  if (!s || typeof s !== 'string') return null;
+  const m = s.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+
+async function refreshMedoc() {
+  const banner = document.getElementById('medoc-banner');
+  if (!banner) return;
+
+  const mod = await stateOf('input_boolean.module_m20_medoc');
+  if (!mod || mod.state !== 'on') { banner.classList.remove('show'); return; }
+
+  const durState = await stateOf('input_number.m20_medoc_duree_min');
+  const duree = durState ? Math.max(1, parseInt(parseFloat(durState.state), 10) || 30) : 30;
+
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+
+  let zoneActive = null;
+  for (const z of MEDOC_ZONES) {
+    const actif = await stateOf(`input_boolean.m20_medoc_${z.key}_actif`);
+    if (!actif || actif.state !== 'on') continue;
+    const t = await stateOf(`input_datetime.m20_medoc_${z.key}`);
+    const start = hhmmToMin(t && t.state);
+    if (start === null) continue;
+    // Fenêtre [start ; start+duree]. Pas de gestion du passage minuit :
+    // un rappel de coucher réglé à 23h50 avec 30 min s'arrête à minuit —
+    // acceptable pour un simple rappel (et rare en pratique).
+    if (nowMin >= start && nowMin < start + duree) { zoneActive = z; break; }
+  }
+
+  if (zoneActive) {
+    document.getElementById('medoc-sub').textContent =
+      'Compartiment ' + zoneActive.label + ' du pilulier';
+    banner.classList.add('show');
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
+// ── REFRESH GLOBAL ────────────────────────────────────
+async function refreshAll() {
+  // M08 — master switch : si désactivé, tout le contenu kiosk est masqué
+  const m08 = await stateOf('input_boolean.module_m30_kiosk_ecran');
+  const m08on = m08 && m08.state === 'on';
+  ['calendar-box', 'msg-box', 'main-box', 'banner-bottom', 'medoc-banner'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = m08on ? '' : 'none';
+  });
+  if (!m08on) return;
+  await Promise.all([refreshCalendar(), refreshMessage(), refreshMain(), refreshMedoc()]);
+}
+
+// 2026-08-16 (correctif, retour utilisateur : "10-20 secondes avant que ça
+// n'apparaisse à l'écran") : le cycle général tourne à 20 s, ce qui suffit
+// pour l'heure, la météo ou les messages, mais pas pour un appel — la
+// personne aidée voyait l'écran basculer très en retard sur le "Appeler" de
+// l'aidant, et pareil au raccrochage. On ajoute donc un sondage rapide DÉDIÉ,
+// qui ne lit qu'UNE seule entité (lecture d'état, très légère) toutes les
+// 2 s, au lieu d'accélérer tout le reste inutilement.
+const APPEL_POLL = 2000;
+
+async function surveillerAppel() {
+  // M08 — master switch : écran coupé = aucun appel ne s'affiche non plus
+  const m08 = await stateOf('input_boolean.module_m30_kiosk_ecran');
+  if (!m08 || m08.state !== 'on') {
+    if (visioActive) visioArreter();
+    return;
+  }
+  const appel = await stateOf('input_boolean.m33_appel_en_cours');
+  const doitEtreActif = !!(appel && appel.state === 'on');
+  if (doitEtreActif && !visioActive) {
+    // 2026-08-18 : même garde-fou plage horaire que refreshMain() — voir
+    // visioDoitRepondre(). Ce sondage rapide (2 s) est le chemin normal de
+    // décrochage ; refreshMain() (20 s) ne fait que rattraper le cas où ce
+    // sondage n'aurait pas encore tourné.
+    if (!(await visioDoitRepondre())) return;
+    stopPhotoCarousel();
+    await visioDemarrer(document.getElementById('main-box'));
+    document.getElementById('banner-bottom').textContent = '📹 Écran Visioconférence — appel en cours';
+  } else if (!doitEtreActif && visioActive) {
+    visioArreter();
+    refreshMain(); // retour immédiat aux photos / à la TV
+  }
+}
+
+if (currentToken()) {
+  refreshAll();
+  setInterval(refreshAll, REFRESH);
+  setInterval(surveillerAppel, APPEL_POLL);
+} else {
+  document.getElementById('main-placeholder').textContent =
+    'Session HA requise — ouvrir cette page depuis le tableau de bord Home Assistant.';
+}
+</script>
+</body>
+</html>
