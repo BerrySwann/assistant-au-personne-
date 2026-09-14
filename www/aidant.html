@@ -853,7 +853,7 @@ let refreshTimer = null;
    discrètement sa propre source (URL cache-bustée, no-store) et se
    RECHARGE AUTOMATIQUEMENT si le serveur sert une version différente.
    ⚠️ RÈGLE : à CHAQUE modification de ce fichier, incrémenter APP_VERSION. */
-const APP_VERSION = '2026-09-14.3';
+const APP_VERSION = '2026-09-14.4';
 
 async function verifierVersionPage() {
   try {
@@ -1994,7 +1994,7 @@ function haDeleteEventWebSocket(uid) {
       let m;
       try { m = JSON.parse(ev.data); } catch (e) { return; }
       if (m.type === 'auth_required') {
-        ws.send(JSON.stringify({ type: 'auth', access_token: token }));
+        ws.send(JSON.stringify({ type: 'auth', access_token: currentToken() }));
       } else if (m.type === 'auth_ok') {
         ws.send(JSON.stringify({ id: 1, type: 'calendar/event/delete',
           entity_id: 'calendar.calendrier_local', uid: uid }));

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Diagnostic Suppression — HA</title>
+<style>
+  body { background: #0b1020; color: #e5e7eb; font-family: ui-monospace, Consolas, monospace; font-size: 19px; padding: 30px; line-height: 1.6; }
+  h1 { font-size: 23px; margin-bottom: 16px; }
+  .ok { color: #4ade80; font-weight: bold; }
+  .ko { color: #f87171; font-weight: bold; }
+  .info { color: #93c5fd; }
+  .brut { color: #fbbf24; font-size: 15px; word-break: break-all; }
+</style>
+</head>
+<body>
+<h1>🔬 Diagnostic SUPPRESSION d'un RDV — Home Assistant</h1>
+<div id="out"></div>
+<script>
+const out = document.getElementById('out');
+function dire(t, cls) { out.innerHTML += '<div class="' + (cls || '') + '">' + t + '</div>'; }
+
+let token = localStorage.getItem('ha_token') || '';
+let source = 'ha_token';
+if (!token) {
+  try { const ht = JSON.parse(localStorage.getItem('hassTokens') || '{}'); token = ht.access_token || ''; if (token) source = 'hassTokens'; } catch (e) {}
+}
+dire('Jeton : ' + (token ? 'OK (' + source + ', ' + token.length + ' car.)' : 'ABSENT'), token ? 'info' : 'ko');
+
+const UID_TEST = '367cbaea-b05e-11f1-9cfe-d83addfbf322';   // RDV « TEST supprime-moi » (15/09 10:00)
+const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+dire('Connexion ' + proto + location.host + '/api/websocket …', 'info');
+
+let abouti = false;
+try {
+  const ws = new WebSocket(proto + location.host + '/api/websocket');
+  ws.onopen = () => dire('✔ WebSocket OUVERT', 'ok');
+  ws.onmessage = (ev) => {
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.type === 'auth_required') { ws.send(JSON.stringify({ type: 'auth', access_token: token })); }
+    else if (m.type === 'auth_ok') {
+      dire('✔ AUTH OK — envoi de la commande de SUPPRESSION (uid ' + UID_TEST.slice(0, 8) + '…)', 'ok');
+      ws.send(JSON.stringify({ id: 1, type: 'calendar/event/delete', entity_id: 'calendar.calendrier_local', uid: UID_TEST }));
+    }
+    else if (m.type === 'auth_invalid') { abouti = true; dire('❌ AUTH REFUSÉE : ' + (m.message || ''), 'ko'); }
+    else if (m.id === 1) {
+      abouti = true;
+      dire('Réponse brute de HA :', 'info');
+      dire(JSON.stringify(m), 'brut');
+      if (m.success) { dire('✅ HA A ACCEPTÉ LA SUPPRESSION ! (le RDV doit disparaître)', 'ok'); }
+      else { dire('❌ HA A REFUSÉ : ' + JSON.stringify(m.error), 'ko'); }
+      dire('===== FIN =====', 'info');
+    }
+  };
+  ws.onerror = () => { dire('❌ ERREUR WEBSOCKET', 'ko'); };
+  ws.onclose = (e) => { dire('— connexion fermée (' + e.code + ') —', 'info'); };
+  setTimeout(() => { if (!abouti) dire('❌ AUCUNE RÉPONSE après 8 s.', 'ko'); }, 8000);
+} catch (e) { dire('❌ EXCEPTION : ' + e, 'ko'); }
+</script>
+</body>
+</html>
