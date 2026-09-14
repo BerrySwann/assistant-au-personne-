@@ -52,38 +52,37 @@ input_text:
   # ── Droits d'accès aidants (interface Aidant) ──────────────────────────────
   # JSON compact { "<object_id_person>": <bitmask>, ... } — max input_text = 255c
   # object_id_person = partie après "person." (ex: person.aidant_1_admin_ok -> "aidant_1_admin_ok")
-  # bitmask : 0 = aucun droit | 1 = config (🔧) | 2 = messages (⚙️) | 3 = les deux
-  # person.eric (admin/installateur) a TOUJOURS les deux droits, en dur dans
-  # aidant.html — jamais lu depuis ce JSON, jamais modifiable ici.
+  #
+  # 2026-08-15 (suite, remplacement des PIN) : bitmask étendu de 2 à 6 droits.
+  # Les 2 PIN (m10_pin_pages_dediees, m10_pin_config, ajoutés puis retirés le
+  # même jour) sont retirés — jugés ingérables par l'utilisateur ("si un
+  # aidant donne son pin à un autre aidant il aura accès"). Remplacés par ce
+  # système de droits, appliqué automatiquement selon l'identité RÉELLE de la
+  # personne connectée (voir www/config.html + les 3 pages dédiées : client
+  # WebSocket auth/current_user, qui résout le token → utilisateur HA →
+  # person.* correspondante via attributes.user_id → droits ici).
+  #
+  # bitmask :
+  #   1  = config     (🔧) — accès à config.html lui-même
+  #   2  = messages   (⚙️) — réglages de messages (M03)
+  #   4  = calendrier (📅) — accès à calendrier.html
+  #   8  = video      (📺) — accès à video.html
+  #   16 = photos     (📷) — accès à photos.html
+  #   32 = alertes     (🚨) — reçoit les alertes modérées/infos (PAS le SOS,
+  #        qui reste géré séparément par input_boolean.m10_proximite_aidant_*
+  #        ci-dessous — décision explicite de l'utilisateur, systèmes non liés)
+  # 0 = aucun droit, cases combinables (ex: 5 = config + calendrier)
+  #
+  # person.eric (admin/installateur) a TOUJOURS tous les droits, détecté via
+  # `is_owner`/`is_admin` dans la réponse WebSocket — jamais lu depuis ce
+  # JSON, jamais modifiable ici (même logique qu'avant pour config/messages,
+  # étendue à tous les nouveaux droits).
   # Écrit/lu uniquement par config.html (onglet Sécurité > Droits d'accès).
   m10_droits_aidants:
     name: "M10 Droits Accès Aidants (JSON)"
     max: 255
     initial: "{}"
     icon: mdi:shield-account
-
-  # ── Code PIN pages dédiées (calendrier.html / video.html / photos.html) ──
-  # 2026-08-15 : les 3 pages dédiées (bouton dans aidant.html, une page par
-  # module) sont ouvertes par défaut à N'IMPORTE QUI ayant accès au navigateur
-  # de la famille — il n'existe PAS de système de connexion par personne dans
-  # ce projet (aidant.html/config.html utilisent un token HA unique partagé,
-  # pas une identité par utilisateur). Un PIN partagé (pas de compte par
-  # aidant) est le seul mécanisme réaliste avec l'architecture actuelle.
-  # ⚠️ Volontairement PAS de `initial:` ici (piège documenté ci-dessous) :
-  # si tu (Eric) changes le PIN depuis config.html, il ne doit JAMAIS revenir
-  # à une valeur par défaut après un redémarrage HA.
-  # ⚠️ Ceci n'est PAS un vrai mécanisme de sécurité (le PIN est stocké et
-  # lu en clair via l'API HA, visible par quiconque a le token) — c'est un
-  # simple frein pour éviter qu'un enfant ou un aidant de passage ouvre ces
-  # pages par erreur, pas une protection contre un accès malveillant.
-  m10_pin_pages_dediees:
-    name: "M10 Code PIN Pages Dédiées (Calendrier/Vidéo/Photos)"
-    max: 10
-    icon: mdi:lock-outline
-    # Aucune valeur tant que non configuré depuis config.html (onglet
-    # Sécurité) — voir gate PIN dans calendrier.html/video.html/photos.html :
-    # tant que cette entité est vide/"unknown", les 3 pages affichent un
-    # message "PIN non configuré" au lieu du clavier PIN.
 
 # annotations_log:
 # - 2026-08-05 : création. Une case à cocher par aidant fictif (7), décochée
@@ -98,7 +97,18 @@ input_text:
 #   ouvertes depuis de nouveaux boutons dans aidant.html. Configurable
 #   uniquement depuis config.html (onglet Sécurité), jamais depuis les pages
 #   protégées elles-mêmes.
-# - 2026-08-15 (même jour, rattrapage) : mirror docs renommé m04_→m10_
-#   gestion_aidants.yaml (le fichier live utilisait déjà m10_, le mirror docs
-#   était resté sur l'ancienne numérotation M04 et ne contenait même pas
-#   input_text.m10_droits_aidants — dérive antérieure à cette session).
+# - 2026-08-15 (même jour, suite, audit sécurité) : ajout m10_pin_config —
+#   2e PIN, distinct, protégeant config.html lui-même (aucune vérification
+#   de rôle n'existait avant : un aidant connaissant l'URL directe pouvait
+#   ouvrir les réglages, changer le PIN, les droits d'accès, etc.). Bootstrap
+#   par Outils de développement (pas par config.html — casse-tête circulaire,
+#   voir commentaire ci-dessus).
+# - 2026-08-15 (même jour, suite, DÉFINITIF) : les 2 PIN retirés (jugés
+#   ingérables par l'utilisateur — un PIN partagé donne accès à quiconque le
+#   connaît, pas de vraie distinction par personne). Remplacés par le
+#   bitmask m10_droits_aidants étendu de 2 à 6 droits (config/messages/
+#   calendrier/video/photos/alertes), appliqué selon l'identité réelle de
+#   connexion (client WebSocket auth/current_user, voir www/config.html et
+#   les 3 pages dédiées). Nécessite un vrai compte HA par aidant (username +
+#   mot de passe, Paramètres → Personnes → Autoriser la connexion) — sur
+#   l'instance live, seuls 2 aidants sur 7 en ont un pour l'instant.

@@ -8,7 +8,7 @@
 #
 # ⚠️ À FAIRE LE JOUR OÙ LE VRAI MATÉRIEL ARRIVE :
 # - Remplacer les entity_id "input_boolean.sim_*" par les vrais entity_id Z2M
-#   dans m02_inactivite.yaml, m04_sos.yaml, m05_capteur_lit.yaml.
+#   dans m02_inactivite.yaml, m10_sos.yaml, m11_capteur_lit.yaml.
 # - Supprimer ce fichier (ou le laisser inactif, il ne gêne rien s'il n'est
 #   plus référencé nulle part).
 
@@ -27,6 +27,32 @@ input_boolean:
     name: "SIMU — Lit Occupé"
     initial: false
     icon: mdi:bed-outline
+
+  # ── M02 v2 — Sources activité ──────────────────────────────────────────────
+  sim_presence_salon:
+    name: "SIMU — mmWave Salon (présence)"
+    initial: true
+    icon: mdi:radar
+
+  sim_presence_chambre:
+    name: "SIMU — mmWave Chambre (présence)"
+    initial: false
+    icon: mdi:radar
+
+  sim_pir_cuisine:
+    name: "SIMU — PIR Cuisine (mouvement)"
+    initial: false
+    icon: mdi:motion-sensor
+
+  sim_pir_couloir:
+    name: "SIMU — PIR Couloir (mouvement)"
+    initial: false
+    icon: mdi:motion-sensor
+
+  sim_pir_sdb:
+    name: "SIMU — PIR SDB (mouvement)"
+    initial: false
+    icon: mdi:motion-sensor
 
 # ┌─────────────────────────────────────────────────────────┐
 # │ Reset automatique du bouton SOS simulé après 2 secondes │

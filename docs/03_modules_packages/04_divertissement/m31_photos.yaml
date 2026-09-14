@@ -72,6 +72,25 @@
 #    validé côté script (os.path.basename, rejet si chemin/`..`).
 #    ⚠️ Non vérifié en direct cette session (pas de token HA actif).
 #
+# 🚫➡️✅ RÉVISION 2026-08-15 (même jour, suite, DÉFINITIF) — UPLOAD SANS DROITS
+#    ADMIN : la route officielle POST /api/media_source/local_source/upload
+#    contient dans le code source HA (local_source.py) :
+#        if not request["hass_user"].is_admin: raise Unauthorized()
+#    → réservée aux comptes ADMINISTRATEUR, confirmé en direct (un compte non-
+#    admin recevait 401 UNIQUEMENT sur cet endpoint, jamais sur la galerie/
+#    suppression qui passent par shell_command, pas admin-only). Rendre chaque
+#    compte "aidant" admin pour pouvoir envoyer une photo est disproportionné
+#    (accès complet à toute la config HA). Contournement : shell_command.
+#    m31_photos_televerser_{debut,chunk,fin} + shell_scripts/
+#    m31_photos_televerser.py, qui écrit le fichier directement sur disque
+#    (même logique que m31_photos_supprimer.py). En 3 étapes/plusieurs appels
+#    car shell_command exécute une vraie ligne de commande (limite ARG_MAX,
+#    ~2 Mo sur Linux) : une photo de téléphone encodée en base64 dépasserait
+#    facilement cette limite en un seul appel. photos.html découpe le fichier
+#    en morceaux de 50 000 caractères et les envoie un par un (seuil réel
+#    mesuré en direct entre 100 000 = OK et 150 000 = HTTP 500 ; 50 000 pris
+#    avec marge de sécurité).
+#
 # ⚠️ CE QUI N'EST TOUJOURS PAS FAIT :
 #    - Pas de réception automatique par email des photos.
 #
@@ -92,6 +111,12 @@
 # - Révision 2026-08-15 (même jour, suite) : shell_command.m31_photos_supprimer
 #   + shell_scripts/m31_photos_supprimer.py — suppression réelle depuis la
 #   nouvelle page photos.html (PIN requis).
+# - Révision 2026-08-15 (même jour, suite, DÉFINITIF) : 401 upload = route
+#   HA officielle réservée aux comptes admin (confirmé dans local_source.py).
+#   Contournement shell_command.m31_photos_televerser_{debut,chunk,fin} +
+#   shell_scripts/m31_photos_televerser.py (écriture directe sur disque, par
+#   morceaux pour éviter la limite ARG_MAX) — permet l'upload à n'importe
+#   quel compte non-admin protégé par le PIN partagé.
 
 # NOTE : input_boolean.module_m31_kiosk_foto est déjà déclaré dans m00_modules.yaml.
 # Ne PAS le redéclarer ici (conflit unique_id si dupliqué entre packages).
@@ -134,19 +159,39 @@ shell_command:
   # côté script (voir shell_scripts/m31_photos_supprimer.py). Retourne
   # OK / NOTFOUND / ERROR: <message> en stdout.
 
+  m31_photos_televerser_debut: >-
+    python3 /config/shell_scripts/m31_photos_televerser.py "debut" "{{ nom | default('') }}"
+  m31_photos_televerser_chunk: >-
+    python3 /config/shell_scripts/m31_photos_televerser.py "chunk" "{{ nom | default('') }}" "{{ chunk | default('') }}"
+  m31_photos_televerser_fin: >-
+    python3 /config/shell_scripts/m31_photos_televerser.py "fin" "{{ nom | default('') }}"
+  # Contournement de la restriction admin-only de l'upload média HA natif
+  # (voir encadré DÉFINITIF plus haut). Appelés uniquement par photos.html
+  # (page dédiée, PIN requis), dans cet ordre : debut (crée le fichier
+  # temporaire) → chunk (répété, ajoute chaque morceau de base64) → fin
+  # (décode le tout, écrit l'image finale dans /media/photos_famille/,
+  # nettoie le temporaire). data: { nom: "<nom_fichier>" } pour debut/fin,
+  # { nom, chunk: "<morceau_base64>" } pour chunk. Validation du nom côté
+  # script (os.path.basename, rejet si chemin/`..`) — voir
+  # shell_scripts/m31_photos_televerser.py. Retourne OK / ERROR: <message>.
+
 script:
   m31_lancer_diaporama:
-    alias: "M31 — Retour à l'écran photos (dashboard kiosk)"
-    # Toujours utilisé : appelé par confo_m34_television/m34_television.yaml
-    # (automations verifier_sessions et m34_reset_desactivation) pour
-    # rediriger le navigateur TV vers le dashboard kiosk quand on repasse
-    # en mode photos. Vérifié le 2026-08-15 — PAS orphelin. Ne fait que la
-    # navigation ; la rotation elle-même est gérée côté client par
-    # kiosk.html une fois la page affichée.
-    sequence:
-      - condition: template
-        value_template: "{{ states('input_text.m34_browser_id_tv') | trim != '' }}"
-      - service: browser_mod.navigate
-        data:
-          path: "/lovelace-kiosk/kiosk"
-          browser_id: "{{ states('input_text.m34_browser_id_tv') }}"
+    alias: "M31 — Retour à l'écran photos (dashboard kiosk) — VIDÉ 2026-08-18"
+    # ⚠️ 2026-08-18 : coquille vide, ne fait plus rien. Faisait avant un
+    # browser_mod.navigate (gardé par input_text.m34_browser_id_tv) pour
+    # forcer le navigateur TV à revenir sur le dashboard kiosk — mécanisme
+    # hérité de l'ancienne architecture de redirection navigateur, abandonnée
+    # le 14/08 au profit de kiosk.html en HTML pur : celui-ci gère déjà ce
+    # retour tout seul par sondage d'état (refreshMain()), sans jamais avoir
+    # besoin d'être "navigué" nulle part — le navigateur TV reste en
+    # permanence sur /lovelace-kiosk/kiosk. `input_text.m34_browser_id_tv` a
+    # été supprimé (plus utile), voir M34_television.md.
+    #
+    # Gardé en coquille vide (plutôt que supprimé entièrement) car encore
+    # APPELÉ par 2 automations de m34_television.yaml
+    # (m34_verifier_sessions, m34_reset_desactivation) — les supprimer
+    # dépasserait la demande initiale (nettoyage du seul Browser ID). Ces
+    # 2 appels sont donc désormais des no-op ; à évaluer s'ils valent la
+    # peine d'être retirés à leur tour dans un prochain passage.
+    sequence: []

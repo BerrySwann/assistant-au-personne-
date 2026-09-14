@@ -8,6 +8,10 @@
 # création), ce qui écrasait les choix de l'utilisateur sur le dashboard
 # Configuration après chaque reboot. Sans `initial:`, HA restaure le dernier
 # état connu de chaque interrupteur.
+#
+# ⚠️ Renommage 2026-08-13 : entity_id ET name: alignés sur la nouvelle
+# numérotation par groupe (oblig/Secur/Santé/Confo/Envir). Voir
+# docs/RENOMMAGE_TABLE.md pour la correspondance ancien/nouveau complète.
 
 sensor:
   - platform: time_date
@@ -21,81 +25,126 @@ input_boolean:
   # ┌─────────────────────────────────────┐
   # │   OBLIGATOIRES                      │
   # └─────────────────────────────────────┘
-  module_temp_hygro:
-    name: "M01 Température & Hygro"
+  module_m01_temp_hygro:
+    name: "oblig_M01 Température & Hygro"
     icon: mdi:thermometer
 
-  module_inactivite:
-    name: "M02 Détection Inactivité"
+  module_m02_inactivite:
+    name: "oblig_M02 Détection Inactivité"
     icon: mdi:motion-sensor
 
-  module_ecran_msg:
-    name: "M03 Écran Messages"
+  module_m03_ecran_msg:
+    name: "oblig_M03 Écran Messages"
     icon: mdi:message-text-outline
 
+  module_m04_calendrier:
+    name: "oblig_M04 Calendrier"
+    icon: mdi:calendar-month-outline
+
   # ┌─────────────────────────────────────┐
-  # │   OPTIONNELS                        │
+  # │   M02 — CAPTEURS ACTIFS (PRÉSENCE) │
+  # │   Activé via appairage.html        │
   # └─────────────────────────────────────┘
-  module_sos:
-    name: "M04 Bouton SOS"
+  # Double-check dans m02_inactivite.yaml :
+  # boolean ON + entité capteur not in [unavailable, unknown]
+  m02_presence_salon_actif:
+    name: "M02 Présence Salon Active"
+    icon: mdi:radar
+
+  m02_presence_chambre_actif:
+    name: "M02 Présence Chambre Active"
+    icon: mdi:radar
+
+  m02_pir_cuisine_actif:
+    name: "M02 PIR Cuisine Actif"
+    icon: mdi:motion-sensor
+
+  m02_pir_couloir_actif:
+    name: "M02 PIR Couloir Actif"
+    icon: mdi:motion-sensor
+
+  m02_pir_sdb_actif:
+    name: "M02 PIR SDB Actif"
+    icon: mdi:motion-sensor
+
+  # ┌─────────────────────────────────────┐
+  # │   SECURITE                          │
+  # └─────────────────────────────────────┘
+  module_m10_sos:
+    name: "Secur_M10 Bouton SOS"
     icon: mdi:alarm-light-outline
 
-  module_capteur_lit:
-    name: "M05 Capteur Lit"
+  module_m11_capteur_lit:
+    name: "Secur_M11 Capteur Lit"
     icon: mdi:bed-outline
 
-  module_cam_ia:
-    name: "M06 Caméra IA"
+  module_m12_cam_ia:
+    name: "Secur_M12 Caméra IA"
     icon: mdi:eye-outline
 
-  module_kiosk_ecran:
-    name: "M07 Kiosk Écran"
-    icon: mdi:monitor
-
-  module_kiosk_foto:
-    name: "M08 Photos Famille"
-    icon: mdi:image-multiple-outline
-
-  module_kiosk_zic:
-    name: "M09 Musique"
-    icon: mdi:music-note-outline
-
-  module_visio:
-    name: "M10 Visioconférence"
-    icon: mdi:video-outline
-
-  module_television:
-    name: "M11 Télévision"
-    icon: mdi:television-play
-
-  module_douche:
-    name: "M12 Douche"
-    icon: mdi:shower-head
-
-  module_medoc:
-    name: "M13 Médicaments"
-    icon: mdi:pill-multiple
-
-  module_repas:
-    name: "M14 Repas"
-    icon: mdi:food-outline
-
-  module_porte_ext:
-    name: "M15 Porte Extérieure"
+  module_m13_porte_ext:
+    name: "Secur_M13 Porte Extérieure"
     icon: mdi:door-open
 
-  module_lumiere_nuit:
-    name: "M16 Veilleuse Nuit"
-    icon: mdi:weather-night
-
-  module_chauffage:
-    name: "M17 Chauffage"
-    icon: mdi:radiator
-
-  module_fenetre:
-    name: "M18 Fenêtres"
+  module_m14_fenetre:
+    name: "Secur_M14 Fenêtres"
     icon: mdi:window-open-variant
 
+  module_m17_lumiere_nuit:
+    name: "Secur_M17 Veilleuse Nuit"
+    icon: mdi:weather-night
+
+  # ┌─────────────────────────────────────┐
+  # │   SANTE                             │
+  # └─────────────────────────────────────┘
+  module_m20_medoc:
+    name: "Santé_M20 Médicaments"
+    icon: mdi:pill-multiple
+
+  # M21 Repas : ABANDONNÉ le 2026-08-16. Raison : aucun signal fiable de
+  # "repas pris". La conso d'un appareil de cuisson ne voit rien l'été (salade
+  # froide), et les prises connectées sont non fiables en contexte Alzheimer
+  # (la personne débranche/tripote). Le seul signal robuste (frigo/congel +
+  # question posée au kiosk) ne "détecte" pas un repas, il donne un simple
+  # indice — jugé insuffisant pour justifier le module. Décision utilisateur.
+
+  module_m22_douche:
+    name: "Santé_M22 Douche"
+    icon: mdi:shower-head
+
+  # ┌─────────────────────────────────────┐
+  # │   CONFORT & LOISIRS                 │
+  # └─────────────────────────────────────┘
+  module_m30_kiosk_ecran:
+    name: "Confo_M30 Kiosk Écran"
+    icon: mdi:monitor
+
+  module_m31_kiosk_foto:
+    name: "Confo_M31 Photos Famille"
+    icon: mdi:image-multiple-outline
+
+  module_m32_kiosk_zic:
+    name: "Confo_M32 Musique"
+    icon: mdi:music-note-outline
+
+  module_m33_visio:
+    name: "Confo_M33 Visioconférence"
+    icon: mdi:video-outline
+
+  module_m34_television:
+    name: "Confo_M34 Télévision"
+    icon: mdi:television-play
+
+  # ┌─────────────────────────────────────┐
+  # │   ENVIRONNEMENT                     │
+  # └─────────────────────────────────────┘
+  module_m40_chauffage:
+    name: "Envir_M40 Chauffage"
+    icon: mdi:radiator
+
+  # ┌─────────────────────────────────────┐
+  # │   EXCLUS DU REGISTRE (orphelins)    │
+  # └─────────────────────────────────────┘
   module_dashboard_fam:
     name: "M19 Dashboard Famille"
     icon: mdi:home-heart

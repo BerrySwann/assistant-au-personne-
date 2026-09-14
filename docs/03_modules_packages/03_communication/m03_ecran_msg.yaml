@@ -498,27 +498,7 @@ template:
             {% else %}
               {% set msg = states('input_text.m03_affiche_msg') %}
               {% set auteur = states('input_text.m03_affiche_auteur') | default('La famille') %}
-              {% set depuis_raw = states('input_datetime.m03_affiche_depuis') %}
-              {% set seul = states('input_text.m03_queue_msg') | trim in ['', 'unknown', 'unavailable'] %}
-              {% if depuis_raw not in ['unknown', 'unavailable'] %}
-                {% set depuis = depuis_raw | as_datetime | as_local %}
-                {% set age_s = (now() - depuis).total_seconds() | int %}
-                {% set age_m = ((age_s % 3600) // 60) | int %}
-                {% set age_h = (age_s // 3600) | int %}
-                {% if age_s < 120 %}
-                  💬 {{ auteur }} : {{ msg }} — à l'instant
-                {% elif age_s < 900 or seul %}
-                  {% if age_h > 0 %}
-                    💬 {{ auteur }} : {{ msg }} — il y a {{ age_h }}h{{ '%02d' | format(age_m) }}
-                  {% else %}
-                    💬 {{ auteur }} : {{ msg }} — il y a {{ (age_s // 60) | int }} min
-                  {% endif %}
-                {% else %}
-                  💬 {{ auteur }} : {{ msg }}
-                {% endif %}
-              {% else %}
-                💬 {{ auteur }} : {{ msg }}
-              {% endif %}
+              💬 {{ auteur }} : {{ msg }}
             {% endif %}
 
   # --- M03 Bandeau Principal (trigger-based — refresh /1 min) ---

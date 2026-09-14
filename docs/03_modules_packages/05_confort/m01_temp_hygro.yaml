@@ -56,7 +56,7 @@ template:
         unique_id: m01_alerte_temperature
         icon: mdi:thermometer-alert
         state: >
-          {% if not is_state('input_boolean.module_temp_hygro', 'on') %}
+          {% if not is_state('input_boolean.module_m01_temp_hygro', 'on') %}
             inactif
           {% elif states('sensor.snzb02d_salon_temperature') | float(20) < 16 %}
             froid
@@ -80,7 +80,7 @@ template:
         unique_id: m01_alerte_humidite
         icon: mdi:water-alert
         state: >
-          {% if not is_state('input_boolean.module_temp_hygro', 'on') %}
+          {% if not is_state('input_boolean.module_m01_temp_hygro', 'on') %}
             inactif
           {% elif states('sensor.snzb02d_salon_humidity') | float(50) > 70 %}
             elevee

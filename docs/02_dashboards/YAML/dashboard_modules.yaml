@@ -48,7 +48,7 @@ views:
                 .subtitle { font-size: 0.75em !important; color: var(--secondary-text-color) !important; }
 
           - type: custom:button-card
-            entity: input_boolean.module_temp_hygro
+            entity: input_boolean.module_m01_temp_hygro
             name: "M01 — Température & Hygrométrie"
             label: "Surveillance T° et humidité par pièce, alertes froid/canicule"
             show_icon: true
@@ -83,7 +83,7 @@ views:
                 - color: "#6b7280"
 
           - type: custom:button-card
-            entity: input_boolean.module_inactivite
+            entity: input_boolean.module_m02_inactivite
             name: "M02 — Détection Inactivité"
             label: "Alerte si aucun mouvement détecté pendant une durée anormale"
             show_icon: true
@@ -118,7 +118,7 @@ views:
                 - color: "#6b7280"
 
           - type: custom:button-card
-            entity: input_boolean.module_ecran_msg
+            entity: input_boolean.module_m03_ecran_msg
             name: "M03 — Écran Messages"
             label: "Agenda Google Calendar + messages texto famille sur le kiosk"
             show_icon: true
@@ -185,30 +185,30 @@ views:
           - type: entities
             show_header_toggle: false
             entities:
-              - entity: input_boolean.m04_proximite_aidant_1
+              - entity: input_boolean.m10_proximite_aidant_1
                 name: "Aidant 1 admin ok"
                 icon: mdi:account-heart
-              - entity: input_boolean.m04_proximite_aidant_2
+              - entity: input_boolean.m10_proximite_aidant_2
                 name: "Aidant 2 ok"
                 icon: mdi:account-heart
-              - entity: input_boolean.m04_proximite_aidant_3
+              - entity: input_boolean.m10_proximite_aidant_3
                 name: "Aidant 3 ok"
                 icon: mdi:account-heart
-              - entity: input_boolean.m04_proximite_aidant_4
+              - entity: input_boolean.m10_proximite_aidant_4
                 name: "Aidant 4 hs"
                 icon: mdi:account-heart
-              - entity: input_boolean.m04_proximite_aidant_5
+              - entity: input_boolean.m10_proximite_aidant_5
                 name: "Aidant 5 hs"
                 icon: mdi:account-heart
-              - entity: input_boolean.m04_proximite_aidant_6
+              - entity: input_boolean.m10_proximite_aidant_6
                 name: "Aidant 6 ok"
                 icon: mdi:account-heart
-              - entity: input_boolean.m04_proximite_aidant_7
+              - entity: input_boolean.m10_proximite_aidant_7
                 name: "Aidant 7 hs"
                 icon: mdi:account-heart
 
           - type: custom:button-card
-            entity: input_boolean.module_sos
+            entity: input_boolean.module_m10_sos
             name: "M04 — Bouton SOS"
             label: "Appel d'urgence immédiat vers les aidants"
             show_icon: true
@@ -243,7 +243,7 @@ views:
                 - color: "#6b7280"
 
           - type: custom:button-card
-            entity: input_boolean.module_capteur_lit
+            entity: input_boolean.module_m11_capteur_lit
             name: "M05 — Capteur Lit"
             label: "Détection lever/coucher, alertes si pas levé à l'heure habituelle"
             show_icon: true
@@ -278,7 +278,7 @@ views:
                 - color: "#6b7280"
 
           - type: custom:button-card
-            entity: input_boolean.module_cam_ia
+            entity: input_boolean.module_m12_cam_ia
             name: "M06 — Caméra IA (Vision)"
             label: "Analyse intelligente — détection chute, posture anormale"
             show_icon: true
@@ -313,7 +313,7 @@ views:
                 - color: "#6b7280"
 
           - type: custom:button-card
-            entity: input_boolean.module_douche
+            entity: input_boolean.module_m22_douche
             name: "M12 — Douche"
             label: "Surveillance fréquence et durée des douches"
             show_icon: true
@@ -348,7 +348,7 @@ views:
                 - color: "#6b7280"
 
           - type: custom:button-card
-            entity: input_boolean.module_medoc
+            entity: input_boolean.module_m20_medoc
             name: "M13 — Médicaments"
             label: "Rappels prise médicaments, affiché sur le kiosk"
             show_icon: true
@@ -383,7 +383,7 @@ views:
                 - color: "#6b7280"
 
           - type: custom:button-card
-            entity: input_boolean.module_porte_ext
+            entity: input_boolean.module_m13_porte_ext
             name: "M15 — Porte Extérieure"
             label: "Alerte sortie + live caméra à l'ouverture"
             show_icon: true
@@ -418,7 +418,7 @@ views:
                 - color: "#6b7280"
 
           - type: custom:button-card
-            entity: input_boolean.module_lumiere_nuit
+            entity: input_boolean.module_m17_lumiere_nuit
             name: "M16 — Veilleuse Nuit"
             label: "Lumière automatique si déplacement nocturne détecté"
             show_icon: true
@@ -473,7 +473,7 @@ views:
                 .subtitle { font-size: 0.75em !important; color: var(--secondary-text-color) !important; }
 
           - type: custom:button-card
-            entity: input_boolean.module_kiosk_ecran
+            entity: input_boolean.module_m30_kiosk_ecran
             name: "M07 — Kiosk Écran"
             label: "Écran dédié en mode borne d'affichage"
             show_icon: true
@@ -508,7 +508,7 @@ views:
                 - color: "#6b7280"
 
           - type: custom:button-card
-            entity: input_boolean.module_kiosk_foto
+            entity: input_boolean.module_m31_kiosk_foto
             name: "M08 — Photos Famille"
             label: "Diaporama photos envoyées par email"
             show_icon: true
@@ -543,7 +543,7 @@ views:
                 - color: "#6b7280"
 
           - type: custom:button-card
-            entity: input_boolean.module_kiosk_zic
+            entity: input_boolean.module_m32_kiosk_zic
             name: "M09 — Musique"
             label: "Lecture musique de la bibliothèque personnelle"
             show_icon: true
@@ -578,7 +578,7 @@ views:
                 - color: "#6b7280"
 
           - type: custom:button-card
-            entity: input_boolean.module_visio
+            entity: input_boolean.module_m33_visio
             name: "M10 — Visioconférence"
             label: "Appel vidéo famille en un clic (Jitsi)"
             show_icon: true
@@ -613,7 +613,7 @@ views:
                 - color: "#6b7280"
 
           - type: custom:button-card
-            entity: input_boolean.module_television
+            entity: input_boolean.module_m34_television
             name: "M11 — Télévision"
             label: "Créneaux TV (France 2/Arte/France 5/YouTube) + retour photos auto"
             show_icon: true
@@ -661,7 +661,7 @@ views:
           - type: horizontal-stack
             cards:
               - type: custom:button-card
-                entity: input_boolean.m11_session1_actif
+                entity: input_boolean.m34_session1_actif
                 name: "Session 1"
                 icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
                 tap_action:
@@ -679,7 +679,7 @@ views:
                     - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.4)'; ]]]"
 
               - type: custom:mushroom-select-card
-                entity: input_select.m11_session1_chaine
+                entity: input_select.m34_session1_chaine
                 name: "Chaîne"
 
               - type: custom:mushroom-template-card
@@ -689,7 +689,7 @@ views:
                 icon_color: green
                 tap_action:
                   action: call-service
-                  service: script.m11_lancer_session
+                  service: script.m34_lancer_session
                   data:
                     num: 1
                 card_mod:
@@ -699,18 +699,18 @@ views:
           - type: entities
             show_header_toggle: false
             entities:
-              - entity: input_datetime.m11_session1_debut
+              - entity: input_datetime.m34_session1_debut
                 name: "Début"
-              - entity: input_datetime.m11_session1_fin
+              - entity: input_datetime.m34_session1_fin
                 name: "Fin"
-              - entity: input_text.m11_session1_youtube_url
+              - entity: input_text.m34_session1_youtube_url
                 name: "URL YouTube"
 
           # ─── SESSION 2 ───
           - type: horizontal-stack
             cards:
               - type: custom:button-card
-                entity: input_boolean.m11_session2_actif
+                entity: input_boolean.m34_session2_actif
                 name: "Session 2"
                 icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
                 tap_action:
@@ -728,7 +728,7 @@ views:
                     - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.4)'; ]]]"
 
               - type: custom:mushroom-select-card
-                entity: input_select.m11_session2_chaine
+                entity: input_select.m34_session2_chaine
                 name: "Chaîne"
 
               - type: custom:mushroom-template-card
@@ -738,7 +738,7 @@ views:
                 icon_color: green
                 tap_action:
                   action: call-service
-                  service: script.m11_lancer_session
+                  service: script.m34_lancer_session
                   data:
                     num: 2
                 card_mod:
@@ -748,18 +748,18 @@ views:
           - type: entities
             show_header_toggle: false
             entities:
-              - entity: input_datetime.m11_session2_debut
+              - entity: input_datetime.m34_session2_debut
                 name: "Début"
-              - entity: input_datetime.m11_session2_fin
+              - entity: input_datetime.m34_session2_fin
                 name: "Fin"
-              - entity: input_text.m11_session2_youtube_url
+              - entity: input_text.m34_session2_youtube_url
                 name: "URL YouTube"
 
           # ─── SESSION 3 ───
           - type: horizontal-stack
             cards:
               - type: custom:button-card
-                entity: input_boolean.m11_session3_actif
+                entity: input_boolean.m34_session3_actif
                 name: "Session 3"
                 icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
                 tap_action:
@@ -777,7 +777,7 @@ views:
                     - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.4)'; ]]]"
 
               - type: custom:mushroom-select-card
-                entity: input_select.m11_session3_chaine
+                entity: input_select.m34_session3_chaine
                 name: "Chaîne"
 
               - type: custom:mushroom-template-card
@@ -787,7 +787,7 @@ views:
                 icon_color: green
                 tap_action:
                   action: call-service
-                  service: script.m11_lancer_session
+                  service: script.m34_lancer_session
                   data:
                     num: 3
                 card_mod:
@@ -797,64 +797,33 @@ views:
           - type: entities
             show_header_toggle: false
             entities:
-              - entity: input_datetime.m11_session3_debut
+              - entity: input_datetime.m34_session3_debut
                 name: "Début"
-              - entity: input_datetime.m11_session3_fin
+              - entity: input_datetime.m34_session3_fin
                 name: "Fin"
-              - entity: input_text.m11_session3_youtube_url
+              - entity: input_text.m34_session3_youtube_url
                 name: "URL YouTube"
 
           - type: entities
             title: "Réglages avancés TV (communs aux 3 sessions)"
             show_header_toggle: false
             entities:
-              - entity: input_text.m11_browser_id_tv
+              - entity: input_text.m34_browser_id_tv
                 name: "Browser ID TV (sécurité — voir Docs)"
-              - entity: input_text.m11_url_france2
+              - entity: input_text.m34_url_france2
                 name: "URL directe France 2"
-              - entity: input_text.m11_url_arte
+              - entity: input_text.m34_url_arte
                 name: "URL directe Arte"
-              - entity: input_text.m11_url_france5
+              - entity: input_text.m34_url_france5
                 name: "URL directe France 5"
-              - entity: input_number.m11_marge_recherche_min
+              - entity: input_number.m34_marge_recherche_min
                 name: "Marge recherche EPG (min)"
-              - entity: input_number.m11_marge_fin_min
+              - entity: input_number.m34_marge_fin_min
                 name: "Marge fin de programme (min)"
 
-          - type: custom:button-card
-            entity: input_boolean.module_repas
-            name: "M14 — Repas"
-            label: "Rappels repas + suivi prise alimentaire"
-            show_icon: true
-            show_name: true
-            show_label: true
-            icon: "[[[ return entity.state === 'on' ? 'mdi:toggle-switch' : 'mdi:toggle-switch-off'; ]]]"
-            tap_action:
-              action: toggle
-            styles:
-              card:
-                - background: "rgba(var(--rgb-primary-text-color),0.03)"
-                - border-radius: "14px"
-                - border: "1px solid rgba(var(--rgb-primary-text-color),0.07)"
-                - box-shadow: none
-                - display: grid
-                - grid-template-columns: "1fr auto"
-                - grid-template-areas: "'n i' 'l i'"
-                - padding: "12px 16px"
-                - text-align: left
-              icon:
-                - grid-area: i
-                - color: "[[[ return entity.state === 'on' ? '#8b5cf6' : 'rgba(var(--rgb-primary-text-color),0.3)'; ]]]"
-                - width: "38px"
-              name:
-                - grid-area: n
-                - justify-self: start
-                - font-size: "0.95em"
-              label:
-                - grid-area: l
-                - justify-self: start
-                - font-size: "0.72em"
-                - color: "#6b7280"
+          # M14 — Repas : bloc retiré le 2026-08-16 (module abandonné, voir
+          # m00_modules.yaml). NB : ce dashboard n'est plus chargé en prod
+          # (remplacé par www/config.html le 13/08) — nettoyé par cohérence.
 
   - path: environnement
     title: "🌡️ Environnement"
@@ -912,7 +881,7 @@ views:
                 - color: "#6b7280"
 
           - type: custom:button-card
-            entity: input_boolean.module_fenetre
+            entity: input_boolean.module_m14_fenetre
             name: "M18 — Fenêtres"
             label: "Surveillance ouverture pour économies de chauffage"
             show_icon: true

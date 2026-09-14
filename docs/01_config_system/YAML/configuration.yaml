@@ -1,15 +1,63 @@
 # Loads default set of integrations. Do not remove.
 default_config:
 
-# Thèmes
-frontend:
-  themes: !include_dir_merge_named themes
+# ╭──────────────────────────────────────────────────────────────────────────╮
+# │ HTTPS LOCAL — NE PLUS CONFIGURER ICI (note du 2026-08-16)                │
+# ╰──────────────────────────────────────────────────────────────────────────╯
+# POURQUOI DU HTTPS : les navigateurs REFUSENT l'accès caméra/micro sur une
+# page servie en http:// vers une adresse locale. Règle du navigateur, pas de
+# Home Assistant, non contournable par du code — elle bloque aussi bien une
+# visio maison que Google Meet ou Jitsi embarqués. Sans HTTPS, aucune
+# visioconférence n'est possible sur le kiosk.
+#
+# ⚠️ PIÈGE (rencontré le 16/08) : depuis la migration HTTP de HA (voir
+# .storage/http -> "yaml_migration_done": true), un bloc `http:` placé ici est
+# purement IGNORÉ — sans erreur, sans message au démarrage. On peut donc y
+# déclarer un certificat, redémarrer, et constater que rien ne change. HA le
+# signale seulement via une notification de dépréciation.
+# La configuration HTTP/SSL se fait désormais dans :
+#     Paramètres → Système → Réseau
+#
+# Certificat auto-signé déjà généré et en place (openssl, 10 ans, IP
+# 10.32.154.241 inscrite dedans), prêt à être sélectionné dans l'interface :
+#     /ssl/fullchain.pem   (certificat)
+#     /ssl/privkey.pem     (clé privée)
+# Tout reste sur le réseau privé : aucun compte, aucun service externe, aucun
+# tunnel, aucun port ouvert. Nabu Casa aurait aussi fait l'affaire, mais
+# l'abonnement est déjà rattaché à l'instance de production de l'utilisateur
+# (un abonnement = une instance).
 
 # ═══════════════════════════════════════════════
 # PACKAGES MODULES AIDANT
 # ═══════════════════════════════════════════════
 homeassistant:
   packages: !include_dir_named packages
+
+# ╭──────────────────────────────────────────────────────────────────────────╮
+# │ Pour Button Outils Dev dans la barre latérale                            │
+# ╰──────────────────────────────────────────────────────────────────────────╯
+# --- panel_custom ---
+# Pour Button Outils Dev
+# 2026-08-15 (correctif sécurité) : ce panneau donne accès à Outils de
+# développement (États, Services, Modèles...) — sans `require_admin: true`,
+# TOUT compte connecté (y compris un aidant non-admin) le voyait dans sa
+# sidebar et pouvait s'en servir pour appeler n'importe quel service HA
+# directement (ex: input_text.set_value sur m10_droits_aidants), en
+# contournant entièrement le système de droits construit dans config.html/
+# calendrier.html/video.html/photos.html (qui n'est qu'une protection
+# côté navigateur — voir M10_gestion_aidants.md, piège #13). Repéré en
+# vérifiant en direct via la commande WebSocket `get_panels` (confirmé :
+# require_admin=false avant correctif) suite à une remarque de l'utilisateur
+# sur ce panneau. Nécessite un redémarrage HA complet pour prendre effet
+# (panel_custom n'est pas rechargeable à chaud).
+panel_custom:
+  - name: developer-tools-sidebar
+    sidebar_title: Outils Dev
+    sidebar_icon: mdi:hammer-wrench
+    url_path: developer-tools/yaml
+    module_url: /api/hassio/app/entrypoint.js
+    embed_iframe: true
+    require_admin: true
 
 # ═══════════════════════════════════════════════
 # LOVELACE DASHBOARDS
@@ -22,6 +70,8 @@ lovelace:
     - url: /hacsfiles/button-card/button-card.js
       type: module
     - url: /hacsfiles/lovelace-card-mod/card-mod.js
+      type: module
+    - url: /hacsfiles/Home-Assistant-Lovelace-HTML-Jinja2-Template-card/html-template-card.js
       type: module
   dashboards:
     lovelace-kiosk:
@@ -36,12 +86,6 @@ lovelace:
       icon: mdi:account-heart
       show_in_sidebar: true
       filename: dashboards/dashboard_aidant.yaml
-    lovelace-modules:
-      mode: yaml
-      title: "Configuration"
-      icon: mdi:cog-outline
-      show_in_sidebar: true
-      filename: dashboards/dashboard_modules.yaml
     lovelace-test-simulation:
       mode: yaml
       title: "🧪 Tests Simulation"

@@ -1,0 +1,81 @@
+# ╭──────────────────────────────────────────────────────────────────────────────╮
+# │           MODULE M32 — MUSIQUE (CRÉNEAUX HORAIRES + LIENS YOUTUBE)           │
+# ╰──────────────────────────────────────────────────────────────────────────────╯
+# 4 créneaux horaires musique (modèle des sessions TV M34) + une liste de liens
+# YouTube stockée dans www/musique_liens.txt, numérotés 01 à 99.
+#
+# RÈGLE D'ARBITRAGE — la TV (M34) est PRIORITAIRE :
+#   - un créneau musique ne peut pas chevaucher un créneau TV ACTIVÉ ;
+#   - si un créneau TV est activé pendant qu'une musique tourne, la musique
+#     est coupée.
+#   Le contrôle de chevauchement est fait côté page musique.html (lecture des
+#   sessions TV actives) ; l'arbitrage kiosk viendra dans un 2e temps.
+#
+# Gestion des liens (page musique.html) :
+#   shell_command.m32_musique_liens — actions : list | add <url> | delete <num>
+#   Script : shell_scripts/m32_musique_liens.py
+#
+# NOTE : input_boolean.module_m32_kiosk_zic (le module M10 « Écran Musique »)
+# est déjà déclaré dans m00_modules.yaml — ne PAS le redéclarer ici.
+
+input_boolean:
+  m32_creneau1_actif:
+    name: "M32 Musique — Créneau 1 actif"
+    icon: mdi:music-note
+  m32_creneau2_actif:
+    name: "M32 Musique — Créneau 2 actif"
+    icon: mdi:music-note
+  m32_creneau3_actif:
+    name: "M32 Musique — Créneau 3 actif"
+    icon: mdi:music-note
+  m32_creneau4_actif:
+    name: "M32 Musique — Créneau 4 actif"
+    icon: mdi:music-note
+
+input_datetime:
+  m32_creneau1_debut:
+    name: "M32 Créneau 1 — Début"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-start
+  m32_creneau1_fin:
+    name: "M32 Créneau 1 — Fin"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-end
+
+  m32_creneau2_debut:
+    name: "M32 Créneau 2 — Début"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-start
+  m32_creneau2_fin:
+    name: "M32 Créneau 2 — Fin"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-end
+
+  m32_creneau3_debut:
+    name: "M32 Créneau 3 — Début"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-start
+  m32_creneau3_fin:
+    name: "M32 Créneau 3 — Fin"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-end
+
+  m32_creneau4_debut:
+    name: "M32 Créneau 4 — Début"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-start
+  m32_creneau4_fin:
+    name: "M32 Créneau 4 — Fin"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-end
+
+shell_command:
+  m32_musique_liens: "python3 /config/shell_scripts/m32_musique_liens.py {{ action | default('') }} {{ arg2 | default('') }}"

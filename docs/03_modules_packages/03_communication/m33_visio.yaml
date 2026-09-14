@@ -16,8 +16,149 @@
 # dashboards/dashboard_kiosk.yaml. Valeur stockée avant renommage : "unknown"
 # (jamais réglée) — aucune perte de donnée réelle.
 
+# ⚠️ CORRECTIF 2026-08-18 : ce fichier déclarait DEUX blocs `input_text:`
+# séparés (un pour m33_visio_url, un plus bas pour m33_appel_par). En YAML,
+# une clé de mapping dupliquée dans le MÊME fichier n'est pas fusionnée : le
+# second bloc écrase silencieusement le premier. Repéré en préparant l'ajout
+# de la plage horaire (2026-08-18) — fusionnés ici en un seul bloc pour
+# éliminer le risque.
+# 2026-09-13 : m33_visio_url SUPPRIMÉE — vestige du pivot Google Meet, plus
+# utilisée par personne depuis le passage au WebRTC (le bloc iframe Meet a
+# été retiré de kiosk.html le même jour). Le WebRTC maison est l'UNIQUE
+# système visio.
 input_text:
-  m33_visio_url:
-    name: "M33 URL Visio (page affichée à l'écran)"
-    max: 255
-    icon: mdi:link
+  # 2026-08-16 (suite) : nom de l'aidant actuellement en ligne. Sert à
+  # informer les AUTRES aidants ("Appel en cours avec Anîs") plutôt que de
+  # leur griser un bouton sans explication. Renseigné au décrochage, vidé au
+  # raccrochage — y compris par le kiosk quand c'est lui qui raccroche
+  # automatiquement (aidant parti sans raccrocher).
+  m33_appel_par:
+    name: "M33 Appel Visio — Aidant en ligne"
+    max: 60
+    icon: mdi:account-voice
+
+# ╭──────────────────────────────────────────────────────────────────────────╮
+# │   VISIO MAISON (WebRTC) — ajouté le 2026-08-16                          │
+# ╰──────────────────────────────────────────────────────────────────────────╯
+# POURQUOI : les services externes imposent tous un geste à la personne aidée.
+# Google Meet affiche un écran "Rejoindre" ; meet.jit.si exige en plus une
+# authentification impossible depuis un iframe embarqué (vérifié le 16/08).
+# Or la personne aidée (Alzheimer) ne peut pas être supposée capable de
+# cliquer au bon endroit : l'appel DOIT s'afficher tout seul.
+#
+# Solution retenue : une visio maison en WebRTC, où l'image et le son
+# transitent DIRECTEMENT d'un appareil à l'autre (rien ne passe par un
+# serveur). Prototype validé en direct le 16/08 (voir www/visio_test.html).
+#
+# ⚠️ PRÉREQUIS ABSOLU — HTTPS : les navigateurs refusent l'accès caméra/micro
+# sur une page servie en http:// vers une adresse locale. Non contournable par
+# du code. Assuré ici par Tailscale (certificat valide, aucun port ouvert) —
+# accès via https://homeassistant-1.tail0c740d.ts.net.
+input_boolean:
+  # Interrupteur d'appel : allumé par l'aidant quand il appelle, éteint quand
+  # il raccroche. C'est le SEUL élément que le kiosk surveille en continu —
+  # et il le fait déjà, dans son cycle de rafraîchissement normal (lecture
+  # d'état, très peu coûteuse). Aucun sondage supplémentaire tant qu'il ne se
+  # passe rien : la signalisation (ci-dessous, plus lourde) n'est sollicitée
+  # QUE pendant les quelques secondes d'établissement de l'appel.
+  m33_appel_en_cours:
+    name: "M33 Appel Visio En Cours"
+    icon: mdi:phone-in-talk
+
+  # ── Plage horaire (ajouté 2026-08-18, idée émise le 16/08) ──
+  # Coché par l'aidant AU MOMENT d'appeler (case "🚨 Urgence" dans
+  # aidant.html), pour passer outre la plage horaire ci-dessous. Remis à
+  # "off" par défaut à chaque raccrochage (voir aidant.html/raccrocherVisio),
+  # pour ne jamais rester allumé par erreur pour l'appel suivant.
+  m33_appel_urgent:
+    name: "M33 Appel Visio Urgent (passe outre la plage horaire)"
+    icon: mdi:alarm-light
+
+  # État interne du seed ci-dessous (automation m33_seed_horaires_defaut) —
+  # même mécanisme que m34_horaires_initialises (m34_television.yaml).
+  m33_horaires_initialises:
+    name: "M33 État interne — Horaires visio par défaut appliqués"
+    icon: mdi:clock-check-outline
+
+input_datetime:
+  # ── Plage horaire visio (ajouté 2026-08-18) ──
+  # But : ne pas déranger la personne aidée en pleine nuit avec un appel qui
+  # s'affiche tout seul (sans sonnerie ni geste requis — voir plus bas). Hors
+  # de cette plage, aidant.html refuse de lancer l'appel (sauf case
+  # "Urgence"), et kiosk.html refuse en plus de répondre automatiquement
+  # (garde-fou redondant, au cas où l'appel serait déclenché par un autre
+  # moyen que le bouton — ex. Outils dev).
+  # ⚠️ Pas de `initial:` (piège HA, cf. M00/M13) : `initial:` réécrase la
+  # valeur à CHAQUE redémarrage, pas juste à la création. Défaut 09:00-17:00
+  # (demandé utilisateur le 18/08) appliqué UNE SEULE FOIS par l'automation
+  # m33_seed_horaires_defaut plus bas (même mécanisme que M34 pour les
+  # horaires TV) — modifiable ensuite librement sans jamais être écrasé.
+  m33_horaire_debut:
+    name: "M33 Visio — Début Plage Horaire"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-start
+  m33_horaire_fin:
+    name: "M33 Visio — Fin Plage Horaire"
+    has_time: true
+    has_date: false
+    icon: mdi:clock-end
+
+shell_command:
+  # Canal de signalisation WebRTC — voir shell_scripts/m33_visio_signal.py
+  # pour le détail complet et la justification.
+  # En résumé : les commandes WebSocket natives de HA (fire_event /
+  # subscribe_events) feraient très bien l'affaire, mais sont réservées aux
+  # comptes ADMIN. Les aidants étant volontairement non-admin (voir M10),
+  # on passe par shell_command — déjà éprouvé en non-admin pour l'envoi de
+  # photos (m31_photos_televerser).
+  #
+  # Les messages sont encodés en base64 par la page avant l'envoi : le SDP
+  # contient guillemets et sauts de ligne, qui ne survivraient pas au passage
+  # par une ligne de commande système.
+  m33_visio_signal_envoyer: >-
+    python3 /config/shell_scripts/m33_visio_signal.py "envoyer" "{{ destinataire | default('') }}" "{{ message | default('') }}"
+
+  # Appelé avec ?return_response — ⚠️ SANS "=true" (piège confirmé le 15/08,
+  # voir m31_photos.yaml). Lecture DESTRUCTRICE : renvoie les messages en
+  # attente puis vide la boîte, pour ne jamais retraiter deux fois la même
+  # offre ou le même candidat réseau.
+  m33_visio_signal_lire: >-
+    python3 /config/shell_scripts/m33_visio_signal.py "lire" "{{ destinataire | default('') }}"
+
+  # Vide les deux boîtes. Appelé au DÉBUT de chaque appel, pour repartir
+  # propre : sans ça, les restes d'un appel interrompu (page fermée en pleine
+  # négociation) feraient échouer le suivant.
+  m33_visio_signal_purger: >-
+    python3 /config/shell_scripts/m33_visio_signal.py "purger"
+
+automation:
+  # ── Seed horaires par défaut, UNE SEULE FOIS (ajouté 2026-08-18) ──
+  # Même mécanisme que m34_seed_horaires_defaut (confo_m34_television/
+  # m34_television.yaml) : s'applique au tout premier démarrage HA suivant
+  # la création des entités, puis plus jamais — contrairement à `initial:`,
+  # qui écraserait un réglage manuel ultérieur à CHAQUE redémarrage.
+  - id: m33_seed_horaires_defaut
+    alias: "M33 — Horaires visio par défaut (une seule fois, démarrage HA)"
+    mode: single
+    trigger:
+      - platform: homeassistant
+        event: start
+    condition:
+      - condition: state
+        entity_id: input_boolean.m33_horaires_initialises
+        state: "off"
+    action:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.m33_horaire_debut
+        data:
+          time: "09:00:00"
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.m33_horaire_fin
+        data:
+          time: "17:00:00"
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.m33_horaires_initialises
