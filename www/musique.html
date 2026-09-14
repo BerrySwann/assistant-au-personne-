@@ -53,6 +53,8 @@
   .creneau-num { font-size: 13px; font-weight: 500; flex: 1; }
   .creneau-heures { display: flex; align-items: center; gap: 8px; padding: 0 14px 12px; }
   .creneau-heures input[type="time"] { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; padding: 6px 10px; outline: none; font-family: inherit; }
+  /* 2026-09-14 : contour bleu au clic, identique a la page Videsio (config.html) */
+  .creneau-heures input[type="time"]:focus { border-color: var(--blue); }
   .creneau-sep { color: rgb(180,180,180); font-size: 12px; }
   .conflit-badge { font-size: 10px; color: var(--red); background: rgba(239,68,68,0.12); padding: 2px 7px; border-radius: 6px; display: none; }
   .creneau-card.conflit .conflit-badge { display: inline-block; }
