@@ -14,6 +14,7 @@ Chaine : **fichier source -> entites produites -> consommateurs** (YAML, dashboa
 - `packages/confo_m32_musique/m32_musique.yaml` (2 entites referencees)
 - `packages/confo_m34_television/m34_liens_youtube.yaml` (11 entites referencees)
 - `packages/confo_m34_television/m34_television.yaml` (53 entites referencees)
+- `packages/m00_git_backup.yaml` (1 entites referencees)
 - `packages/m00_modules.yaml` (0 entites referencees)
 - `packages/m00_simulation.yaml` (5 entites referencees)
 - `packages/m00_simulation_sensors.yaml` (4 entites referencees)
@@ -49,6 +50,7 @@ Chaine : **fichier source -> entites produites -> consommateurs** (YAML, dashboa
 - `www/musique.html` (8 entites referencees)
 - `www/photos.html` (10 entites referencees)
 - `www/video.html` (4 entites referencees)
+- `www/wsdiag.html` (1 entites referencees)
 
 ## Chaines de dependances par module
 
@@ -61,6 +63,8 @@ packages/confo_m34_television/m34_television.yaml
   └─→ automation.confo_m34_bouton_ok_relancer_la_session_avec_la_chaine_choisie
   └─→ automation.confo_m34_retour_photos_si_module_tv_desactive
   └─→ automation.confo_m34_verifier_les_sessions_tv_toutes_les_minutes
+packages/m00_git_backup.yaml
+  └─→ shell_command.git_backup
 packages/m00_modules.yaml
   └─→ input_boolean.module_dashboard_fam
   └─→ input_boolean.module_msg_famille
@@ -78,6 +82,15 @@ packages/m00_simulation_sensors.yaml
 - `packages/m13_porte_ext.yaml` : binary_sensor.snzb04p_porte_ext_contact
 - `www/aidant.html` : binary_sensor.snzb04p_porte_ext_contact, sensor.snzb02d_chambre_temperature, sensor.snzb02d_salon_temperature
 - `www/config.html` : input_boolean.module_dashboard_fam, input_boolean.module_msg_famille
+
+### M00
+
+```
+packages/m00_git_backup.yaml
+  └─→ automation.m00_backup_github_h_10
+```
+
+*Aucun consommateur externe (orphelines).*
 
 ### M01
 

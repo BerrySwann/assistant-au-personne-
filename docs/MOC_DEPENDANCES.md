@@ -13,7 +13,7 @@
 
 ### Socle
 
-- M00 : (aucune entite definie)
+- **M00** : 1 entites
 - **SIM** : 13 entites
 
 ### Obligatoires

@@ -1,5 +1,5 @@
 # INDEX — Projet Assistant au Personne
-*Dernière mise à jour : 2026-08-15 (même jour, suite, DÉFINITIF) — les 3 pages dédiées `calendrier.html`/`video.html`/`photos.html` sont **confirmées fonctionnelles en direct** par l'utilisateur (PIN, galerie, suppression, upload). L'upload photo a nécessité un diagnostic complet : 401 persistant → cause réelle = route officielle HA réservée aux comptes admin (`local_source.py`) → contournement `shell_command.m31_photos_televerser_{debut,chunk,fin}` construit (upload par morceaux, écrit directement sur disque, fonctionne pour un compte non-admin) → confirmé en direct, y compris depuis le téléphone (app Companion Android). Voir `M31_photos.md` pour le détail complet du diagnostic. Session précédente (même jour, plus tôt) : bug `?return_response=true` corrigé ; 3 pages dédiées créées ; fiche M10_gestion_aidants.md créée (rattrapage M04→M10) ; Confo_M31 Photos rotation construite ; Confo_M33 Visio unifié. Session du 14/08 : Confo_M34 Télévision fiabilisée + oblig_M03 Écran Messages clos.*
+*Dernière mise à jour : 2026-09-14 (soirée — **BUG de suppression RDV/récurrences résolu** : le WebSocket de `aidant.html` s'authentifiait avec `ha_token` (souvent vide) au lieu de la session HA (`currentToken()`) — corrigé v14.4, validé en direct sur le navigateur de l'utilisateur ; **sauvegarde GitHub opérationnelle** (dépôt git sur `Z:\` + push auto H+10) ; également : automation des récurrences réparée, anti-doublon ×3, auto-mise à jour de l'interface) — Session précédente : 2026-08-15 (même jour, suite, DÉFINITIF) — les 3 pages dédiées `calendrier.html`/`video.html`/`photos.html` sont **confirmées fonctionnelles en direct** par l'utilisateur (PIN, galerie, suppression, upload). L'upload photo a nécessité un diagnostic complet : 401 persistant → cause réelle = route officielle HA réservée aux comptes admin (`local_source.py`) → contournement `shell_command.m31_photos_televerser_{debut,chunk,fin}` construit (upload par morceaux, écrit directement sur disque, fonctionne pour un compte non-admin) → confirmé en direct, y compris depuis le téléphone (app Companion Android). Voir `M31_photos.md` pour le détail complet du diagnostic. Session précédente (même jour, plus tôt) : bug `?return_response=true` corrigé ; 3 pages dédiées créées ; fiche M10_gestion_aidants.md créée (rattrapage M04→M10) ; Confo_M31 Photos rotation construite ; Confo_M33 Visio unifié. Session du 14/08 : Confo_M34 Télévision fiabilisée + oblig_M03 Écran Messages clos.*
 
 ---
 
@@ -27,7 +27,7 @@
 |:-------|:----------|:-----------|:-------|
 | **oblig_M01** Temp & Hygro | [M01_temp_hygro.md](03_modules_packages/05_confort/M01_temp_hygro.md) | `raspi/packages/m01_temp_hygro.yaml` | ✅ Déployé |
 | **oblig_M02** Détection Inactivité | [M02_inactivite.md](03_modules_packages/02_securite_alerte/M02_inactivite.md) | `raspi/packages/m02_inactivite.yaml` | ✅ Développé — non testé conditions réelles 🔴 |
-| **oblig_M03** Écran Messages | [M03_ecran_msg.md](03_modules_packages/03_communication/M03_ecran_msg.md) | `raspi/packages/oblig_m03_ecran_msg/m03_ecran_msg.yaml` | ✅ Clos 14/08 — page dédiée `calendrier.html` ajoutée 15/08 (même architecture que `video.html`, confirmé) mais **pas explicitement retestée par l'utilisateur** |
+| **oblig_M03** Écran Messages | [M03_ecran_msg.md](03_modules_packages/03_communication/M03_ecran_msg.md) | `raspi/packages/oblig_m03_ecran_msg/m03_ecran_msg.yaml` | ✅ Clos 14/08 — page dédiée `calendrier.html` ajoutée 15/08 ; **RDV & récurrences réparés et testés en direct les 13-14/09** (automation, anti-doublon, suppression WebSocket, fix token v14.4) |
 
 ### Secur (Sécurité)
 
@@ -57,8 +57,8 @@
 |:-------|:----------|:-----------|:-------|
 | **Confo_M30** Kiosk Écran | — | `raspi/dashboards/dashboard_kiosk.yaml` | ✅ Dashboard (pas de logique séparée) |
 | **Confo_M31** Photos Famille | [M31_photos.md](03_modules_packages/04_divertissement/M31_photos.md) | `raspi/packages/m31_photos.yaml` | ✅ Rotation, galerie, suppression et upload (compte non-admin, contournement `shell_command`) **tous confirmés en direct** 15/08 |
-| **Confo_M32** Musique | — | — | ❌ À faire 🟢 |
-| **Confo_M33** Visio | [M33_visio.md](03_modules_packages/03_communication/M33_visio.md) | `raspi/packages/m33_visio.yaml` | ✅ Unifié 15/08 (URL unique `input_text.m33_visio_url`) |
+| **Confo_M32** Musique | [M32_musique.md](03_modules_packages/04_divertissement/M32_musique.md) | `raspi/packages/confo_m32_musique/m32_musique.yaml` | ✅ Phase 1 construite 13/09 (4 créneaux, liens YouTube, règles de conflit TV) — phase 2 (lecture kiosk) à faire 🟢 |
+| **Confo_M33** Visio | [M33_visio.md](03_modules_packages/03_communication/M33_visio.md) | `raspi/packages/m33_visio.yaml` | ✅ WebRTC maison uniquement — **Google Meet retiré le 13/09** (`input_text.m33_visio_url` supprimée) |
 | **Confo_M34** Télévision | [M34_television.md](03_modules_packages/04_divertissement/M34_television.md) | `raspi/packages/confo_m34_television/` | ✅ Déployé et fiabilisé 14/08 — page dédiée `video.html` ajoutée 15/08, **confirmée fonctionnelle** |
 
 *\* fiche M11_tv.md remplacée par [M34_television.md](03_modules_packages/04_divertissement/M34_television.md) le 14/08 (archivée en local, architecture navigateur/browser_mod abandonnée au profit de kiosk.html en HTML pur).*

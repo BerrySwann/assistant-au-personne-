@@ -5,13 +5,13 @@
 > Colonne **Live** : presente (oui/non) sur l'instance 10.32.154.241 au moment de la generation.
 > Colonne **Definie dans** : fichier YAML qui la cree. `(natif)` = creee par HA/Z2M/appareil.
 
-**Total entites definies dans les YAML du projet : 207**
-- Entites d'etat verifiables : 194
-- Presentes sur l'instance : 184
+**Total entites definies dans les YAML du projet : 209**
+- Entites d'etat verifiables : 195
+- Presentes sur l'instance : 185
 - **Fantomes** (definies mais absentes de l'instance) : 10
-- Total entites sur l'instance : 271
+- Total entites sur l'instance : 272
 
-## (natif/autre) — 10 entites
+## (natif/autre) — 11 entites
 
 | Entite | Definie dans | Consommee par | Live |
 |:-------|:-------------|:--------------|:----:|
@@ -25,6 +25,13 @@
 | `sensor.snzb02d_chambre_temperature` | packages/m00_simulation_sensors.yaml | packages/m01_temp_hygro.yaml, www/aidant.html | oui |
 | `sensor.snzb02d_salon_humidity` | packages/m00_simulation_sensors.yaml | packages/m01_temp_hygro.yaml | oui |
 | `sensor.snzb02d_salon_temperature` | packages/m00_simulation_sensors.yaml | packages/m01_temp_hygro.yaml, www/aidant.html | oui |
+| `shell_command.git_backup` | packages/m00_git_backup.yaml | **ORPHELINE** | n/a |
+
+## M00 — 1 entites
+
+| Entite | Definie dans | Consommee par | Live |
+|:-------|:-------------|:--------------|:----:|
+| `automation.m00_backup_github_h_10` | packages/m00_git_backup.yaml | **ORPHELINE** | oui |
 
 ## M01 — 10 entites
 

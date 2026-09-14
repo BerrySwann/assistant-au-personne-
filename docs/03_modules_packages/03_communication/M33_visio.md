@@ -4,6 +4,7 @@
 > depuis le pivot Google Meet du 12/08 puis le renommage de fichier
 > `m20_visio.yaml` → `m33_visio.yaml` du 13/08). Source : `raspi/packages/m33_visio.yaml`.
 > Source live : `Z:\packages\m33_visio.yaml`.
+> Mise a jour 2026-09-14 : Google Meet definitivement RETIRE (voir Role).
 
 ## Rôle
 **Depuis le 2026-08-16 : visioconférence maison (WebRTC), pair-à-pair, sans
@@ -11,13 +12,13 @@ service externe.** L'aidant appelle depuis `www/aidant.html`, l'écran de la
 personne aidée (`www/kiosk.html`) répond automatiquement, sans aucun clic.
 Voir la section « VISIO MAISON » plus bas pour le détail.
 
-L'ancien mécanisme Google Meet (`input_text.m33_visio_url` + iframe) reste
-présent dans le code en repli, mais n'est plus le chemin normal : il imposait
-un écran « Rejoindre » à la personne aidée, ce que le cas d'usage
-(Alzheimer) ne permet pas.
+**Google Meet a été DÉFINITIVEMENT RETIRÉ le 2026-09-13** (décision
+utilisateur) : `input_text.m33_visio_url` **supprimée** du package, iframe et
+validation retirées de `kiosk.html` et `aidant.html`. La visio du projet =
+**WebRTC maison uniquement**.
 
-Priorité d'affichage du cadre kiosk : **Appel en cours > Visio Meet (si
-activée) > TV (M34) > Photos (M31)**.
+Priorité d'affichage du cadre kiosk (gravée le 2026-09-13) : **Appel en cours
+(visio) > TV (M34) > Musique (M32) > Photos (M31)**.
 
 ## Historique
 Conçu à l'origine comme intégration Jitsi (exploration `custom_components/visio_jitsi`, archivée dans `visio_meet.jit.si/`, non retenue). **Pivot Google Meet acté le 2026-08-12** (décision utilisateur — projet grand public non-technicien, besoin d'hyper simple) : salle permanente `meet.google.com/czg-supk-snw`. Fichier `m20_visio.yaml` renommé `m33_visio.yaml` le 13/08.
@@ -39,7 +40,7 @@ Un changement d'URL dans l'un des deux mécanismes n'était PAS répercuté dans
 |:--------|:-------|:-------|
 | `input_boolean.module_m33_visio` | M00 (`m00_modules.yaml`) | ⚠️ Déjà déclaré dans `m00_modules.yaml` — NE PAS le redéclarer ici (conflit de clé entre packages) |
 | Zone principale du kiosk TV | `www/kiosk.html` | Bascule Visio (priorité) / TV (M34) / Photos (M31) — logique dans `refreshMain()` |
-| Salle Google Meet de la famille | Externe | URL renseignée manuellement via `config.html` |
+| ~~Salle Google Meet de la famille~~ | — | **Retiré le 2026-09-13** (Meet viré, entité supprimée) |
 
 ## Entités
 | Entité | Rôle |
@@ -49,7 +50,7 @@ Un changement d'URL dans l'un des deux mécanismes n'était PAS répercuté dans
 | `shell_command.m33_visio_signal_envoyer` | 🆕 16/08 — Dépose un message de signalisation (base64) pour l'autre correspondant |
 | `shell_command.m33_visio_signal_lire` | 🆕 16/08 — Relève les messages en attente (lecture destructrice), appelé avec `?return_response` **sans `=true`** |
 | `shell_command.m33_visio_signal_purger` | 🆕 16/08 — Vide les deux boîtes, appelé au début et à la fin de chaque appel |
-| `input_text.m33_visio_url` | URL Google Meet — mécanisme de repli, plus le chemin normal |
+| ~~`input_text.m33_visio_url`~~ | **Entité SUPPRIMÉE le 2026-09-13** (Meet définitivement retiré) |
 | `input_datetime.m33_horaire_debut` / `_fin` | 🆕 18/08 — Plage horaire d'appel autorisée (voir section dédiée plus bas). Réglage déplacé le même jour de l'onglet Aidants vers 📺 Vidésio (regroupé avec les horaires TV) |
 | `input_boolean.m33_appel_urgent` | 🆕 18/08 — Passe outre la plage horaire pour l'appel en cours |
 | `input_boolean.m33_horaires_initialises` | 🆕 18/08 — État interne du seed horaires par défaut (voir plus bas), pas destiné à être modifié à la main |

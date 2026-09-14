@@ -58,8 +58,8 @@ récurrent ?" NON/OUI** (`askConfirm()`, réutilisée) :
 
 ⚠️ **Piège découvert le 14/08 — la récurrence n'est PAS un vrai `rrule` :**
 un premier essai envoyait `rrule: "FREQ=WEEKLY;BYDAY=..."` au service
-`calendar.create_event`. Vérifié sur la doc officielle HA (version
-2026.8.2 installée, https://www.home-assistant.io/actions/calendar.create_event/) :
+`calendar.create_event`. Vérifié sur la doc officielle HA (re-vérifié le 2026-09-13 sur HA 2026.9.2,
+https://www.home-assistant.io/actions/calendar.create_event/) :
 **ce service ne supporte QUE** `summary`, `description`, `start_date_time`/
 `end_date_time`, `start_date`/`end_date`, `in`, `location` — **pas de champ
 `rrule`**. C'est une demande d'évolution encore ouverte côté HA (voir
@@ -95,20 +95,39 @@ n'est pas un bug, juste un mécanisme devenu inutile pour ce cas précis (il
 reste utile si `local_calendar` supporte un jour un vrai `rrule` créé par
 un autre moyen, ex. directement dans l'UI HA).
 
+**Révision 2026-09-13/14 — bugs RDV/récurrences corrigés :**
+1. ⚠️ **L'automation quotidienne ne créait RIEN depuis sa mise en place** :
+   elle plantait à chaque exécution — `TypeError: can only concatenate str
+   (not "datetime.timedelta") to str` au calcul de l'heure de fin. Corrigé
+   (calcul en une seule expression `| as_datetime` + `timedelta`, dans les
+   blocs jour ET lendemain).
+2. **Suppression d'un RDV inopérante** : la page appelait le service REST
+   `calendar/delete_event` **qui n'existe pas** (HTTP 400 — HA n'expose en
+   REST que `create_event`/`get_events`) → remplacé par la commande
+   **WebSocket** `calendar/event/delete` (`haDeleteEventWebSocket`).
+3. **Empilement de doublons** à chaque création → **anti-doublon aux 3
+   endroits** : formulaire `creerRdv()`, script `m03_rdv_recurrents.py::do_add`,
+   automation (via `calendar.get_events` + condition).
+4. **v14.4 — suppression refusée silencieusement chez l'utilisateur** (mais
+   OK sur navigateur de test) : le WebSocket s'authentifiait avec `token`
+   (= `ha_token` longue durée, **vide** en usage normal) au lieu de
+   `currentToken()` (= session HA `hassTokens` en priorité). Diagnostiqué via
+   la page `www/wsdiag.html` et le contrôle direct du navigateur de
+   l'utilisateur ; corrigé et validé en direct.
+5. `aidant.html` : **auto-mise à jour** (`APP_VERSION` + rechargement auto,
+   contre le cache HTTP de 31 jours des fichiers `/local/`).
+
 **Liste "🔁 RENDEZ-VOUS RÉCURRENTS" (sous la liste des RDV, 14/08) :**
 seul endroit où gérer les RÈGLES elles-mêmes (pas les occurrences déjà
 créées). `refreshRdvRecurrentsList()` appelle
 `POST /api/services/shell_command/m03_rdv_recurrents?return_response=true`
 (action `list`), affiche jours + heure + note, bouton 🗑️ → action `delete`
-(arrête les créations futures ; **les occurrences déjà créées dans le
-calendrier ne sont PAS supprimées automatiquement**, à faire à la main via
-la liste "RENDEZ-VOUS À VENIR" si besoin).
-⚠️ **Non vérifié en live cette session (pas d'accès API)** : suppose que le
-service `shell_command` supporte `return_response=true` en appel REST direct
-(mécanisme utilisé côté automations via `response_variable:` ailleurs dans
-ce projet, ex. `m34_television.yaml`, mais jamais testé via l'API REST
-directe depuis une page web). Si la liste reste bloquée sur "Indisponible",
-vérifier la forme réelle de la réponse JSON.
+(arrête les créations futures **ET supprime les occurrences À VENIR au
+même intitulé + même heure** — comportement demandé par l'utilisateur,
+ajouté le 2026-09-13).
+✅ **Vérifié en live les 13-14/09** : la liste et les actions
+(`list`/`add`/`remove`) fonctionnent via l'API REST avec `return_response`
+(le mécanisme supposé ci-dessus est confirmé).
 
 **Liste "📋 RENDEZ-VOUS À VENIR" (sous le bouton de création, 14/08) :**
 `refreshRdvList()` lit `GET /api/calendars/calendar.calendrier_local?start=...&end=...`
