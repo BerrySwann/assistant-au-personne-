@@ -844,6 +844,34 @@ let userName = localStorage.getItem('ha_user_name') || '';
 let states   = {};
 let refreshTimer = null;
 
+// ── AUTO-UPDATE (contre le cache de 31 jours des fichiers /local/) ──────
+/* 2026-09-14 : HA sert /local/* avec un cache HTTP de 31 JOURS. Vécu :
+   après un correctif, une page restée ouverte (appli Companion, onglet…)
+   continuait de tourner sur l'ANCIEN code — boutons « qui ne marchent
+   pas » alors que le fix était déployé (cas du 14/09 : suppression d'un
+   récurrent qui ne retirait pas les RDV à venir). Ici la page retélécharge
+   discrètement sa propre source (URL cache-bustée, no-store) et se
+   RECHARGE AUTOMATIQUEMENT si le serveur sert une version différente.
+   ⚠️ RÈGLE : à CHAQUE modification de ce fichier, incrémenter APP_VERSION. */
+const APP_VERSION = '2026-09-14.2';
+
+async function verifierVersionPage() {
+  try {
+    const r = await fetch(window.location.pathname + '?v=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    const t = await r.text();
+    const m = t.match(/APP_VERSION\s*=\s*'([^']+)'/);
+    if (m && m[1] && m[1] !== APP_VERSION) {
+      console.log('Nouvelle version du code disponible (' + m[1] + ') — rechargement…');
+      const p = new URLSearchParams(window.location.search);
+      p.set('v', String(Date.now()));
+      window.location.replace(window.location.pathname + '?' + p.toString());
+    }
+  } catch (e) { /* réseau indisponible — on retentera au prochain cycle */ }
+}
+setTimeout(verifierVersionPage, 15000);          // premier contrôle 15 s après chargement
+setInterval(verifierVersionPage, 5 * 60 * 1000); // puis toutes les 5 minutes
+
 // ── CHARGEMENT DES VALEURS D'USINE (config.json) ────────
 // Valeurs d'usine EMBARQUEES en dur (surcouche : config.json).
 // Meme si le fetch echoue ou est en cache, les defauts s'appliquent.
