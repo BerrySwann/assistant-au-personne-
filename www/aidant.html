@@ -853,7 +853,7 @@ let refreshTimer = null;
    discrètement sa propre source (URL cache-bustée, no-store) et se
    RECHARGE AUTOMATIQUEMENT si le serveur sert une version différente.
    ⚠️ RÈGLE : à CHAQUE modification de ce fichier, incrémenter APP_VERSION. */
-const APP_VERSION = '2026-09-14.2';
+const APP_VERSION = '2026-09-14.3';
 
 async function verifierVersionPage() {
   try {
@@ -2024,7 +2024,7 @@ async function supprimerRdv(uid, summary, recurrent) {
     showToast('✅ Rendez-vous supprimé');
     refreshRdvList();
   } catch (e) {
-    showToast('❌ Erreur de suppression');
+    showToast('❌ Erreur de suppression (' + (e && e.message ? e.message : 'inconnue') + ')');
   }
 }
 
@@ -2092,6 +2092,7 @@ async function supprimerRdvRecurrent(id, summary, heure) {
     // 2. Supprimer les rendez-vous À VENIR correspondants (même intitulé,
     //    même heure). Format de date local sans offset : accepté par HA.
     let supprimes = 0;
+    let errNettoyage = '';
     try {
       const d2 = n => String(n).padStart(2, '0');
       const isoLocal = d => d.getFullYear() + '-' + d2(d.getMonth()+1) + '-' + d2(d.getDate())
@@ -2109,11 +2110,12 @@ async function supprimerRdvRecurrent(id, summary, heure) {
           supprimes++;
         }
       }
-    } catch (e2) { /* liste/suppression impossible : la règle est déjà arrêtée, on n'échoue pas */ }
+    } catch (e2) { errNettoyage = (e2 && e2.message ? e2.message : 'inconnue'); }
 
-    showToast(supprimes > 0
+    showToast((supprimes > 0
       ? '✅ Récurrence arrêtée — ' + supprimes + ' rendez-vous à venir supprimé' + (supprimes > 1 ? 's' : '')
-      : '✅ Récurrence arrêtée');
+      : '✅ Récurrence arrêtée')
+      + (errNettoyage ? ' (nettoyage RDV : ' + errNettoyage + ')' : ''));
     refreshRdvRecurrentsList();
     refreshRdvList();
   } catch (e) {
