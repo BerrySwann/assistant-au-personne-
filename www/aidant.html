@@ -372,7 +372,8 @@ textarea::placeholder { color: var(--text3); font-style: italic; }
 }
 .fenetre-opt.selected { background: var(--blue); border-color: var(--blue); color: white; }
 input[type="time"], input[type="date"] {
-  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  /* 2026-09-14 : fond clair translucide comme la plage horaire (avant : surface2 = fond sombre) */
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px;
   color: var(--text); font-size: 16px; padding: 6px 10px; outline: none;
   font-family: inherit; cursor: pointer;
 }
@@ -654,7 +655,7 @@ html.only-rdv #only-rdv-block { display: flex; flex-direction: column; gap: 10px
         <div style="flex:1;">
           <div class="msg-label">DATE</div>
           <input type="date" id="rdv-date" oninput="onRdvInput()"
-            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+            style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;
                    color:var(--text);font-size:14px;padding:6px 10px;outline:none;font-family:inherit;">
         </div>
         <div style="flex:1;">
@@ -796,7 +797,7 @@ html.only-rdv #only-rdv-block { display: flex; flex-direction: column; gap: 10px
         Remet la taille de file, la durée d'affichage, la limite d'envoi et la plage horaire aux valeurs d'usine. Le lien Visio n'est pas modifié.
       </div>
       <button onclick="resetReglagesDefaut()"
-        style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+        style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;
                color:var(--text);font-size:13px;padding:10px;cursor:pointer;font-family:inherit;">
         Remettre les valeurs par défaut
       </button>
