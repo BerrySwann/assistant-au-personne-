@@ -92,7 +92,7 @@ input:checked + .toggle-track:before { transform: translateX(18px); }
 .droit-check input { display: none; }
 
 /* SESSION TV */
-.session-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 8px; overflow: hidden; }
+.session-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 8px; } /* 2026-09-14 : overflow hidden retire — il coupait la liste deroulante des chaines */
 .session-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; }
 .session-head:active { opacity: 0.8; }
 .session-label { flex: 1; font-size: 13px; font-weight: 500; }
@@ -114,12 +114,18 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .btn-save:active { filter: brightness(0.85); }
 .btn-run { background: var(--green); border: none; border-radius: 8px; color: white; font-size: 12px; padding: 7px 16px; cursor: pointer; }
 .field-select-inline { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 12px; padding: 6px 8px; min-width: 0; }
-/* 2026-09-14 : POPUP des listes deroulantes en sombre — le menu natif s'affichait
-   en blanc alors que le texte des options heritait du blanc : illisible. */
-select { color-scheme: dark; accent-color: var(--blue); }
-select option { background-color: var(--surface); color: var(--text); }
-/* 2026-09-14 : surlignage de l'option = bleu de l'interface (le bleu pastel natif ne convenait pas) */
-select option:checked { background-color: var(--blue); color: #fff; }
+/* 2026-09-14 : MENU CHAINES MAISON — le menu natif du navigateur avait un popup
+   capricieux (fond clair, survol systeme, double surlignage impossible a corriger
+   en CSS). Remplace par un menu entierement style : fond sombre + survol bleu. */
+.chaine-wrap { position: relative; flex: 1; min-width: 0; }
+.chaine-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 12px; padding: 6px 8px; cursor: pointer; font-family: inherit; text-align: left; }
+.chaine-btn .chev { color: rgb(180,180,180); font-size: 10px; }
+.chaine-liste { display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; z-index: 40; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+.chaine-liste.ouvert { display: block; }
+.chaine-item { padding: 9px 12px; font-size: 13px; color: var(--text); cursor: pointer; }
+.chaine-item:hover { background: var(--blue); color: #fff; }
+.chaine-item.actif { color: #60a5fa; font-weight: 600; }
+.chaine-item.actif:hover { color: #fff; }
 .btn-ok { background: var(--green); border: none; border-radius: 8px; color: white; font-size: 16px; line-height: 1; padding: 6px 10px; cursor: pointer; flex-shrink: 0; }
 .btn-ok:active { filter: brightness(0.85); }
 .session-hours { display: flex; align-items: center; gap: 8px; padding: 0 14px 10px; }
@@ -706,7 +712,12 @@ function buildTVSessions() {
           <div class="toggle-track"></div>
         </label>
         <div class="session-label" style="color:#fff;flex:0 0 auto;">Session ${n}</div>
-        <select class="field-select-inline" id="m34_s${n}_chaine" onclick="event.stopPropagation()" onchange="setSelect('input_select.m34_session${n}_chaine', this.value)"></select>
+        <div class="chaine-wrap" onclick="event.stopPropagation()">
+          <button type="button" class="chaine-btn" id="m34_s${n}_bouton" onclick="event.stopPropagation(); ouvrirChaines(${n});">
+            <span id="m34_s${n}_val">…</span><span class="chev">▾</span>
+          </button>
+          <div class="chaine-liste" id="m34_s${n}_liste"></div>
+        </div>
         <button class="btn-ok" onclick="event.stopPropagation(); runSession(${n})" title="Lancer">✓</button>
         <span id="sess-arrow-${n}" style="color:var(--text3);cursor:pointer;" onclick="toggleSession(${n})">›</span>
       </div>
@@ -760,6 +771,31 @@ async function setSelect(entity, option) {
   await apiService('input_select', 'select_option', { entity_id: entity, option });
   toast('✓ Sauvegardé');
 }
+/* 2026-09-14 : MENU CHAINES MAISON (remplace le <select> natif au popup incontrôlable) */
+let _chaineOuverte = null;
+function ouvrirChaines(n) {
+  const liste = document.getElementById(`m34_s${n}_liste`);
+  if (!liste) return;
+  const etait = _chaineOuverte === n;
+  fermerChaines();
+  if (etait) return;
+  liste.classList.add('ouvert');
+  _chaineOuverte = n;
+}
+function fermerChaines() {
+  document.querySelectorAll('.chaine-liste.ouvert').forEach(l => l.classList.remove('ouvert'));
+  _chaineOuverte = null;
+}
+async function choisirChaine(n, val) {
+  fermerChaines();
+  const valEl = document.getElementById(`m34_s${n}_val`);
+  if (valEl) valEl.textContent = val;
+  document.querySelectorAll(`#m34_s${n}_liste .chaine-item`).forEach(it => {
+    it.classList.toggle('actif', it.getAttribute('data-val') === val);
+  });
+  await setSelect(`input_select.m34_session${n}_chaine`, val);
+}
+document.addEventListener('click', () => { if (_chaineOuverte !== null) fermerChaines(); });
 async function setDatetime(entity, time) {
   const [h, m] = time.split(':');
   await apiService('input_datetime', 'set_datetime', { entity_id: entity, time: `${h}:${m}:00` });
@@ -801,20 +837,26 @@ async function refreshStates() {
     if (cb) cb.checked = s.state === 'on';
   }
 
-  // Chaînes TV
+  // Chaînes TV (menu maison depuis 2026-09-14 — remplace le <select> natif)
   for (const n of [1,2,3,4]) {
     const sel = await apiGet(`input_select.m34_session${n}_chaine`);
     if (sel) {
-      const el = document.getElementById(`m34_s${n}_chaine`);
-      if (el) {
-        if (el.options.length === 0) {
-          (sel.attributes.options || []).forEach(o => {
-            const opt = document.createElement('option');
-            opt.value = o; opt.textContent = o;
-            el.appendChild(opt);
-          });
-        }
-        el.value = sel.state;
+      const valEl = document.getElementById(`m34_s${n}_val`);
+      const listEl = document.getElementById(`m34_s${n}_liste`);
+      if (valEl) valEl.textContent = sel.state || '—';
+      if (listEl && listEl.children.length === 0) {
+        (sel.attributes.options || []).forEach(o => {
+          const it = document.createElement('div');
+          it.className = 'chaine-item' + (o === sel.state ? ' actif' : '');
+          it.textContent = o;
+          it.setAttribute('data-val', o);
+          it.onclick = (ev) => { ev.stopPropagation(); choisirChaine(n, o); };
+          listEl.appendChild(it);
+        });
+      } else if (listEl) {
+        listEl.querySelectorAll('.chaine-item').forEach(it => {
+          it.classList.toggle('actif', it.getAttribute('data-val') === sel.state);
+        });
       }
     }
     const deb = await apiGet(`input_datetime.m34_session${n}_debut`);
