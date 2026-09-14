@@ -101,7 +101,7 @@ input:checked + .toggle-track:before { transform: translateX(18px); }
 .field-row { margin-bottom: 10px; }
 .field-label { font-size: 10px; color: rgb(180, 180, 180); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
 .field-input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; padding: 8px 10px; }
-.field-input:focus { outline: none; border-color: var(--purple); }
+.field-input:focus { outline: none; border-color: var(--blue); } /* 2026-09-14 : violet -> bleu, comme musique.html */
 /* 2026-09-13 : icônes natives des champs date/heure (calendrier + horloge) —
    noires par défaut sur fond sombre, inversées en gris clair ~180. */
 input[type="date"]::-webkit-calendar-picker-indicator,
@@ -110,15 +110,15 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 .field-select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; padding: 8px 10px; }
-.btn-save { background: var(--purple); border: none; border-radius: 8px; color: white; font-size: 12px; padding: 7px 16px; cursor: pointer; margin-top: 4px; }
+.btn-save { background: var(--blue); border: none; border-radius: 8px; color: white; font-size: 12px; padding: 7px 16px; cursor: pointer; margin-top: 4px; }
 .btn-save:active { filter: brightness(0.85); }
 .btn-run { background: var(--green); border: none; border-radius: 8px; color: white; font-size: 12px; padding: 7px 16px; cursor: pointer; }
 .field-select-inline { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 12px; padding: 6px 8px; min-width: 0; }
 .btn-ok { background: var(--green); border: none; border-radius: 8px; color: white; font-size: 16px; line-height: 1; padding: 6px 10px; cursor: pointer; flex-shrink: 0; }
 .btn-ok:active { filter: brightness(0.85); }
 .session-hours { display: flex; align-items: center; gap: 8px; padding: 0 14px 10px; }
-.session-hours .field-input { font-size: 12px; padding: 6px 8px; }
-.session-hours-sep { color: var(--text3); font-size: 12px; flex-shrink: 0; }
+.session-hours .field-input { font-size: 14px; padding: 6px 10px; background: var(--bg); } /* 2026-09-14 : identique aux creneaux musique */
+.session-hours-sep { color: rgb(180,180,180); font-size: 12px; flex-shrink: 0; } /* 2026-09-14 */
 
 /* OUTILS */
 .tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
