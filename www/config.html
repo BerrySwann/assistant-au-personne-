@@ -116,8 +116,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .field-select-inline { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 12px; padding: 6px 8px; min-width: 0; }
 /* 2026-09-14 : POPUP des listes deroulantes en sombre — le menu natif s'affichait
    en blanc alors que le texte des options heritait du blanc : illisible. */
-select { color-scheme: dark; }
+select { color-scheme: dark; accent-color: var(--blue); }
 select option { background-color: var(--surface); color: var(--text); }
+/* 2026-09-14 : surlignage de l'option = bleu de l'interface (le bleu pastel natif ne convenait pas) */
+select option:checked { background-color: var(--blue); color: #fff; }
 .btn-ok { background: var(--green); border: none; border-radius: 8px; color: white; font-size: 16px; line-height: 1; padding: 6px 10px; cursor: pointer; flex-shrink: 0; }
 .btn-ok:active { filter: brightness(0.85); }
 .session-hours { display: flex; align-items: center; gap: 8px; padding: 0 14px 10px; }
