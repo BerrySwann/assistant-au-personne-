@@ -1115,8 +1115,8 @@ async function refreshStates() {
   const anyPir = [pirC, pirCo, pirS].some(p => p && p.state === 'on');
   setHardwareDisabled('input_boolean.module_m17_lumiere_nuit', !anyPir);
 
-  marquerConflitsSessions();
   await couperConflitsExistants();
+  marquerConflitsSessions();
   await chargerRecapMusique();
   applyM08Dependency();
   await refreshApercu();
