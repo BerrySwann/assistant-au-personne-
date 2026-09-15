@@ -294,6 +294,15 @@ function conflitDe(c) {
   }
   return null;
 }
+/* 2026-09-15 : garde-fou — deux creneaux musique ALLUMES ne se chevauchent pas */
+function creneauEnConflit(nExclu, deb, fin) {
+  for (const o of CRENEAUX) {
+    if (o.n === nExclu) continue;
+    if (!o.actif) continue;                    // seuls les creneaux ALLUMES comptent
+    if (chevauche(deb, fin, o.deb, o.fin)) return o;
+  }
+  return null;
+}
 
 function afficherCreneaux() {
   const cont = document.getElementById('creneaux');
@@ -330,6 +339,12 @@ async function toggleCreneau(n, checked) {
       await chargerCreneaux();   // remet le toggle à son état réel
       return;
     }
+    const cm = creneauEnConflit(n, c.deb, c.fin);
+    if (cm) {
+      showToast(`⛔ Impossible : chevauche le créneau ${cm.n} (${fmt(cm.deb)} → ${fmt(cm.fin)})`);
+      await chargerCreneaux();
+      return;
+    }
   }
   await apiPost('/api/services/input_boolean/' + (checked ? 'turn_on' : 'turn_off'), {
     entity_id: `input_boolean.m32_creneau${n}_actif`
@@ -340,10 +355,21 @@ async function toggleCreneau(n, checked) {
 
 async function setHeure(n, quelle, valeur) {
   if (!valeur) return;
+  const c = CRENEAUX.find(x => x.n === n);
+  if (!c) return;
+  const nd = quelle === 'debut' ? hhmm(valeur + ':00') : c.deb;
+  const nf = quelle === 'fin' ? hhmm(valeur + ':00') : c.fin;
+  if (c.actif) {   // 2026-09-15 : deux creneaux ALLUMES ne se chevauchent pas
+    const cm = creneauEnConflit(n, nd, nf);
+    if (cm) {
+      showToast(`⛔ Impossible : chevauche le créneau ${cm.n} (${fmt(cm.deb)} → ${fmt(cm.fin)})`);
+      afficherCreneaux();   // le champ revient à sa valeur actuelle
+      return;
+    }
+  }
   const entity = `input_datetime.m32_creneau${n}_${quelle === 'debut' ? 'debut' : 'fin'}`;
   await apiPost('/api/services/input_datetime/set_datetime', { entity_id: entity, time: valeur + ':00' });
-  const c = CRENEAUX.find(x => x.n === n);
-  if (c) c[quelle === 'debut' ? 'deb' : 'fin'] = hhmm(valeur + ':00');
+  c[quelle === 'debut' ? 'deb' : 'fin'] = hhmm(valeur + ':00');
   // Si le créneau est actif et vient de tomber en conflit → on le coupe (règle TV prioritaire)
   const conflit = conflitDe(c);
   if (conflit && c.actif) {

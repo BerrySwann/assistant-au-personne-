@@ -15,7 +15,7 @@
   --bg: #0f172a; --surface: #1e293b; --border: rgba(255,255,255,0.07);
   --text: #f1f5f9; --text2: #94a3b8; --text3: #475569;
   --green: #22c55e; --amber: #f59e0b; --purple: #8b5cf6;
-  --cyan: #06b6d4; --pink: #ec4899; --blue: #2563eb;
+  --cyan: #06b6d4; --pink: #ec4899; --blue: #2563eb; --red: #ef4444;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
@@ -96,6 +96,15 @@ input:checked + .toggle-track:before { transform: translateX(18px); }
 .session-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; }
 .session-head:active { background: rgba(255,255,255,0.05); } /* 2026-09-15 : plus d'opacite sur :active — l'opacite <1 creait un contexte d'empilement pendant l'appui : le menu chaines plongeait SOUS la carte suivante et le clic etait perdu (bug TV5 Monde sessions 1-3). Fond translucide = meme effet presse, sans casser l'empilement. */
 .session-label { flex: 1; font-size: 13px; font-weight: 500; }
+.session-card.conflit { border-color: var(--red); }
+.session-conflit-badge { font-size: 10px; color: var(--red); background: rgba(239,68,68,0.12); padding: 2px 7px; border-radius: 6px; flex-shrink: 0; white-space: nowrap; }
+/* RECAP CRENEAUX MUSIQUE (lecture seule) + etat conflit — 2026-09-15 */
+.mus-item { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 9px 12px; margin-bottom: 6px; font-size: 13px; }
+.mus-item .mus-nom { color: var(--text); }
+.mus-item .mus-heures { color: rgb(180,180,180); font-size: 12px; }
+.mus-item .mus-etat { margin-left: auto; color: rgb(180,180,180); font-size: 12px; }
+.mus-item.conflit { border-color: var(--red); }
+.mus-item.conflit .mus-nom, .mus-item.conflit .mus-heures, .mus-item.conflit .mus-etat { color: var(--red); font-weight: 700; }
 .session-body { padding: 0 14px 12px; display: none; }
 .session-body.open { display: block; }
 .field-row { margin-bottom: 10px; }
@@ -286,6 +295,8 @@ html.only-tv #only-tv-block { display: block !important; }
     <div id="tv-sessions-block">
     <div class="section-label" style="color:#fff">📺 Vidésio — Sessions TV & Visio</div>
     <div id="tv-sessions"></div>
+    <div class="section-label" style="color:#fff;margin-top:14px;">🎵 Créneaux musique — TV prioritaire</div>
+    <div id="recap-musique"></div>
     </div><!-- /tv-sessions-block -->
     <!-- 2026-08-18 : section "⚙️ Réglages avancés TV" retirée — son seul
          champ (Browser ID TV) ne servait plus à rien depuis la bascule du
@@ -488,6 +499,21 @@ async function apiService(domain, service, data) {
 
 /* ─── TOGGLE BOOLEAN ─── */
 async function toggleBool(entity, cb) {
+  const mt = entity.match(/^input_boolean\.m34_session(\d)_actif$/);
+  if (mt && cb && cb.checked) {
+    const n = mt[1];
+    const p = plageSession(n);
+    const c = conflitSessionsDansPlage(n, p.deb, p.fin);
+    if (c) {
+      toast(`⛔ Impossible d'activer : chevauche la Session ${c.n} (${hmTexte(c.deb)} → ${hmTexte(c.fin)})`);
+      cb.checked = false;
+      return;
+    }
+    await apiService('input_boolean', 'toggle', { entity_id: entity });
+    await couperMusiqueSousSession(n);   // TV prioritaire : la musique allumee tombe
+    setTimeout(() => refreshStates(), 300);
+    return;
+  }
   await apiService('input_boolean', 'toggle', { entity_id: entity });
   setTimeout(() => refreshStates(), 300);
 }
@@ -705,6 +731,7 @@ function buildTVSessions() {
   [1,2,3,4].forEach(n => {
     const div = document.createElement('div');
     div.className = 'session-card';
+    div.dataset.session = n;
     div.innerHTML = `
       <div class="session-head">
         <label class="toggle" onclick="event.stopPropagation()">
@@ -796,7 +823,137 @@ async function choisirChaine(n, val) {
   await setSelect(`input_select.m34_session${n}_chaine`, val);
 }
 document.addEventListener('click', () => { if (_chaineOuverte !== null) fermerChaines(); });
+\
+/* ─── GARDE-FOU CHEVAUCHEMENT + RECAP MUSIQUE (2026-09-15) ─── */
+function hmMin(v) {
+  if (!v || typeof v !== 'string' || v.indexOf(':') < 0) return null;
+  const p = v.split(':');
+  const h = parseInt(p[0], 10), mi = parseInt(p[1], 10);
+  if (isNaN(h) || isNaN(mi)) return null;
+  return h * 60 + mi;
+}
+function hmTexte(min) { return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0'); }
+function chevaucheHM(d1, f1, d2, f2) {
+  if (d1 === null || f1 === null || d2 === null || f2 === null) return false;
+  if (f1 <= d1 || f2 <= d2) return false;   // plage vide/invalide (ex. 00:00 -> 00:00)
+  return d1 < f2 && d2 < f1;
+}
+function lireHeureInput(id) { const el = document.getElementById(id); return el ? hmMin(el.value) : null; }
+function sessionActifEtat(n) {
+  const cb = document.querySelector(`input[data-entity="input_boolean.m34_session${n}_actif"]`);
+  return !!(cb && cb.checked);
+}
+function plageSession(n) { return { deb: lireHeureInput(`m34_s${n}_debut`), fin: lireHeureInput(`m34_s${n}_fin`) }; }
+/* Renvoie la session ALLUMEE (autre que nExclu) qui chevaucherait [deb, fin] — ou null. */
+function conflitSessionsDansPlage(nExclu, deb, fin) {
+  for (const o of [1, 2, 3, 4]) {
+    if (String(o) === String(nExclu)) continue;
+    if (!sessionActifEtat(o)) continue;   // regle : seules les sessions ALLUMEES comptent
+    const p = plageSession(o);
+    if (chevaucheHM(deb, fin, p.deb, p.fin)) return { n: o, deb: p.deb, fin: p.fin };
+  }
+  return null;
+}
+/* Rouge + badge sur les sessions allumees qui se chevauchent entre elles (etat existant). */
+function marquerConflitsSessions() {
+  for (const n of [1, 2, 3, 4]) {
+    const card = document.querySelector(`#tv-sessions .session-card[data-session="${n}"]`);
+    if (!card) continue;
+    let conflit = null;
+    if (sessionActifEtat(n)) {
+      const p = plageSession(n);
+      conflit = conflitSessionsDansPlage(n, p.deb, p.fin);
+    }
+    card.classList.toggle('conflit', !!conflit);
+    let badge = card.querySelector('.session-conflit-badge');
+    if (conflit) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'session-conflit-badge';
+        const label = card.querySelector('.session-label');
+        if (label) label.insertAdjacentElement('afterend', badge);
+      }
+      badge.textContent = '⚠ chevauche S' + conflit.n;
+    } else if (badge) {
+      badge.remove();
+    }
+  }
+}
+/* Priorite TV : coupe les creneaux musique ALLUMES qui tombent sous la session n (allumee). */
+async function couperMusiqueSousSession(n) {
+  const p = plageSession(n);
+  if (p.deb === null || p.fin === null || p.fin <= p.deb) return;
+  const all = await apiGetAllStates();
+  if (!all || !all.length) return;
+  const etat = {};
+  all.forEach(s => { etat[s.entity_id] = s.state; });
+  const coupes = [];
+  for (const k of [1, 2, 3, 4]) {
+    if (etat[`input_boolean.m32_creneau${k}_actif`] !== 'on') continue;
+    const d = hmMin(etat[`input_datetime.m32_creneau${k}_debut`]);
+    const f = hmMin(etat[`input_datetime.m32_creneau${k}_fin`]);
+    if (chevaucheHM(d, f, p.deb, p.fin)) coupes.push(k);
+  }
+  if (!coupes.length) return;
+  for (const k of coupes) await apiService('input_boolean', 'turn_off', { entity_id: `input_boolean.m32_creneau${k}_actif` });
+  toast(`⛔ Créneau${coupes.length > 1 ? 's' : ''} musique ${coupes.join(' et ')} coupé${coupes.length > 1 ? 's' : ''} — TV prioritaire (Session ${n})`);
+}
+/* Recap lecture seule des 4 creneaux musique (bloc Videsio) : ligne rouge + gras si chevauche une session TV allumee. */
+async function chargerRecapMusique() {
+  const cont = document.getElementById('recap-musique');
+  if (!cont) return;
+  const all = await apiGetAllStates();
+  if (!all || !all.length) return;
+  const etat = {};
+  all.forEach(s => { etat[s.entity_id] = s.state; });
+  cont.innerHTML = '';
+  for (const k of [1, 2, 3, 4]) {
+    const actif = etat[`input_boolean.m32_creneau${k}_actif`] === 'on';
+    const d = hmMin(etat[`input_datetime.m32_creneau${k}_debut`]);
+    const f = hmMin(etat[`input_datetime.m32_creneau${k}_fin`]);
+    let conflit = null;
+    if (d !== null && f !== null && f > d) {
+      for (const o of [1, 2, 3, 4]) {
+        if (!sessionActifEtat(o)) continue;
+        const p = plageSession(o);
+        if (chevaucheHM(d, f, p.deb, p.fin)) { conflit = o; break; }
+      }
+    }
+    const div = document.createElement('div');
+    div.className = 'mus-item' + (conflit ? ' conflit' : '');
+    div.innerHTML = `<span class="mus-nom">Créneau ${k}</span>`
+      + `<span class="mus-heures">${d !== null && f !== null ? hmTexte(d) + ' → ' + hmTexte(f) : '—'}</span>`
+      + `<span class="mus-etat">${actif ? 'allumé' : 'éteint'}${conflit ? ' — ⚠ Session ' + conflit : ''}</span>`;
+    cont.appendChild(div);
+  }
+}
+
 async function setDatetime(entity, time) {
+  const mt = entity.match(/^input_datetime\.m34_session(\d)_(debut|fin)$/);
+  if (mt) {
+    const n = mt[1], quelle = mt[2];
+    const autre = lireHeureInput(`m34_s${n}_${quelle === 'debut' ? 'fin' : 'debut'}`);
+    const nouveau = hmMin(time);
+    const deb = quelle === 'debut' ? nouveau : autre;
+    const fin = quelle === 'fin' ? nouveau : autre;
+    if (sessionActifEtat(n)) {   // deux sessions ALLUMEES ne peuvent pas se chevaucher
+      const c = conflitSessionsDansPlage(n, deb, fin);
+      if (c) {
+        toast(`⛔ Impossible : chevauche la Session ${c.n} (${hmTexte(c.deb)} → ${hmTexte(c.fin)})`);
+        const srv = await apiGet(entity);
+        const el = document.getElementById(`m34_s${n}_${quelle}`);
+        if (el && srv && srv.state && srv.state !== 'unknown') el.value = srv.state.slice(0, 5);
+        return;
+      }
+    }
+    const [h, mi] = time.split(':');
+    await apiService('input_datetime', 'set_datetime', { entity_id: entity, time: `${h}:${mi}:00` });
+    toast('✓ Sauvegardé');
+    if (sessionActifEtat(n)) await couperMusiqueSousSession(n);   // TV prioritaire
+    marquerConflitsSessions();
+    chargerRecapMusique();
+    return;
+  }
   const [h, m] = time.split(':');
   await apiService('input_datetime', 'set_datetime', { entity_id: entity, time: `${h}:${m}:00` });
   toast('✓ Sauvegardé');
@@ -925,6 +1082,8 @@ async function refreshStates() {
   const anyPir = [pirC, pirCo, pirS].some(p => p && p.state === 'on');
   setHardwareDisabled('input_boolean.module_m17_lumiere_nuit', !anyPir);
 
+  marquerConflitsSessions();
+  await chargerRecapMusique();
   applyM08Dependency();
   await refreshApercu();
 }
