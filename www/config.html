@@ -979,20 +979,10 @@ async function setDatetime(entity, time) {
   const mt = entity.match(/^input_datetime\.m34_session(\d)_(debut|fin)$/);
   if (mt) {
     const n = mt[1], quelle = mt[2];
-    const autre = lireHeureInput(`m34_s${n}_${quelle === 'debut' ? 'fin' : 'debut'}`);
-    const nouveau = hmMin(time);
-    const deb = quelle === 'debut' ? nouveau : autre;
-    const fin = quelle === 'fin' ? nouveau : autre;
-    if (sessionActifEtat(n)) {   // deux sessions ALLUMEES ne peuvent pas se chevaucher
-      const c = conflitSessionsDansPlage(n, deb, fin);
-      if (c) {
-        toast(`⛔ Impossible : chevauche la Session ${c.n} (${hmTexte(c.deb)} → ${hmTexte(c.fin)})`);
-        const srv = await apiGet(entity);
-        const el = document.getElementById(`m34_s${n}_${quelle}`);
-        if (el && srv && srv.state && srv.state !== 'unknown') el.value = srv.state.slice(0, 5);
-        return;
-      }
-    }
+    // 2026-09-15 (choix utilisateur) : le blocage de modification a ete RETIRE —
+    // on doit pouvoir modifier les heures. Si la modification cree un chevauchement
+    // entre sessions allumees : le rouge s'affiche tout de suite et les sessions
+    // concernees sont coupees automatiquement (au plus tard au rafraichissement, 30 s).
     const [h, mi] = time.split(':');
     await apiService('input_datetime', 'set_datetime', { entity_id: entity, time: `${h}:${mi}:00` });
     toast('✓ Sauvegardé');
