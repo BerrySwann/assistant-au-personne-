@@ -823,7 +823,6 @@ async function choisirChaine(n, val) {
   await setSelect(`input_select.m34_session${n}_chaine`, val);
 }
 document.addEventListener('click', () => { if (_chaineOuverte !== null) fermerChaines(); });
-\
 /* ─── GARDE-FOU CHEVAUCHEMENT + RECAP MUSIQUE (2026-09-15) ─── */
 function hmMin(v) {
   if (!v || typeof v !== 'string' || v.indexOf(':') < 0) return null;
