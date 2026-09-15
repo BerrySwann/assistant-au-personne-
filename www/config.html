@@ -901,9 +901,35 @@ async function couperMusiqueSousSession(n) {
    rafraichissement) — coupe les creneaux musique ALLUMES qui chevauchent une
    session TV allumee, meme si le chevauchement existait deja. */
 async function couperConflitsExistants() {
+  await couperSessionsEnConflit();   // sessions TV entre elles : on coupe les DEUX
   for (const n of [1, 2, 3, 4]) {
     if (sessionActifEtat(n)) await couperMusiqueSousSession(n);
   }
+}
+/* 2026-09-15 (choix utilisateur) : chevauchement entre sessions TV ALLUMEES —
+   on coupe TOUTES les sessions concernees (les deux). L'utilisateur reactive
+   ensuite celle qu'il veut, une fois les horaires ajustes (garde-fou actif). */
+async function couperSessionsEnConflit() {
+  const actives = [1, 2, 3, 4].filter(n => sessionActifEtat(n));
+  const aCouper = new Set();
+  for (let i = 0; i < actives.length; i++) {
+    for (let j = i + 1; j < actives.length; j++) {
+      const pa = plageSession(actives[i]);
+      const pb = plageSession(actives[j]);
+      if (chevaucheHM(pa.deb, pa.fin, pb.deb, pb.fin)) {
+        aCouper.add(actives[i]);
+        aCouper.add(actives[j]);
+      }
+    }
+  }
+  if (!aCouper.size) return;
+  for (const n of aCouper) {
+    await apiService('input_boolean', 'turn_off', { entity_id: `input_boolean.m34_session${n}_actif` });
+    const cb = document.querySelector(`input[data-entity="input_boolean.m34_session${n}_actif"]`);
+    if (cb) cb.checked = false;
+  }
+  const liste = [...aCouper].join(' et ');
+  toast(`⛔ Session${aCouper.size > 1 ? 's' : ''} ${liste} coupée${aCouper.size > 1 ? 's' : ''} — chevauchement entre sessions TV`);
 }
 /* Recap lecture seule des 4 creneaux musique (bloc Videsio) : ligne rouge + gras si chevauche une session TV allumee. */
 async function chargerRecapMusique() {
