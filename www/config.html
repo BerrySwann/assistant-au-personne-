@@ -104,6 +104,7 @@ input:checked + .toggle-track:before { transform: translateX(18px); }
 .mus-item .mus-nom { color: var(--text); }
 .mus-item .mus-heures { color: rgb(180,180,180); font-size: 12px; }
 .mus-item .mus-etat { margin-left: auto; color: rgb(180,180,180); font-size: 12px; }
+.mus-item.eteint .mus-nom, .mus-item.eteint .mus-heures, .mus-item.eteint .mus-etat { color: var(--red); } /* 2026-09-15 (choix utilisateur) : ligne ROUGE quand le creneau est eteint (comme les interrupteurs) */
 .mus-item.conflit { border-color: var(--red); }
 .mus-item.conflit .mus-nom, .mus-item.conflit .mus-heures, .mus-item.conflit .mus-etat { color: var(--red); font-weight: 700; }
 .session-body { padding: 0 14px 12px; display: none; }
@@ -968,7 +969,7 @@ async function chargerRecapMusique() {
       }
     }
     const div = document.createElement('div');
-    div.className = 'mus-item' + (conflit ? ' conflit' : '');
+    div.className = 'mus-item' + (actif ? '' : ' eteint') + (conflit ? ' conflit' : '');
     div.innerHTML = `<span class="mus-nom">Créneau ${k}</span>`
       + `<span class="mus-heures">${d !== null && f !== null ? hmTexte(d) + ' → ' + hmTexte(f) : '—'}</span>`
       + `<span class="mus-etat">${actif ? 'allumé' : 'éteint'}${conflit ? ' — ⚠ Session ' + conflit : ''}</span>`;
