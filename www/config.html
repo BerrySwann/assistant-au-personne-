@@ -987,7 +987,10 @@ async function setDatetime(entity, time) {
     const [h, mi] = time.split(':');
     await apiService('input_datetime', 'set_datetime', { entity_id: entity, time: `${h}:${mi}:00` });
     toast('✓ Sauvegardé');
-    if (sessionActifEtat(n)) await couperMusiqueSousSession(n);   // TV prioritaire
+    // 2026-09-15 : reaction IMMEDIATE — si la modification cree un chevauchement
+    // (entre sessions, ou musique sous une session allumee), on coupe tout de
+    // suite au lieu d'attendre le rafraichissement (30 s).
+    await couperConflitsExistants();
     marquerConflitsSessions();
     chargerRecapMusique();
     return;
