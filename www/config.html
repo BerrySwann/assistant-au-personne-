@@ -958,8 +958,10 @@ async function chargerRecapMusique() {
     const f = hmMin(etat[`input_datetime.m32_creneau${k}_fin`]);
     let conflit = null;
     if (d !== null && f !== null && f > d) {
+      // 2026-09-15 (choix utilisateur) : conflit marque MEME si la session est off —
+      // le rouge + « ⚠ Session N » restent tant que les plages se chevauchent
+      // (N = numero de la session ou ca coince).
       for (const o of [1, 2, 3, 4]) {
-        if (!sessionActifEtat(o)) continue;
         const p = plageSession(o);
         if (chevaucheHM(d, f, p.deb, p.fin)) { conflit = o; break; }
       }
