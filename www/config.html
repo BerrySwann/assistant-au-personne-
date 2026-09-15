@@ -853,16 +853,28 @@ function conflitSessionsDansPlage(nExclu, deb, fin) {
   }
   return null;
 }
-/* Rouge + badge sur les sessions allumees qui se chevauchent entre elles (etat existant). */
+/* Renvoie une AUTRE session dont la plage chevauche [deb, fin] — qu'elle soit
+   allumee ou pas. Sert au MARQUAGE ROUGE : l'encadre + l'avertissement restent
+   tant que les plages se chevauchent, meme apres une coupure automatique
+   (ils disparaissent quand les horaires sont ajustes). */
+function conflitSessionsPlages(nExclu, deb, fin) {
+  for (const o of [1, 2, 3, 4]) {
+    if (String(o) === String(nExclu)) continue;
+    const p = plageSession(o);
+    if (chevaucheHM(deb, fin, p.deb, p.fin)) return { n: o, deb: p.deb, fin: p.fin };
+  }
+  return null;
+}
+/* Rouge + badge sur les sessions dont la plage chevauche celle d'une autre.
+   2026-09-15 (choix utilisateur) : on GARDE l'encadre rouge + l'avertissement tant
+   que les plages se chevauchent (meme apres la coupure automatique) — il disparait
+   quand les horaires sont ajustes. */
 function marquerConflitsSessions() {
   for (const n of [1, 2, 3, 4]) {
     const card = document.querySelector(`#tv-sessions .session-card[data-session="${n}"]`);
     if (!card) continue;
-    let conflit = null;
-    if (sessionActifEtat(n)) {
-      const p = plageSession(n);
-      conflit = conflitSessionsDansPlage(n, p.deb, p.fin);
-    }
+    const p = plageSession(n);
+    const conflit = conflitSessionsPlages(n, p.deb, p.fin);
     card.classList.toggle('conflit', !!conflit);
     let badge = card.querySelector('.session-conflit-badge');
     if (conflit) {
