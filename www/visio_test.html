@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f172a">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Visio — Prototype de test</title>
+<!--
+  ╭──────────────────────────────────────────────────────────────────────────╮
+  │      PROTOTYPE VISIO MAISON (WebRTC) — PAGE DE TEST (2026-08-15)         │
+  ╰──────────────────────────────────────────────────────────────────────────╯
+  ⚠️ PAGE DE TEST — ne fait partie d'aucun module, n'est référencée nulle part
+  (ni kiosk.html, ni aidant.html, ni un dashboard). À supprimer une fois la
+  décision prise.
+
+  POURQUOI : après l'abandon de Google Meet (impose un clic "Rejoindre" à la
+  personne aidée) puis de meet.jit.si (impose une authentification au premier
+  participant, impossible depuis un iframe embarqué — vérifié), l'utilisateur
+  a demandé une solution maison. Contrainte non négociable : elle doit rester
+  simple pour n'importe qui installe le système (pas de serveur, pas de nom de
+  domaine, pas d'ouverture de ports).
+
+  CE QUE CETTE PAGE VALIDE (les 3 vrais risques, avant d'écrire la vraie
+  fonctionnalité dans kiosk.html / aidant.html) :
+   1. Contexte sécurisé — les navigateurs REFUSENT la caméra/micro sur
+      http://<ip-locale>. C'est le blocage n°1 de tout projet de ce type.
+      Cette page le mesure et le dit clairement (window.isSecureContext).
+   2. Accès réel caméra + micro sur l'appareil testé.
+   3. Traversée de NAT — quel type de candidat ICE aboutit :
+        host  = même réseau local            -> aucun serveur nécessaire
+        srflx = trouvé via STUN public       -> aucun serveur nécessaire
+        relay = a dû passer par un TURN      -> un serveur relais est requis
+      C'est CE résultat qui dira si un aidant peut appeler depuis l'extérieur
+      (4G, autre maison) sans qu'on héberge quoi que ce soit.
+
+  SIGNALISATION : via les événements personnalisés du WebSocket Home Assistant
+  (`visio_test_signal`) — testé en direct le 15/08, un SDP de 4 Ko passe
+  intact. Aucun serveur supplémentaire à installer, c'est tout l'intérêt.
+  ⚠️ LIMITE CONNUE : `subscribe_events`/`fire_event` sont réservés aux comptes
+  ADMIN. Un aidant non-admin (ex: le compte "Anîs") ne pourra pas utiliser ce
+  canal tel quel. Solution prévue pour la version finale : passer par
+  shell_command (déjà prouvé en non-admin pour l'upload photo, gros volumes).
+  Ce prototype se teste donc avec le compte admin des deux côtés.
+
+  UTILISATION : ouvrir cette page sur les DEUX appareils (ex: le PC kiosk et
+  le téléphone), cliquer "Attendre un appel" sur l'un, "Appeler" sur l'autre.
+-->
+<style>
+:root {
+  --bg:#0f172a; --surface:#1e293b; --border:rgba(255,255,255,0.08);
+  --text:#f1f5f9; --text2:#94a3b8; --text3:#64748b;
+  --green:#22c55e; --red:#ef4444; --amber:#f59e0b; --purple:#8b5cf6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:14px;max-width:900px;margin:0 auto}
+h1{font-size:16px;margin-bottom:2px}
+.sub{font-size:11px;color:var(--text3);margin-bottom:14px}
+
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px}
+.panel-title{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);margin-bottom:8px}
+
+.check{display:flex;align-items:flex-start;gap:8px;font-size:12px;padding:4px 0;line-height:1.45}
+.check .ico{flex-shrink:0;width:16px}
+.check .label{flex:1}
+.ok{color:var(--green)} .ko{color:var(--red)} .warn{color:var(--amber)} .pend{color:var(--text3)}
+
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button{border:none;border-radius:9px;padding:11px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#fff}
+button:disabled{opacity:.4;cursor:not-allowed}
+.b-call{background:var(--green)} .b-wait{background:var(--purple)} .b-stop{background:var(--red)}
+
+.videos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+video{width:100%;background:#000;border-radius:10px;aspect-ratio:4/3;object-fit:cover}
+.vlabel{font-size:10px;color:var(--text3);text-align:center;margin-top:3px}
+
+#log{background:#0b1220;border:1px solid var(--border);border-radius:10px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.5;height:190px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+.verdict{font-size:12px;line-height:1.5;padding:10px;border-radius:9px;margin-top:8px;display:none}
+.verdict.show{display:block}
+.v-ok{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35)}
+.v-ko{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35)}
+.v-warn{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35)}
+</style>
+</head>
+<body>
+
+<h1>📹 Prototype visio — page de test</h1>
+<div class="sub">Valide caméra + connexion avant de toucher au kiosk et à l'interface aidant. Ouvrir sur 2 appareils.</div>
+
+<div class="panel">
+  <div class="panel-title">1 · Diagnostic de l'appareil</div>
+  <div class="check"><span class="ico pend" id="i-secure">…</span><span class="label" id="l-secure">Contexte sécurisé (HTTPS) — requis pour la caméra</span></div>
+  <div class="check"><span class="ico pend" id="i-cam">…</span><span class="label" id="l-cam">Accès caméra + micro</span></div>
+  <div class="check"><span class="ico pend" id="i-ws">…</span><span class="label" id="l-ws">Signalisation Home Assistant (WebSocket)</span></div>
+  <div class="check"><span class="ico pend" id="i-ice">…</span><span class="label" id="l-ice">Connexion au correspondant (traversée de NAT)</span></div>
+  <div class="verdict" id="verdict"></div>
+</div>
+
+<div class="panel">
+  <div class="panel-title">2 · Test</div>
+  <div class="btns">
+    <button class="b-wait" id="btn-wait" onclick="startWaiting()">📥 Attendre un appel</button>
+    <button class="b-call" id="btn-call" onclick="startCalling()">📞 Appeler</button>
+    <button class="b-stop" id="btn-stop" onclick="hangUp()" disabled>📴 Raccrocher</button>
+  </div>
+</div>
+
+<div class="videos">
+  <div><video id="v-local" autoplay muted playsinline></video><div class="vlabel">Moi</div></div>
+  <div><video id="v-remote" autoplay playsinline></video><div class="vlabel">Correspondant</div></div>
+</div>
+
+<div class="panel">
+  <div class="panel-title">3 · Journal</div>
+  <div id="log"></div>
+</div>
+
+<script>
+'use strict';
+
+const BASE = window.location.origin;
+const SIGNAL_EVENT = 'visio_test_signal';
+// Identifiant unique de CETTE page — sert uniquement à ignorer ses propres
+// messages de signalisation (tout le monde reçoit tout via le bus HA).
+const MY_ID = Math.random().toString(36).slice(2, 10);
+
+// STUN publics de Google : utilisés pour découvrir l'adresse publique quand
+// les deux correspondants ne sont pas sur le même réseau. Gratuits, sans
+// compte, sans installation — c'est le minimum vital. Ils ne relaient AUCUNE
+// image/son (contrairement à un TURN), ils servent juste à la découverte.
+const ICE_SERVERS = [
+  { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
+];
+
+let ws = null, pc = null, localStream = null;
+let wsMsgId = 1, isCaller = false, running = false;
+const candidateTypesSeen = new Set();
+
+/* ── JOURNAL ─────────────────────────────────────────── */
+function log(msg, cls) {
+  const el = document.getElementById('log');
+  const t = new Date().toLocaleTimeString('fr-FR');
+  const span = document.createElement('div');
+  if (cls) span.className = cls;
+  span.textContent = `[${t}] ${msg}`;
+  el.appendChild(span);
+  el.scrollTop = el.scrollHeight;
+}
+function setCheck(id, state, text) {
+  const ico = document.getElementById('i-' + id);
+  const lbl = document.getElementById('l-' + id);
+  const marks = { ok: '✅', ko: '❌', warn: '⚠️', pend: '…' };
+  ico.textContent = marks[state] || '…';
+  ico.className = 'ico ' + state;
+  if (text) lbl.textContent = text;
+}
+function verdict(cls, html) {
+  const v = document.getElementById('verdict');
+  v.className = 'verdict show ' + cls;
+  v.innerHTML = html;
+}
+
+/* ── TOKEN (même logique que les autres pages du projet) ── */
+function haSessionToken() {
+  try {
+    const raw = localStorage.getItem('hassTokens');
+    if (!raw) return '';
+    const t = JSON.parse(raw);
+    return (t && t.access_token) ? t.access_token : '';
+  } catch (e) { return ''; }
+}
+function currentToken() { return haSessionToken() || localStorage.getItem('ha_token') || ''; }
+
+/* ── VÉRIF 1 : CONTEXTE SÉCURISÉ ──────────────────────────
+   Le point de blocage n°1. getUserMedia() est refusé par tous les
+   navigateurs modernes hors HTTPS (localhost excepté). Inutile d'aller plus
+   loin si ce test échoue : aucune astuce de code ne le contourne. */
+function checkSecureContext() {
+  if (window.isSecureContext) {
+    setCheck('secure', 'ok', `Contexte sécurisé ✔ (${location.protocol}//${location.host})`);
+    return true;
+  }
+  setCheck('secure', 'ko', `NON sécurisé — ${location.protocol}//${location.host} : la caméra sera refusée`);
+  verdict('v-ko',
+    "<b>Bloquant :</b> cette page est servie en HTTP sur une adresse locale, " +
+    "donc le navigateur interdit l'accès à la caméra. Il faut y accéder via " +
+    "une URL <b>HTTPS</b> (Nabu Casa) pour que le test soit valable. " +
+    "Ce n'est pas contournable par le code — ça vaut pour Meet, Jitsi et toute solution maison.");
+  return false;
+}
+
+/* ── VÉRIF 2 : CAMÉRA ─────────────────────────────────────
+   2026-08-15 : le PC de test n'a ni caméra ni micro. Ce n'est pas bloquant
+   pour valider la chaîne — l'écran kiosk peut très bien se contenter de
+   RECEVOIR l'image de l'aidant (c'est même le besoin exprimé : "voir ma
+   trombine dans le kiosk"). On dégrade donc proprement au lieu d'abandonner :
+     1. vidéo + audio   (cas nominal)
+     2. audio seul      (pas de caméra mais un micro)
+     3. réception seule (aucun périphérique) -> transceivers en 'recvonly'
+   ⚠️ Pour le déploiement réel, l'écran kiosk aura besoin d'une caméra si on
+   veut que l'aidant VOIE la personne aidée — question matérielle, pas
+   logicielle. */
+let receiveOnly = false;
+
+async function getMedia() {
+  // On regarde d'abord ce qui EXISTE réellement sur la machine. Sans ça, on
+  // ne distingue pas "aucun micro branché" (normal sur un PC fixe, il faut
+  // continuer en réception seule) d'une "permission refusée par
+  // l'utilisateur" (anormal, et corrigeable) : Chrome renvoie parfois
+  // NotAllowedError dans les deux cas.
+  let hasCam = false, hasMic = false;
+  try {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    hasCam = devs.some(d => d.kind === 'videoinput');
+    hasMic = devs.some(d => d.kind === 'audioinput');
+    log(`Périphériques détectés : caméra=${hasCam ? 'oui' : 'non'}, micro=${hasMic ? 'oui' : 'non'}`);
+  } catch (e) {
+    log('Énumération des périphériques impossible : ' + e, 'warn');
+  }
+
+  if (!hasCam && !hasMic) {
+    receiveOnly = true; localStream = null;
+    setCheck('cam', 'warn', 'Aucun périphérique sur cet appareil — réception seule');
+    log('Ni caméra ni micro : passage en réception seule (suffisant pour recevoir l\'image).', 'warn');
+    return true;
+  }
+
+  const tries = [];
+  if (hasCam) tries.push({ c: { video: true, audio: hasMic }, label: hasMic ? 'caméra + micro' : 'caméra seule' });
+  if (hasMic) tries.push({ c: { video: false, audio: true }, label: 'micro seul' });
+
+  for (const t of tries) {
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia(t.c);
+      document.getElementById('v-local').srcObject = localStream;
+      setCheck('cam', t.c.video ? 'ok' : 'warn', t.label + ' OK');
+      log('Périphériques obtenus : ' + t.label);
+      return true;
+    } catch (e) {
+      log('Échec sur ' + t.label + ' (' + (e && e.name ? e.name : e) + ')', 'warn');
+    }
+  }
+
+  // Des périphériques existent mais aucun n'a pu être ouvert : le plus
+  // probable est un refus de permission — on le signale (c'est corrigeable),
+  // sans bloquer le test, qui reste utile en réception seule.
+  receiveOnly = true; localStream = null;
+  setCheck('cam', 'ko', 'Périphériques présents mais inaccessibles (permission ?)');
+  verdict('v-warn',
+    "<b>Caméra/micro présents mais refusés.</b> Vérifie l'autorisation du site dans " +
+    "le navigateur (icône à gauche de l'adresse). Le test continue en réception " +
+    "seule : tu pourras quand même voir l'image de l'autre appareil.");
+  return true;
+}
+
+/* ── VÉRIF 3 : SIGNALISATION VIA HOME ASSISTANT ───────────
+   Astuce centrale du prototype : les deux correspondants sont DÉJÀ connectés
+   et authentifiés à Home Assistant. On se sert donc du bus d'événements de HA
+   comme serveur de signalisation — c'est habituellement la brique qu'il faut
+   héberger soi-même. Testé en direct : un SDP de 4 Ko passe intact.
+   ⚠️ Réservé aux comptes admin (voir en-tête du fichier). */
+function connectSignaling() {
+  return new Promise((resolve, reject) => {
+    const tok = currentToken();
+    if (!tok) { setCheck('ws', 'ko', 'Aucun token HA trouvé sur cet appareil'); return reject(new Error('no token')); }
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${proto}//${location.host}/api/websocket`);
+    let authed = false;
+    // 2026-08-15 (correctif) : chaque fire_event reçoit lui aussi un accusé
+    // "result: success", qui était compté à tort comme une nouvelle
+    // connexion — le journal se remplissait de "Signalisation prête" et
+    // noyait les vraies informations. On ne regarde donc QUE l'accusé de
+    // l'abonnement (subscribe_events), identifié par son id.
+    let subId = null;
+
+    ws.onmessage = async (ev) => {
+      let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+
+      if (m.type === 'auth_required') {
+        ws.send(JSON.stringify({ type: 'auth', access_token: tok }));
+      } else if (m.type === 'auth_ok') {
+        authed = true;
+        subId = wsMsgId++;
+        ws.send(JSON.stringify({ id: subId, type: 'subscribe_events', event_type: SIGNAL_EVENT }));
+      } else if (m.type === 'auth_invalid') {
+        setCheck('ws', 'ko', 'Token HA refusé');
+        reject(new Error('auth_invalid'));
+      } else if (m.type === 'result' && !m.success && authed && m.id === subId) {
+        // Cas typique : compte non-admin -> "unauthorized" sur subscribe_events
+        const code = m.error && m.error.code;
+        setCheck('ws', 'ko', 'Signalisation refusée par HA (' + code + ')');
+        log('Erreur HA : ' + JSON.stringify(m.error), 'ko');
+        if (code === 'unauthorized') {
+          verdict('v-warn',
+            "<b>Compte non-admin détecté.</b> Le canal de signalisation utilisé ici " +
+            "(événements WebSocket) est réservé aux administrateurs. Attendu et déjà " +
+            "documenté — la version finale utilisera <code>shell_command</code>, " +
+            "qui fonctionne en non-admin (comme l'envoi de photos). " +
+            "Refais ce test avec le compte admin.");
+        }
+        reject(new Error(code || 'ws error'));
+      } else if (m.type === 'result' && m.success && authed && m.id === subId) {
+        setCheck('ws', 'ok', 'Signalisation Home Assistant connectée');
+        log('Signalisation prête (via le bus d\'événements HA).');
+        resolve();
+      } else if (m.type === 'event' && m.event && m.event.event_type === SIGNAL_EVENT) {
+        const d = m.event.data || {};
+        if (d.from === MY_ID) return;          // ignore ses propres messages
+        await onSignal(d);
+      }
+    };
+    ws.onerror = () => { setCheck('ws', 'ko', 'WebSocket injoignable'); reject(new Error('ws error')); };
+    ws.onclose = () => { if (running) log('Signalisation fermée.', 'warn'); };
+  });
+}
+
+function sendSignal(data) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({
+    id: wsMsgId++, type: 'fire_event', event_type: SIGNAL_EVENT,
+    event_data: Object.assign({ from: MY_ID }, data)
+  }));
+}
+
+/* ── WEBRTC ───────────────────────────────────────────── */
+function createPeer() {
+  pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+  if (localStream) {
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+    // Si on n'a que le micro, il faut quand même déclarer vouloir RECEVOIR
+    // la vidéo du correspondant — sinon la négociation ne prévoit aucun
+    // flux vidéo et on ne verrait rien.
+    if (localStream.getVideoTracks().length === 0) {
+      pc.addTransceiver('video', { direction: 'recvonly' });
+    }
+  } else {
+    // Réception seule : aucun flux à envoyer, mais on annonce explicitement
+    // qu'on veut recevoir l'image et le son de l'autre côté.
+    pc.addTransceiver('video', { direction: 'recvonly' });
+    pc.addTransceiver('audio', { direction: 'recvonly' });
+  }
+
+  pc.ontrack = (e) => {
+    document.getElementById('v-remote').srcObject = e.streams[0];
+    log('Flux du correspondant reçu.', 'ok');
+  };
+
+  pc.onicecandidate = (e) => {
+    if (!e.candidate) return;
+    // Le "type" du candidat révèle ce dont on a besoin en infrastructure :
+    // host = réseau local, srflx = STUN suffit, relay = un TURN est requis.
+    const type = (e.candidate.candidate.match(/ typ (\w+)/) || [])[1];
+    if (type && !candidateTypesSeen.has(type)) {
+      candidateTypesSeen.add(type);
+      log('Candidat réseau découvert : ' + type);
+    }
+    sendSignal({ kind: 'ice', candidate: e.candidate.toJSON() });
+  };
+
+  pc.onconnectionstatechange = async () => {
+    log('État de la connexion : ' + pc.connectionState);
+    if (pc.connectionState === 'connected') {
+      setCheck('ice', 'ok', 'Connecté au correspondant');
+      await reportPath();
+    } else if (pc.connectionState === 'failed') {
+      setCheck('ice', 'ko', 'Connexion impossible (NAT non traversé)');
+      verdict('v-ko',
+        "<b>La connexion directe a échoué.</b> Les deux appareils n'ont pas réussi " +
+        "à se joindre, malgré le STUN public. C'est le cas typique en 4G " +
+        "(réseau opérateur fermé). Pour couvrir ce cas il faudrait un serveur " +
+        "relais TURN — donc de l'infrastructure à héberger.");
+    }
+  };
+}
+
+/* Lit le chemin réellement emprunté par la connexion — c'est LE résultat
+   qui décide si un aidant peut appeler de l'extérieur sans qu'on héberge
+   quoi que ce soit. */
+async function reportPath() {
+  try {
+    const stats = await pc.getStats();
+    let local = null, remote = null;
+    stats.forEach(r => {
+      if (r.type === 'candidate-pair' && r.state === 'succeeded' && r.nominated) {
+        stats.forEach(c => {
+          if (c.id === r.localCandidateId) local = c;
+          if (c.id === r.remoteCandidateId) remote = c;
+        });
+      }
+    });
+    if (!local) { log('Chemin réseau : non déterminé.'); return; }
+    const lt = local.candidateType, rt = remote ? remote.candidateType : '?';
+    log(`Chemin retenu : ${lt} ⇄ ${rt}`, 'ok');
+
+    if (lt === 'relay' || rt === 'relay') {
+      verdict('v-warn',
+        "<b>Ça marche, mais via un relais TURN.</b> Cette connexion n'a pas pu " +
+        "se faire en direct. En l'état, un aidant dans cette situation réseau " +
+        "aurait besoin d'un serveur TURN hébergé.");
+    } else if (lt === 'host' && rt === 'host') {
+      verdict('v-ok',
+        "<b>Connexion directe en réseau local.</b> Aucun serveur nécessaire. " +
+        "⚠️ Ce test ne dit encore rien du cas \"aidant à l'extérieur\" : " +
+        "refais-le avec un appareil en 4G (données mobiles, Wi-Fi coupé).");
+    } else {
+      verdict('v-ok',
+        "<b>Connexion directe réussie via STUN public.</b> C'est le meilleur " +
+        "résultat possible : la visio maison fonctionne entre deux réseaux " +
+        "différents <b>sans aucun serveur à héberger</b>.");
+    }
+  } catch (e) { log('Lecture des statistiques impossible : ' + e); }
+}
+
+async function onSignal(d) {
+  try {
+    if (d.kind === 'offer') {
+      if (isCaller) return;                 // l'appelant ignore les offres
+      log('Appel entrant reçu.');
+      if (!pc) createPeer();
+      await pc.setRemoteDescription({ type: 'offer', sdp: d.sdp });
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      sendSignal({ kind: 'answer', sdp: answer.sdp });
+      log('Réponse envoyée.');
+    } else if (d.kind === 'answer') {
+      if (!isCaller || !pc || pc.currentRemoteDescription) return;
+      await pc.setRemoteDescription({ type: 'answer', sdp: d.sdp });
+      log('Réponse du correspondant acceptée.');
+    } else if (d.kind === 'ice' && d.candidate) {
+      if (pc) await pc.addIceCandidate(d.candidate).catch(() => {});
+    } else if (d.kind === 'bye') {
+      log('Le correspondant a raccroché.', 'warn');
+      hangUp(true);
+    }
+  } catch (e) { log('Erreur de signalisation : ' + e, 'ko'); }
+}
+
+/* ── PARCOURS DE TEST ─────────────────────────────────── */
+async function prepare() {
+  if (!checkSecureContext()) return false;
+  if (!await getMedia()) return false;
+  try { await connectSignaling(); } catch (e) { return false; }
+  running = true;
+  document.getElementById('btn-call').disabled = true;
+  document.getElementById('btn-wait').disabled = true;
+  document.getElementById('btn-stop').disabled = false;
+  return true;
+}
+
+async function startWaiting() {
+  isCaller = false;
+  if (!await prepare()) return;
+  createPeer();
+  setCheck('ice', 'pend', "En attente d'un appel…");
+  log('Prêt. Lance "Appeler" depuis l\'autre appareil.');
+}
+
+async function startCalling() {
+  isCaller = true;
+  if (!await prepare()) return;
+  createPeer();
+  setCheck('ice', 'pend', 'Appel en cours…');
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  sendSignal({ kind: 'offer', sdp: offer.sdp });
+  log('Appel envoyé, en attente de réponse…');
+}
+
+function hangUp(fromRemote) {
+  if (!fromRemote) sendSignal({ kind: 'bye' });
+  running = false;
+  if (pc) { pc.close(); pc = null; }
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+  document.getElementById('v-local').srcObject = null;
+  document.getElementById('v-remote').srcObject = null;
+  document.getElementById('btn-call').disabled = false;
+  document.getElementById('btn-wait').disabled = false;
+  document.getElementById('btn-stop').disabled = true;
+  setCheck('ice', 'pend', 'Connexion au correspondant (traversée de NAT)');
+  log('Terminé.');
+}
+
+/* Diagnostic immédiat au chargement : on annonce tout de suite le point
+   bloquant n°1 sans attendre que l'utilisateur clique. */
+checkSecureContext();
+log('Page de test chargée. Identifiant de session : ' + MY_ID);
+if (!currentToken()) log("Aucun token Home Assistant trouvé — ouvre d'abord l'interface aidant sur cet appareil.", 'warn');
+</script>
+
+</body>
+</html>
