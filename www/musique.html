@@ -65,6 +65,7 @@
   .toggle-track { position: absolute; inset: 0; border-radius: 22px; background: var(--text3); transition: background 0.2s; pointer-events: none; }
   .toggle-track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left 0.2s; }
   .toggle input:checked + .toggle-track { background: var(--green); }
+  .creneau-card .toggle-track { background: var(--red); } /* 2026-09-15 (choix utilisateur) : interrupteurs des creneaux — ROUGE quand eteint, vert quand allume */
   .toggle input:checked + .toggle-track::after { left: 21px; }
 
   /* ── CHAMPS / BOUTONS ────────────────────────────────── */

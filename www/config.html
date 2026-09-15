@@ -70,6 +70,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 .toggle-track { position: absolute; inset: 0; border-radius: 22px; background: var(--text3); transition: background 0.2s; }
 .toggle-track:before { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: white; left: 3px; top: 3px; transition: transform 0.2s; }
 input:checked + .toggle-track { background: var(--green); }
+.session-card .toggle-track { background: var(--red); } /* 2026-09-15 (choix utilisateur) : interrupteurs des sessions — ROUGE quand eteint, vert quand allume */
 input:checked + .toggle-track:before { transform: translateX(18px); }
 .mod-card.color-amber input:checked + .toggle-track { background: var(--amber); }
 .mod-card.color-purple input:checked + .toggle-track { background: var(--purple); }
