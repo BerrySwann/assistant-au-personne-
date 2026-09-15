@@ -382,6 +382,24 @@ async function setHeure(n, quelle, valeur) {
   afficherCreneaux();
 }
 
+/* 2026-09-15 : regle TV prioritaire appliquee au chargement — coupe les
+   creneaux musique ALLUMES qui chevauchent une session TV allumee. */
+async function couperCreneauxEnConflit() {
+  const coupes = [];
+  for (const c of CRENEAUX) {
+    if (!c.actif) continue;
+    const t = conflitDe(c);
+    if (!t) continue;
+    await apiPost('/api/services/input_boolean/turn_off', { entity_id: `input_boolean.m32_creneau${c.n}_actif` });
+    c.actif = false;
+    coupes.push(c.n);
+  }
+  if (coupes.length) {
+    afficherCreneaux();
+    showToast(`⛔ TV prioritaire : créneau${coupes.length > 1 ? 's' : ''} ${coupes.join(', ')} musique coupé${coupes.length > 1 ? 's' : ''}`);
+  }
+}
+
 /* ─── LIENS (ajout / suppression) ─────────────────────── */
 async function lireListe() {
   const r = await apiPost('/api/services/shell_command/m32_musique_liens?return_response', { action: 'list' });
@@ -447,6 +465,7 @@ async function supprimerLien() {
   document.getElementById('page-content').style.display = 'block';
   await chargerTV();
   await chargerCreneaux();
+  await couperCreneauxEnConflit();
 })();
 </script>
 </body>

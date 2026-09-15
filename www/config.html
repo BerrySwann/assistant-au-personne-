@@ -897,6 +897,14 @@ async function couperMusiqueSousSession(n) {
   for (const k of coupes) await apiService('input_boolean', 'turn_off', { entity_id: `input_boolean.m32_creneau${k}_actif` });
   toast(`⛔ Créneau${coupes.length > 1 ? 's' : ''} musique ${coupes.join(' et ')} coupé${coupes.length > 1 ? 's' : ''} — TV prioritaire (Session ${n})`);
 }
+/* 2026-09-15 : regle TV prioritaire appliquee en continu (chargement + chaque
+   rafraichissement) — coupe les creneaux musique ALLUMES qui chevauchent une
+   session TV allumee, meme si le chevauchement existait deja. */
+async function couperConflitsExistants() {
+  for (const n of [1, 2, 3, 4]) {
+    if (sessionActifEtat(n)) await couperMusiqueSousSession(n);
+  }
+}
 /* Recap lecture seule des 4 creneaux musique (bloc Videsio) : ligne rouge + gras si chevauche une session TV allumee. */
 async function chargerRecapMusique() {
   const cont = document.getElementById('recap-musique');
@@ -1082,6 +1090,7 @@ async function refreshStates() {
   setHardwareDisabled('input_boolean.module_m17_lumiere_nuit', !anyPir);
 
   marquerConflitsSessions();
+  await couperConflitsExistants();
   await chargerRecapMusique();
   applyM08Dependency();
   await refreshApercu();
